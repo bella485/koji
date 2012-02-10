@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
-%define baserelease 1
+%define baserelease 13.brew
 #build with --define 'testbuild 1' to have a timestamp appended to release
 %if "x%{?testbuild}" == "x1"
 %define release %{baserelease}.%(date +%%Y%%m%%d.%%H%%M.%%S)
@@ -48,6 +48,7 @@ License: LGPLv2
 Requires: %{name} = %{version}-%{release}
 Requires: %{name}-hub = %{version}-%{release}
 Requires: python-qpid >= 0.7
+Requires: python-simplejson
 %if 0%{?rhel} == 5
 Requires: python-ssl
 %endif
@@ -71,7 +72,11 @@ Requires(pre): /usr/sbin/useradd
 Requires: /usr/bin/cvs
 Requires: /usr/bin/svn
 Requires: /usr/bin/git
+Requires: rpm-build
+Requires: redhat-rpm-config
 Requires: python-cheetah
+Requires: pykickstart
+Requires: pycdio
 %if 0%{?rhel} == 5
 Requires: createrepo >= 0.4.11-2
 Requires: python-hashlib
@@ -235,6 +240,50 @@ if [ $1 = 0 ]; then
 fi
 
 %changelog
+* Fri Feb 19 2012 Mike McLean <mikem at redhat.com> - 1.6.0-13.brew
+- new approach for web themes
+
+* Fri Dec  9 2011 Mike McLean <mikem at redhat.com> - 1.6.0-12
+- koji wrapper-rpm --create-build [mikeb]
+- moshimoshi command [aj]
+- fix querying builds by volume
+
+* Thu Nov  3 2011 Mike McLean <mikem at redhat.com> - 1.6.0-11
+- rebase to upstream HEAD (f1682ab7)
+
+* Thu Sep 15 2011 Mike McLean <mikem at redhat.com> - 1.6.0-10
+- kojira improvements
+- fix event condition in get_tag
+- more hub debug logging changes
+- use RawConfigParser on hub
+
+* Tue Sep  6 2011 Mike Bonnet <mikeb@redhat.com> - 1.6.0-9
+- add extra debug logging to the xmlrpc request handler
+
+* Fri Jun 24 2011 Mike McLean <mikem at redhat.com> - 1.6.0-8
+- ensure parent dir when moving builds across volumes
+
+* Mon May 23 2011 Michael Bonnet <mikeb@redhat.com> - 1.6.0-7
+- use the new updateArchiveList() interface for Maven builds
+
+* Fri May 20 2011 Mike McLean <mikem at redhat.com> - 1.6.0-6
+- handle rpm and archive tracking in buildroots separately
+- resource limit config for kojihub
+
+* Thu Apr 21 2011 Mike McLean <mikem at redhat.com> - 1.6.0-5
+- fix source test for win builds
+- avoid ambiguous column references in certain history queries
+
+* Thu Apr 7 2011 Mike McLean <mikem at redhat.com> - 1.6.0-4
+- rebase to upstream HEAD (8a28e6d)
+
+* Thu Feb 24 2011 Mike McLean <mikem at redhat.com> - 1.6.0-3
+- make the list of files ignored in the local Maven repo configurable
+- add files created by Maven 3 to the default ignore list
+
+* Mon Jan 17 2011 Mike McLean <mikem at redhat.com> - 1.6.0-2
+- Pull in changes for automatic jar signing
+
 * Thu Dec 16 2010 Mike McLean <mikem at redhat.com> - 1.6.0-1
 - extend debuginfo check to cover newer formats
 - ignore tasks that TaskManager does not have a handler for
