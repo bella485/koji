@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
-%define baserelease 13.brew
+%define baserelease 14.brew
 #build with --define 'testbuild 1' to have a timestamp appended to release
 %if "x%{?testbuild}" == "x1"
 %define release %{baserelease}.%(date +%%Y%%m%%d.%%H%%M.%%S)
@@ -240,6 +240,13 @@ if [ $1 = 0 ]; then
 fi
 
 %changelog
+* Wed Jun  6 2012 Mike McLean <mikem at redhat.com> - 1.6.0-14.brew
+- kojivmd: avoid filename collisions when downloading files
+- maven: consider deleted builds when calculating the new release
+- allow setting rlimits in kojid
+- avoid document.height in watchlogs.js (not supported in modern browsers)
+- exclude SCM metadata dirs from the sources and patches zip files
+
 * Fri Feb 19 2012 Mike McLean <mikem at redhat.com> - 1.6.0-13.brew
 - new approach for web themes
 
