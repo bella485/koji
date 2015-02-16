@@ -744,7 +744,15 @@ def application(environ, start_response):
                 paramstr = repr(getattr(context, 'params', 'UNKNOWN'))
                 if len(paramstr) > 120:
                     paramstr = paramstr[:117] + "..."
-                h.logger.warning("Memory usage of process %d grew from %d KiB to %d KiB (+%d KiB) processing request %s with args %s" % (os.getpid(), memory_usage_at_start, memory_usage_at_end, memory_usage_at_end - memory_usage_at_start, context.method, paramstr))
+                method = getattr(context, 'method', 'UNKNOWN')
+                h.logger.warning(
+                    "Memory usage of process %d grew from %d KiB to "
+                    "%d KiB (+%d KiB) processing request %s with args %s" % (
+                        os.getpid(), memory_usage_at_start,
+                        memory_usage_at_end,
+                        memory_usage_at_end - memory_usage_at_start,
+                        method, paramstr)
+                )
             h.logger.debug("Returning %d bytes after %f seconds", len(response),
                         time.time() - start)
         finally:
