@@ -62,7 +62,6 @@ def _(args):
     """Stub function for translation"""
     return args
 
-
 class SubOption(object):
     """A simple container to help with tracking ConfigParser data"""
     pass
@@ -140,6 +139,8 @@ def get_options():
                       help=_("Rules: list of package names to never replace"))
     parser.add_option("--tag-build", action="store_true", default=False,
                       help=_("tag sucessful builds into the tag we are building, default is to not tag"))
+    parser.add_option("--top-broken", action="store_true", default=False,
+                      help=_("switch to different output which shows failed builds and how many other packages they block"))
     parser.add_option("--arches",
                       help=_("arches to use when creating tags"))
     parser.add_option("--priority", type="int", default=5,
@@ -843,7 +844,10 @@ class BuildTracker(object):
         self.checkJobs(tag)
         self.rebuildMissing()
         if len(self.builds) % 50 == 0:
-            self.report()
+            if options.top_broken: 
+               self.report_topbroken()
+            else:
+               self.report()
         return build
 
     def scanTag(self, tag):
@@ -1105,6 +1109,81 @@ class BuildTracker(object):
         task_id = session.build(src, None, opts={'repo_id': repo_id}, priority=options.priority)
         return task_id
 
+    def report_topbroken(self):
+        brokenpackage = {}
+        thispackageblocks = {}
+        self.report_brief()
+        for state in ('broken', 'noroot', 'blocked'):
+            builds = self.state_idx[state].values()
+            not_replaced = [b for b in builds if not b.substitute]
+            n_replaced = len(builds) - len(not_replaced)
+            for b in not_replaced:
+                if not b.nvr in brokenpackage:
+                    brokenpackage.update({b.nvr:[b.nvr]})
+                else:
+                    brokenpackage[b.nvr].append(b.nvr)
+        for build in self.state_idx['brokendeps'].values():
+            for dep_id in build.deps:
+                dep = self.builds.get(dep_id)
+                if not dep:
+                    #unscanned
+                    #possible because we short circuit the earlier scan on problems
+                    #we don't really know if this one is a problem or not, so just
+                    #skip it.
+                    continue
+                if dep.state in ('common', 'pending', 'missing'):
+                    #not a problem
+                    continue
+                nvr = dep.nvr
+                if dep.substitute:
+                    dep2 = self.getSubstitute(dep.substitute)
+                    if dep2:
+                        #we have a substitution, so not a problem
+                        continue
+                    #otherwise the substitution is the problem
+                    nvr = dep.substitute
+                if dep.state == 'broken':
+                    brokenpackage[dep.nvr].append(build.nvr)
+                elif dep.state == 'brokendeps':
+                    found = 0;
+                    for i in brokenpackage:
+                        if dep.nvr in brokenpackage[i]:
+                           brokenpackage[i] += [build.nvr]
+                           found = 1
+                    if found == 0:
+                        if not dep.nvr in thispackageblocks:
+                            thispackageblocks.update({dep.nvr:[build.nvr]})
+                        else:
+                            if len(thispackageblocks[dep.nvr]) > 100:
+                                thispackageblocks[dep.nvr].append('')
+                            else:
+                                thispackageblocks[dep.nvr].append(build.nvr)
+        # group all brokendeps
+        for package in thispackageblocks:
+            for blockedpackage in thispackageblocks:
+                if package in thispackageblocks[blockedpackage]:
+                   thispackageblocks[blockedpackage] += thispackageblocks[package]
+        #print(thispackageblocks: %s" % thispackageblocks
+        for package in thispackageblocks:
+            for blockedpackage in brokenpackage:
+                if package in brokenpackage[blockedpackage]:
+                    if len(brokenpackage[blockedpackage]) > 500:
+                        continue
+                    else:
+                        brokenpackage[blockedpackage] += thispackageblocks[package]
+        for package in brokenpackage:
+# Remove duplicates, use 'set' as order isn't important:
+            brokenpackage[package] = set(brokenpackage[package])
+# enable for debugging only, otherwise log files can get huge:
+#            print "brokenpackage: %s %s" % (package, brokenpackage[package])
+        order = [(len(c), nvr) for (nvr, c) in brokenpackage.iteritems()]
+        if order:
+            order.sort()
+            order.reverse()
+            print "-- top broken packages --"
+            for (c, nvr) in order[:20]:
+                print "%s (%i)" % (nvr, c)
+
     def report(self):
         print "-- %s --" % time.asctime()
         self.report_brief()
@@ -1296,7 +1375,10 @@ def main(args):
         else:
             print "Working on tag %s" % (tag)
             tracker.scanTag(tag)
-    tracker.report()
+    if options.top_broken: 
+        tracker.report_topbroken()
+    else:
+        tracker.report()
     tracker.runRebuilds(tag)
 
 
