@@ -35,6 +35,8 @@ class ServerError(Exception):
 class ServerRedirect(ServerError):
     """Used to handle redirects"""
 
+class NotAuthorized(ServerError):
+    """Used to handle unauthorized"""
 
 class WSGIWrapper(object):
     """A very thin wsgi compat layer for mod_python

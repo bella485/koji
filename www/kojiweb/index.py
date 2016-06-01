@@ -31,7 +31,7 @@ import logging
 import time
 import koji
 import kojiweb.util
-from koji.server import ServerRedirect
+from koji.server import ServerRedirect, NotAuthorized
 from kojiweb.util import _initValues
 from kojiweb.util import _genHTML
 from kojiweb.util import _getValidTokens
@@ -251,6 +251,22 @@ def login(environ, page=None):
 
         username = principal
         authlogger.info('Successful Kerberos authentication by %s', username)
+    elif options['BasicAuthRealm']:
+        if environ['wsgi.url_scheme'] != 'https':
+            dest = 'login'
+            if page:
+                dest = dest + '?page=' + page
+            _redirectBack(environ, dest, forceSSL=True)
+            return
+
+        http_authorization = environ.get('HTTP_AUTHORIZATION')
+        if not http_authorization:
+            raise NotAuthorized
+        session.opts['user'], session.opts['password'] = http_authorization.split(' ')[1].decode('base64').split(':')
+        if not session.login():
+            raise koji.AuthError, 'could not login %s using those credentials' % http_username
+        username = session.opts['user']
+        authlogger.info('Successful BasicAuth authentication by %s', username)
     else:
         raise koji.AuthError, 'KojiWeb is incorrectly configured for authentication, contact the system administrator'
 

@@ -78,6 +78,7 @@ import xmlrpclib
 import xml.sax
 import xml.sax.handler
 from xmlrpclib import loads, dumps, Fault
+from getpass import getpass
 
 PROFILE_MODULES = {}  # {module_name: module_instance}
 
@@ -1590,7 +1591,8 @@ def read_config(profile_name, user_config=None):
         'ca': '',  # FIXME: remove in next major release
         'serverca': None,
         'no_ssl_verify': False,
-        'authtype': None
+        'authtype': None,
+        'user': None
     }
 
     result = config_defaults.copy()
@@ -2023,6 +2025,10 @@ class ClientSession(object):
         self.sinfo = sinfo
 
     def login(self, opts=None):
+        if not 'user' in self.opts:
+            self.opts['user'] = raw_input('Username: ')
+        if not 'password' in self.opts:
+            self.opts['password'] = getpass('Password: ')
         sinfo = self.callMethod('login', self.opts['user'], self.opts['password'], opts)
         if not sinfo:
             return False

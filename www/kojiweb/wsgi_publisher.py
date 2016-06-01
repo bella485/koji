@@ -30,7 +30,7 @@ import sys
 import traceback
 
 from ConfigParser import RawConfigParser
-from koji.server import WSGIWrapper, ServerError, ServerRedirect
+from koji.server import WSGIWrapper, ServerError, ServerRedirect, NotAuthorized
 from koji.util import dslice
 
 
@@ -79,6 +79,8 @@ class Dispatcher(object):
 
         ['WebCert', 'string', None],
         ['KojiHubCA', 'string', '/etc/kojiweb/kojihubca.crt'],
+
+        ['BasicAuthRealm', 'string', None],
 
         ['PythonDebug', 'boolean', False],
 
@@ -403,6 +405,10 @@ class Dispatcher(object):
             result, headers = self.error_page(environ, message=msg, err=False)
             start_response(status, headers)
             return result
+        except NotAuthorized:
+            status = "401 Not Authorized"
+            start_response(status, [('WWW-Authenticate', 'Basic realm="%s"' % self.options['BasicAuthRealm'])])
+            return '401 Not Authorized'
         except Exception:
             tb_str = ''.join(traceback.format_exception(*sys.exc_info()))
             self.logger.error(tb_str)

@@ -27,6 +27,10 @@ import krbV
 import koji
 import cgi      #for parse_qs
 from context import context
+try:
+    import pam
+except ImportError:  # pragma: no cover
+    pam = None
 
 # 1 - load session if provided
 #       - check uri for session id
@@ -272,13 +276,28 @@ class Session(object):
 
         # check passwd
         c = context.cnx.cursor()
-        q = """SELECT id FROM users
-        WHERE name = %(user)s AND password = %(password)s"""
-        c.execute(q, locals())
-        r = c.fetchone()
-        if not r:
-            raise koji.AuthError, 'invalid username or password'
-        user_id = r[0]
+        if context.opts.get('PAMService') and pam is not None:
+            if not pam.authenticate(user, password, context.opts.get('PAMService')):
+                raise koji.AuthError, 'invalid username or password'
+            q = """SELECT id FROM users
+            WHERE name = %(user)s"""
+            c.execute(q, locals())
+            r = c.fetchone()
+            if r:
+                user_id = r[0]
+            else:
+                if context.opts.get('LoginCreatesUser'):
+                    user_id = self.createUser(user)
+                else:
+                    raise koji.AuthError, 'Unknown user: %s' % user
+        else:
+            q = """SELECT id FROM users
+            WHERE name = %(user)s AND password = %(password)s"""
+            c.execute(q, locals())
+            r = c.fetchone()
+            if not r:
+                raise koji.AuthError, 'invalid username or password'
+            user_id = r[0]
 
         self.checkLoginAllowed(user_id)
 

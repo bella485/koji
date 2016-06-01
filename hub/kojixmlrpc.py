@@ -432,6 +432,8 @@ def load_config(environ):
 
         ['CheckClientIP', 'boolean', True],
 
+        ['PAMService', 'string', None],
+
         ['LoginCreatesUser', 'boolean', True],
         ['KojiWebURL', 'string', 'http://localhost.localdomain/koji'],
         ['EmailDomain', 'string', None],
