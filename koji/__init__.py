@@ -2174,6 +2174,31 @@ class ClientSession(object):
                     raise err
         return ret
 
+    def itercall(self, args, fn):
+        """Alternative way of using multiCall. Iterates over list of items,
+        calls a hub API function for each item. Returns generator of
+        call results.
+
+        "args" is list of arbitrary items.
+        "fn" is a function (typically lambda) taking one argument, a
+        single item from the list.
+
+        itercall() will call "fn" for each item in the list. When executed,
+        "fn" is expected to make a single API call on ClientSession.
+        itercall() groups these API calls into chunks of configurable
+        size and handles them with multiCall. It returns generator of
+        replies for each call made.
+
+        """
+        chunk_size = self.opts.get('itercall_chunk_size', 100)
+        while args:
+            self.multicall = True
+            for arg in args[:chunk_size]:
+                fn(arg)
+            for [info] in self.multiCall():
+                yield info
+            args = args[chunk_size:]
+
     def __getattr__(self,name):
         #if name[:1] == '_':
         #    raise AttributeError, "no attribute %r" % name
