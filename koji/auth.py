@@ -638,10 +638,19 @@ class Session(object):
         """Create a new user, based on the Kerberos principal.  Their
         username will be everything before the "@" in the principal.
         Return the ID of the newly created user."""
-        atidx = krb_principal.find('@')
-        if atidx == -1:
-            raise koji.AuthError, 'invalid Kerberos principal: %s' % krb_principal
-        user_name = krb_principal[:atidx]
+        principal = krb_principal.rsplit('@', 1)
+        if len(principal) != 2 or len(principal[1]) < 1:
+            # We didn't have a realm
+            raise koji.AuthError, 'Unparseable principal'
+        user_name, realm = principal
+        if user_name == 'WELLKNOWN/ANONYMOUS' and not context.opts.get('AllowAnonymousKrb', False):
+            raise koji.AuthError, 'Anonymous tickets not allowed'
+        if realm == 'WELLKNOWN:ANONYMOUS' and not context.opts.get('AllowAnonymousKrb', False):
+            raise koji.AuthError, 'Anonymous realm not allowed'
+        allowed_realms = context.opts.get('AllowedKrbRealms', None)
+        if allowed_realms is not None:
+            if not realm in allowed_realms.split('|'):
+                raise koji.AuthError, 'Realm %s is not allowed' %s % realm
 
         # check if user already exists
         c = context.cnx.cursor()
