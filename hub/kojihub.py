@@ -4825,19 +4825,23 @@ def import_build(srpm, rpms, brmap=None, task_id=None, build_id=None, logs=None)
     else:
         #build_id was passed in - sanity check
         binfo = get_build(build_id, strict=True)
+        st_importing = koji.BUILD_STATES['IMPORTING']
         st_complete = koji.BUILD_STATES['COMPLETE']
-        koji.plugin.run_callbacks('preBuildStateChange', attribute='state', old=binfo['state'], new=st_complete, info=binfo)
+        koji.plugin.run_callbacks('preBuildStateChange', attribute='state', old=binfo['state'], new=st_importing, info=binfo)
         for key in ('name', 'version', 'release', 'epoch', 'task_id'):
             if build[key] != binfo[key]:
                 raise koji.GenericError, "Unable to complete build: %s mismatch (build: %s, rpm: %s)" % (key, binfo[key], build[key])
+        if binfo['state'] == koji.BUILD_STATES['IMPORTING']:
+            return {}
         if binfo['state'] != koji.BUILD_STATES['BUILDING']:
             raise koji.GenericError, "Unable to complete build: state is %s" \
                     % koji.BUILD_STATES[binfo['state']]
         #update build state
-        update = """UPDATE build SET state=%(st_complete)i,completion_time=NOW()
+        update = """UPDATE build SET state=%(st_importing)i
         WHERE id=%(build_id)i"""
         _dml(update, locals())
         koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=binfo['state'], new=st_complete, info=binfo)
+        binfo['state'] = st_importing
     # now to handle the individual rpms
     for relpath in [srpm] + rpms:
         fn = "%s/%s" % (uploadpath, relpath)
@@ -4851,6 +4855,12 @@ def import_build(srpm, rpms, brmap=None, task_id=None, build_id=None, logs=None)
             for relpath in files:
                 fn = "%s/%s" % (uploadpath, relpath)
                 import_build_log(fn, binfo, subdir=key)
+    #update build state
+    koji.plugin.run_callbacks('preBuildStateChange', attribute='state', old=binfo['state'], new=st_complete, info=binfo)
+    update = """UPDATE build SET state=%(st_complete)i,completion_time=NOW()
+    WHERE id=%(build_id)i"""
+    _dml(update, locals())
+    koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=binfo['state'], new=st_complete, info=binfo)
     koji.plugin.run_callbacks('postImport', type='build', srpm=srpm, rpms=rpms, brmap=brmap,
                               task_id=task_id, build_id=build_id, build=binfo, logs=logs)
     return binfo
@@ -7118,7 +7128,8 @@ def build_notification(task_id, build_id):
     if target:
         dest_tag = target['dest_tag']
 
-    if build['state'] == koji.BUILD_STATES['BUILDING']:
+    if build['state'] in [koji.BUILD_STATES['BUILDING']
+                          koji.BUILD_STATES['IMPORTING']]:
         raise koji.GenericError, 'never send notifications for incomplete builds'
 
     web_url = context.opts.get('KojiWebURL', 'http://localhost/koji')
@@ -11484,7 +11495,8 @@ class HostExports(object):
         task = Task(task_id)
         task.assertHost(host.id)
         result = import_build(srpm, rpms, brmap, task_id, build_id, logs=logs)
-        build_notification(task_id, build_id)
+        if len(result) != 0:
+            build_notification(task_id, build_id)
         return result
 
     def completeImageBuild(self, task_id, build_id, results):

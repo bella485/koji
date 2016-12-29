@@ -864,7 +864,7 @@ class BuildTask(BaseTaskHandler):
                 #scratch builds do not get imported
                 self.session.host.moveBuildToScratch(self.id,srpm,rpms,logs=logs)
             else:
-                self.session.host.completeBuild(self.id,build_id,srpm,rpms,brmap,logs=logs)
+                res = self.session.host.completeBuild(self.id,build_id,srpm,rpms,brmap,logs=logs)
         except (SystemExit,ServerExit,KeyboardInterrupt):
             #we do not trap these
             raise
@@ -874,7 +874,7 @@ class BuildTask(BaseTaskHandler):
                 self.session.host.failBuild(self.id, build_id)
             # reraise the exception
             raise
-        if not self.opts.get('skip_tag') and not self.opts.get('scratch'):
+        if not self.opts.get('skip_tag') and not self.opts.get('scratch') and len(res) > 0:
             self.tagBuild(build_id,dest_tag)
 
     def getSRPM(self, src, build_tag, repo_id):

@@ -174,6 +174,7 @@ TASK_STATES = Enum((
 
 BUILD_STATES = Enum((
     'BUILDING',
+    'IMPORTING',
     'COMPLETE',
     'DELETED',
     'FAILED',

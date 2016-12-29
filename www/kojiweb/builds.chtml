@@ -24,7 +24,7 @@
         </td><td>
         <select name="state" class="filterlist" onchange="javascript: window.location = 'builds?state=' + this.value + '$util.passthrough_except($self, 'state')';">
           <option value="all">all</option>
-          #for $stateOpt in ['BUILDING', 'COMPLETE', 'FAILED', 'CANCELED']
+          #for $stateOpt in ['BUILDING', 'IMPORTING', 'COMPLETE', 'FAILED', 'CANCELED']
           <option value="$koji.BUILD_STATES[$stateOpt]" #if $state == $koji.BUILD_STATES[$stateOpt] then 'selected="selected"' else ''#>$stateOpt.lower()</option>
           #end for
         </select>

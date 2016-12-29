@@ -406,7 +406,7 @@ class TrackedBuild(object):
             elif state in ('FAILED', 'CANCELED'):
                 #treat these as having no build
                 pass
-            elif state == 'BUILDING' and ours['task_id']:
+            elif state in ['BUILDING', 'IMPORTING'] and ours['task_id']:
                 self.setState("pending")
                 self.task_id = ours['task_id']
                 return
