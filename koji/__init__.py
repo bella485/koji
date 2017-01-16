@@ -2033,7 +2033,7 @@ class ClientSession(object):
         sinfo = self.callMethod('subsession')
         return type(self)(self.baseurl, self.opts, sinfo)
 
-    def krb_login(self, principal=None, keytab=None, ccache=None, proxyuser=None):
+    def krb_login(self, principal=None, keytab=None, ccache=None, proxyuser=None, force_krb=False):
         """Log in using Kerberos.  If principal is not None and keytab is
         not None, then get credentials for the given principal from the given keytab.
         If both are None, authenticate using existing local credentials (as obtained
@@ -2041,11 +2041,13 @@ class ClientSession(object):
         not specified, the default ccache will be used.  If proxyuser is specified,
         log in the given user instead of the user associated with the Kerberos
         principal.  The principal must be in the "ProxyPrincipals" list on
-        the server side."""
+        the server side.
+        If force_krb is not true, gssapi is tried first.
+        """
 
-        if principal is None and keytab is None and ccache is None:
+        if not force_krb and principal is None and keytab is None and ccache is None:
             try:
-                # Silently try GSSAPI first
+                # Silently try GSSAPI first if krb is not forced
                 if self.gssapi_login(proxyuser=proxyuser):
                     return True
             except:

@@ -7214,11 +7214,12 @@ def activate_session(session):
         # authenticate using user/password
         session.login()
     elif options.authtype == "kerberos" or has_krb_creds() and options.authtype is None:
+        force_krb = options.authtype == "kerberos"
         try:
             if options.keytab and options.principal:
-                session.krb_login(principal=options.principal, keytab=options.keytab, proxyuser=options.runas)
+                session.krb_login(principal=options.principal, keytab=options.keytab, proxyuser=options.runas, force_krb=force_krb)
             else:
-                session.krb_login(proxyuser=options.runas)
+                session.krb_login(proxyuser=options.runas, force_krb=force_krb)
         except krbV.Krb5Error, e:
             error(_("Kerberos authentication failed: %s (%s)") % (e.args[1], e.args[0]))
         except socket.error, e:
