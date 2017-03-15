@@ -881,24 +881,39 @@ def anon_handle_mock_config(goptions, session, args):
     usage += _("\n(Specify the --help global option for a list of other help options)")
     parser = OptionParser(usage=usage)
     parser.add_option("-a", "--arch", help=_("Specify the arch"))
-    parser.add_option("-n", "--name", help=_("Specify the name for the buildroot"))
+    parser.add_option(
+        "-n",
+        "--name",
+        help=_("Specify the name for the buildroot"))
     parser.add_option("--tag", help=_("Create a mock config for a tag"))
-    parser.add_option("--target", help=_("Create a mock config for a build target"))
-    parser.add_option("--task", help=_("Duplicate the mock config of a previous task"))
-    parser.add_option("--latest", action="store_true", help=_("use the latest redirect url"))
-    parser.add_option("--buildroot", help=_("Duplicate the mock config for the specified buildroot id"))
+    parser.add_option(
+        "--target",
+        help=_("Create a mock config for a build target"))
+    parser.add_option(
+        "--task",
+        help=_("Duplicate the mock config of a previous task"))
+    parser.add_option(
+        "--latest",
+        action="store_true",
+        help=_("use the latest redirect url"))
+    parser.add_option(
+        "--buildroot",
+        help=_("Duplicate the mock config for the specified buildroot id"))
     parser.add_option("--mockdir", default="/var/lib/mock", metavar="DIR",
                       help=_("Specify mockdir"))
     parser.add_option("--topdir", metavar="DIR",
                       help=_("Specify topdir"))
-    parser.add_option("--topurl", metavar="URL", default=goptions.topurl,
+    parser.add_option("--topurl", metavar="URL", default=options.topurl,
                       help=_("URL under which Koji files are accessible"))
     parser.add_option("--distribution", default="Koji Testing",
                       help=_("Change the distribution macro"))
     parser.add_option("--yum-proxy", help=_("Specify a yum proxy"))
-    parser.add_option("-o", metavar="FILE", dest="ofile", help=_("Output to a file"))
+    parser.add_option(
+        "-o",
+        metavar="FILE",
+        dest="ofile",
+        help=_("Output to a file"))
     (options, args) = parser.parse_args(args)
-    activate_session(session, goptions)
     if args:
         #for historical reasons, we also accept buildroot name as first arg
         if not options.name:
@@ -907,19 +922,30 @@ def anon_handle_mock_config(goptions, session, args):
             parser.error(_("Name already specified via option"))
     arch = None
     opts = {}
+    event_id = None
     for k in ('topdir', 'topurl', 'distribution', 'mockdir', 'yum_proxy'):
         if hasattr(options, k):
             opts[k] = getattr(options, k)
+    activate_session(session, goptions)
     if options.buildroot:
         try:
             br_id = int(options.buildroot)
         except ValueError:
             parser.error(_("Buildroot id must be an integer"))
         brootinfo = session.getBuildroot(br_id)
+        if not brootinfo:
+            parser.error(_("Buildroot: %s can not be found") % br_id)
         if options.latest:
             opts['repoid'] = 'latest'
         else:
             opts['repoid'] = brootinfo['repo_id']
+            repo = session.repoInfo(brootinfo['repo_id'])
+            if not repo:
+                parser.error(
+                    _("Could not find repo: %(repo_id)s for buildroot: %(id)s") %
+                    brootinfo)
+            opts['repoid'] = repo['id']
+            event_id = repo['create_event']
         opts['tag_name'] = brootinfo['tag_name']
         arch = brootinfo['arch']
     elif options.task:
@@ -929,44 +955,54 @@ def anon_handle_mock_config(goptions, session, args):
             parser.error(_("Task id must be an integer"))
         broots = session.listBuildroots(taskID=task_id)
         if not broots:
-            print(_("No buildroots for task %s (or no such task)") % options.task)
-            return 1
+            parser.error(
+                _("No buildroots for task %s (or no such task)") %
+                options.task)
         if len(broots) > 1:
-            print(_("Multiple buildroots found: %s" % [br['id'] for br in broots]))
+            print(_("# Multiple buildroots found: %s" %
+                    [br['id'] for br in broots]))
+            print(_("# Would use the latest one: buildroot: %s" %
+                    broots[-1]['id']))
         brootinfo = broots[-1]
         if options.latest:
             opts['repoid'] = 'latest'
         else:
             opts['repoid'] = brootinfo['repo_id']
+            repo = session.repoInfo(brootinfo['repo_id'])
+            if not repo:
+                parser.error(
+                    _("Could not find repo: %(repo_id)s for buildroot: %(id)s") %
+                    brootinfo)
+            opts['repoid'] = repo['id']
+            event_id = repo['create_event']
         opts['tag_name'] = brootinfo['tag_name']
         arch = brootinfo['arch']
         if not options.name:
             options.name = "%s-task_%i" % (opts['tag_name'], task_id)
     elif options.tag:
         if not options.arch:
-            print(_("Please specify an arch"))
-            return 1
+            parser.error(_("Please specify an arch"))
         tag = session.getTag(options.tag)
         if not tag:
             parser.error(_("Invalid tag: %s" % options.tag))
         arch = options.arch
         config = session.getBuildConfig(tag['id'])
         if not config:
-            print(_("Could not get config info for tag: %(name)s") % tag)
-            return 1
+            parser.error(
+                _("Could not get config info for tag: %(name)s") %
+                tag)
         opts['tag_name'] = tag['name']
         if options.latest:
             opts['repoid'] = 'latest'
         else:
             repo = session.getRepo(config['id'])
             if not repo:
-                print(_("Could not get a repo for tag: %(name)s") % tag)
-                return 1
+                parser.error(_("Could not get a repo for tag: %(name)s") % tag)
             opts['repoid'] = repo['id']
+            event_id = repo['create_event']
     elif options.target:
         if not options.arch:
-            print(_("Please specify an arch"))
-            return 1
+            parser.error(_("Please specify an arch"))
         arch = options.arch
         target = session.getBuildTarget(options.target)
         if not target:
@@ -977,12 +1013,18 @@ def anon_handle_mock_config(goptions, session, args):
         else:
             repo = session.getRepo(target['build_tag'])
             if not repo:
-                print(_("Could not get a repo for tag: %s") % opts['tag_name'])
-                return 1
+                parser.error(
+                    _("Could not get a repo for tag: %s") %
+                    target['build_tag_name'])
             opts['repoid'] = repo['id']
+            event_id = repo['create_event']
     else:
-        parser.error(_("Please specify one of: --tag, --target, --task, --buildroot"))
+        parser.error(
+            _("Please specify one of: --tag, --target, --task, --buildroot"))
         assert False  # pragma: no cover
+    taginfo = session.getBuildConfig(opts['tag_name'], event=event_id)
+    if 'mock.package_manager' in taginfo['extra']:
+        opts['package_manager'] = taginfo['extra']['mock.package_manager']
     if options.name:
         name = options.name
     else:
@@ -994,7 +1036,6 @@ def anon_handle_mock_config(goptions, session, args):
         fo.close()
     else:
         print(output)
-
 
 def handle_disable_host(goptions, session, args):
     "[admin] Mark one or more hosts as disabled"

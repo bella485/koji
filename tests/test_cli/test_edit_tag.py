@@ -9,6 +9,7 @@ except ImportError:
     import unittest
 
 from koji_cli.commands import handle_edit_tag
+import mock
 
 progname = os.path.basename(sys.argv[0]) or 'koji'
 

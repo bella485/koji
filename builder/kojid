@@ -145,7 +145,7 @@ def main(options, session):
                 # The load-balancing code in getNextTask() will prevent a single builder
                 # from getting overloaded.
                 time.sleep(options.sleeptime)
-        except (SystemExit,KeyboardInterrupt):
+        except (SystemExit, KeyboardInterrupt):
             logger.warn("Exiting")
             break
     logger.warn("Shutting down, please wait...")
@@ -156,7 +156,7 @@ def main(options, session):
 
 class BuildRoot(object):
 
-    def __init__(self,session,options,*args,**kwargs):
+    def __init__(self, session, options, *args, **kwargs):
         self.logger = logging.getLogger("koji.build.buildroot")
         self.session = session
         self.options = options
