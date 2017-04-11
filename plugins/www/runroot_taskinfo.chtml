@@ -1,0 +1,6 @@
+#if $task.method == 'runroot'
+        <strong>Build Tag:</strong> <a href="taginfo?tagID=$params[0]">$params[0]</a><br/>
+        <strong>Arch:</strong> $params[1]<br/>
+        $printOpts($params[3])
+        <strong>Commands:</strong> $params[2]<br/>
+#end if

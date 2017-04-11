@@ -188,3 +188,69 @@ tagging a build:
 ::
 
     $ koji tag-build mytag mypkg-1.0-1
+
+Web interface plugins
+---------------------
+
+There is a few things in web interface which can be modified in this way.
+When you are creating new task type, you would like to see:
+
+ * Listed it in filter box on taskinfo page (configurable without writing plugin)
+ * Better crafted taskinfo page
+ * New specialized page / handler.
+
+How to modify task filter
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is not a real plugin, but three web configuration items are used. `Tasks`
+item is used to mark additional tasks which should be listed here.
+`ToplevelTasks` and `ParentTasks` are for displaying these types of
+tasks with correct hierarchy.
+
+::
+
+  Tasks = runroot
+  ToplevelTasks = runroot
+  ParentTasks =
+
+Web plugin
+~~~~~~~~~~
+
+For handling special taskinfo page or writing your own handler you've to
+write your own plugin.
+
+Location of plugin is handled via `PluginPaths` option and active plugins
+must be listed in `Plugins` field. Firstly, system-level plugin paths are
+searched, and after them these user-defined paths, so user plugins can
+override system behaviour. Order is important as plugins are always run in
+it.
+
+::
+
+  PluginPaths = /anywhere/my_plugins
+  Plugins = my_plugin
+
+
+Each plugin is python class derived from `WWWPlugin` in `kojiweb.util`.
+It needs to implement at least one of following methods:
+
+  * `handler_xyz(self, environ)` - all methods prefixed with `handler_`
+    will be exported to web interface, so this one will be located at
+    `http://mykojidomain/koji/xyz`. You can do whatever you want inside this
+    handler. Lot of useful stuff is available in `kojiweb.util` module.
+    `_assertLogin` is one example.
+  * `values_xyz` and `template_xyz` are prepared for use also on other pages
+    if anybody find it usable. For now, only `taskinfo` page is supported.
+    You've to define `methods = ['runroot']` for our example, so web
+    interface will pick these methods instead of default one.
+  * `values_taskinfo(self, server, values, environ)` - method returning
+    dictionary of values which can be used in taskinfo page template
+  * `template_taskinfo` - returns path to template which will be used for
+    displaying `Parameters` section in taskinfo page. It is written in
+    Cheetah and should wrap its content in conditional based on task method:
+
+::
+
+  #if $task.method == 'runroot'
+      <strong>Hey, you\'ve used runroot in tag $params[0]!</strong>
+  #endif

@@ -97,6 +97,9 @@ class Dispatcher(object):
         ['ToplevelTasks', 'list', []],
         ['ParentTasks', 'list', []],
 
+        ['PluginPaths', 'list', []],
+        ['Plugins', 'list', []],
+
         ['RLIMIT_AS', 'string', None],
         ['RLIMIT_CORE', 'string', None],
         ['RLIMIT_CPU', 'string', None],
@@ -220,7 +223,7 @@ class Dispatcher(object):
         self.formatter.environ = environ
         self.log_handler.setFormatter(self.formatter)
 
-    def find_handlers(self):
+    def find_handlers(self, options):
         for name in vars(kojiweb_handlers):
             if name.startswith('_'):
                 continue
@@ -236,6 +239,9 @@ class Dispatcher(object):
                 tb_str = ''.join(traceback.format_exception(*sys.exc_info()))
                 self.logger.error(tb_str)
             self.handler_index[name] = val
+        for plugin in kojiweb_handlers.PLUGINS.get_handlers(options):
+            # name is handler_realname, so [8:]
+            self.handler_index[plugin.__name__[8:]] = plugin
 
     def prep_handler(self, environ):
         path_info = environ['PATH_INFO']
@@ -288,7 +294,7 @@ class Dispatcher(object):
         sys.path.insert(0, scriptsdir)
         import index as kojiweb_handlers
         import kojiweb
-        self.find_handlers()
+        self.find_handlers(options)
         self.setup_logging2(environ)
         koji.util.setup_rlimits(options)
         # TODO - plugins?

@@ -25,17 +25,17 @@ import os.path
 import re
 import sys
 import mimetypes
-import Cookie
 import datetime
 import logging
 import time
+import types
 import koji
+import koji.plugin
 import kojiweb.util
-from koji.server import ServerRedirect
-from kojiweb.util import _initValues
-from kojiweb.util import _genHTML
-from kojiweb.util import _getValidTokens
-from koji.util import sha1_constructor
+from kojiweb.util import _initValues, _genHTML, _getServer, _redirectBack, \
+                         _sslLogin, _krbLogin, _setUserCookie, \
+                         _getUserCookie, _clearUserCookie, _assertLogin, \
+                         _redirect, _getBaseURL, WWWPlugin
 
 # Convenience definition of a commonly-used sort function
 _sortbyname = kojiweb.util.sortByKeyFunc('name')
@@ -43,177 +43,77 @@ _sortbyname = kojiweb.util.sortByKeyFunc('name')
 #loggers
 authlogger = logging.getLogger('koji.auth')
 
-def _setUserCookie(environ, user):
-    options = environ['koji.options']
-    # include the current time in the cookie so we can verify that
-    # someone is not using an expired cookie
-    value = user + ':' + str(int(time.time()))
-    if not options['Secret'].value:
-        raise koji.AuthError('Unable to authenticate, server secret not configured')
-    shasum = sha1_constructor(value)
-    shasum.update(options['Secret'].value)
-    value = "%s:%s" % (shasum.hexdigest(), value)
-    cookies = Cookie.SimpleCookie()
-    cookies['user'] = value
-    c = cookies['user']  #morsel instance
-    c['secure'] = True
-    c['path'] = os.path.dirname(environ['SCRIPT_NAME'])
-    # the Cookie module treats integer expire times as relative seconds
-    c['expires'] = int(options['LoginTimeout']) * 60 * 60
-    out = c.OutputString()
-    out += '; HttpOnly'
-    environ['koji.headers'].append(['Set-Cookie', out])
-    environ['koji.headers'].append(['Cache-Control', 'no-cache="set-cookie"'])
+class Plugins(object):
+    def __init__(self):
+        self._plugins = []
+        self.methods = set()
+        self.loaded = False
+        self.logger = logging.getLogger('koji.plugins')
 
-def _clearUserCookie(environ):
-    cookies = Cookie.SimpleCookie()
-    cookies['user'] = ''
-    c = cookies['user']  #morsel instance
-    c['path'] = os.path.dirname(environ['SCRIPT_NAME'])
-    c['expires'] = 0
-    out = c.OutputString()
-    environ['koji.headers'].append(['Set-Cookie', out])
+    def register_plugin(self, plugin):
+        """Scan a given plugin for handlers
 
-def _getUserCookie(environ):
-    options = environ['koji.options']
-    cookies = Cookie.SimpleCookie(environ.get('HTTP_COOKIE', ''))
-    if 'user' not in cookies:
-        return None
-    value = cookies['user'].value
-    parts = value.split(":", 1)
-    if len(parts) != 2:
-        authlogger.warn('malformed user cookie: %s' % value)
-        return None
-    sig, value = parts
-    if not options['Secret'].value:
-        raise koji.AuthError('Unable to authenticate, server secret not configured')
-    shasum = sha1_constructor(value)
-    shasum.update(options['Secret'].value)
-    if shasum.hexdigest() != sig:
-        authlogger.warn('invalid user cookie: %s:%s', sig, value)
-        return None
-    parts = value.split(":", 1)
-    if len(parts) != 2:
-        authlogger.warn('invalid signed user cookie: %s:%s', sig, value)
-        # no embedded timestamp
-        return None
-    user, timestamp = parts
-    try:
-        timestamp = float(timestamp)
-    except ValueError:
-        authlogger.warn('invalid time in signed user cookie: %s:%s', sig, value)
-        return None
-    if (time.time() - timestamp) > (int(options['LoginTimeout']) * 60 * 60):
-        authlogger.info('expired user cookie: %s', value)
-        return None
-    # Otherwise, cookie is valid and current
-    return user
+        Handlers are functions marked with one of the decorators defined in koji.plugin
+        """
+        for v in vars(plugin).itervalues():
+            if isinstance(v, (types.ClassType, types.TypeType)) and issubclass(v, WWWPlugin):
+                plugin = v()
+                self.methods |= set(plugin.methods)
+                self._plugins.append(plugin)
 
-def _krbLogin(environ, session, principal):
-    options = environ['koji.options']
-    wprinc = options['WebPrincipal']
-    keytab = options['WebKeytab']
-    ccache = options['WebCCache']
-    return session.krb_login(principal=wprinc, keytab=keytab,
-                             ccache=ccache, proxyuser=principal)
+    def load_plugins(self, options):
+        """Load plugins specified by our configuration plus system plugins. Order
+        is that system plugins are first, so they can be overriden by
+        user-specified ones with same name."""
+        syspath = '/usr/lib/koji-web-plugins'
+        pluginpaths = [syspath] + options['PluginPaths']
+        tracker = koji.plugin.PluginTracker(path=pluginpaths)
+        for name in options['Plugins']:
+            self.logger.info('Loading plugin: %s' % name)
+            tracker.load(name)
+            self.register_plugin(tracker.get(name))
+        self.loaded = True
 
-def _sslLogin(environ, session, username):
-    options = environ['koji.options']
-    client_cert = options['WebCert']
-    server_ca = options['KojiHubCA']
+    def supports(self, method):
+        """Returns True if at least one plugin supports given method."""
+        return method in self.methods
 
-    return session.ssl_login(client_cert, None, server_ca,
-                             proxyuser=username)
+    def templates_taskinfo(self, method):
+        """Returns list of templates which will be added as handlers to
+        taskinfo page."""
+        templates = []
+        for plugin in self._plugins:
+            if plugin.supports(method) and hasattr(plugin, 'template_taskinfo'):
+                t = plugin.template_taskinfo()
+                if os.path.exists(t):
+                    templates.append(t)
+                else:
+                    self.logger.warn("Template doesn't exist: %s" % t)
+        return templates
 
-def _assertLogin(environ):
-    session = environ['koji.session']
-    options = environ['koji.options']
-    if 'koji.currentLogin' not in environ or 'koji.currentUser' not in environ:
-        raise Exception('_getServer() must be called before _assertLogin()')
-    elif environ['koji.currentLogin'] and environ['koji.currentUser']:
-        if options['WebCert']:
-            if not _sslLogin(environ, session, environ['koji.currentLogin']):
-                raise koji.AuthError('could not login %s via SSL' % environ['koji.currentLogin'])
-        elif options['WebPrincipal']:
-            if not _krbLogin(environ, environ['koji.session'], environ['koji.currentLogin']):
-                raise koji.AuthError('could not login using principal: %s' % environ['koji.currentLogin'])
-        else:
-            raise koji.AuthError('KojiWeb is incorrectly configured for authentication, contact the system administrator')
+    def values_taskinfo(self, server, values, environ):
+        values = {}
+        for plugin in self.get_plugins(environ['koji.options']):
+            if hasattr(plugin, 'values_taskinfo'):
+                values.update(plugin.values_taskinfo(server, values, environ))
+        return values
 
-        # verify a valid authToken was passed in to avoid CSRF
-        authToken = environ['koji.form'].getfirst('a', '')
-        validTokens = _getValidTokens(environ)
-        if authToken and authToken in validTokens:
-            # we have a token and it's valid
-            pass
-        else:
-            # their authToken is likely expired
-            # send them back to the page that brought them here so they
-            # can re-click the link with a valid authToken
-            _redirectBack(environ, page=None, forceSSL=(_getBaseURL(environ).startswith('https://')))
-            assert False  # pragma: no cover
-    else:
-        _redirect(environ, 'login')
-        assert False  # pragma: no cover
+    def get_plugins(self, options):
+        """Return all plugins"""
+        if not self.loaded:
+            self.load_plugins(options)
+        return self._plugins
 
-def _getServer(environ):
-    opts = environ['koji.options']
-    session = koji.ClientSession(opts['KojiHubURL'],
-                                 opts={'krbservice': opts['KrbService'],
-                                       'krb_rdns': opts['KrbRDNS']})
+    def get_handlers(self, options):
+        """Return all handler_* methods here"""
+        handlers = []
+        for plugin in self.get_plugins(options):
+            for name in dir(plugin):
+                if name.startswith('handler_') and callable(getattr(plugin, name)):
+                    handlers.append(getattr(plugin, name))
+        return handlers
+PLUGINS = Plugins()
 
-    environ['koji.currentLogin'] = _getUserCookie(environ)
-    if environ['koji.currentLogin']:
-        environ['koji.currentUser'] = session.getUser(environ['koji.currentLogin'])
-        if not environ['koji.currentUser']:
-            raise koji.AuthError('could not get user for principal: %s' % environ['koji.currentLogin'])
-        _setUserCookie(environ, environ['koji.currentLogin'])
-    else:
-        environ['koji.currentUser'] = None
-
-    environ['koji.session'] = session
-    return session
-
-def _construct_url(environ, page):
-    port = environ['SERVER_PORT']
-    host = environ['SERVER_NAME']
-    url_scheme = environ['wsgi.url_scheme']
-    if (url_scheme == 'https' and port == '443') or \
-        (url_scheme == 'http' and port == '80'):
-        return "%s://%s%s" % (url_scheme, host, page)
-    return "%s://%s:%s%s" % (url_scheme, host, port, page)
-
-def _getBaseURL(environ):
-    base = environ['SCRIPT_NAME']
-    return _construct_url(environ, base)
-
-def _redirect(environ, location):
-    environ['koji.redirect'] = location
-    raise ServerRedirect
-
-def _redirectBack(environ, page, forceSSL):
-    if page:
-        # We'll work with the page we were given
-        pass
-    elif 'HTTP_REFERER' in environ:
-        page = environ['HTTP_REFERER']
-    else:
-        page = 'index'
-
-    # Modify the scheme if necessary
-    if page.startswith('http'):
-        pass
-    elif page.startswith('/'):
-        page = _construct_url(environ, page)
-    else:
-        page = _getBaseURL(environ) + '/' + page
-    if forceSSL:
-        page = page.replace('http:', 'https:')
-    else:
-        page = page.replace('https:', 'http:')
-
-    # and redirect to the page
-    _redirect(environ, page)
 
 def login(environ, page=None):
     session = _getServer(environ)
@@ -686,6 +586,9 @@ def taskinfo(environ, taskID):
         values['perms'] = server.getUserPerms(environ['koji.currentUser']['id'])
     else:
         values['perms'] = []
+
+    values['PLUGINS'] = PLUGINS
+    values.update(PLUGINS.values_taskinfo(server, values, environ))
 
     return _genHTML(environ, 'taskinfo.chtml')
 
