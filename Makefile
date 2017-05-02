@@ -1,6 +1,6 @@
 NAME=koji
 SPECFILE = $(firstword $(wildcard *.spec))
-SUBDIRS = hub builder koji cli docs util www plugins vm
+SUBDIRS = builder koji cli docs plugins
 
 ifdef DIST
 DIST_DEFINES := --define "dist $(DIST)"

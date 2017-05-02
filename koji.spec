@@ -45,40 +45,6 @@ Requires: python-libcomps
 Koji is a system for building and tracking RPMS.  The base package
 contains shared libraries and the command-line interface.
 
-%package hub
-Summary: Koji XMLRPC interface
-Group: Applications/Internet
-License: LGPLv2 and GPLv2
-# rpmdiff lib (from rpmlint) is GPLv2 (only)
-Requires: httpd
-Requires: mod_wsgi
-Requires: python-psycopg2
-%if 0%{?rhel} == 5
-Requires: python-simplejson
-%endif
-Requires: %{name} = %{version}-%{release}
-
-%description hub
-koji-hub is the XMLRPC interface to the koji database
-
-%package hub-plugins
-Summary: Koji hub plugins
-Group: Applications/Internet
-License: LGPLv2
-Requires: %{name} = %{version}-%{release}
-Requires: %{name}-hub = %{version}-%{release}
-Requires: python-qpid >= 0.7
-%if 0%{?rhel} >= 6
-Requires: python-qpid-proton
-%endif
-%if 0%{?rhel} == 5
-Requires: python-ssl
-%endif
-Requires: cpio
-
-%description hub-plugins
-Plugins to the koji XMLRPC interface
-
 %package builder-plugins
 Summary: Koji builder plugins
 Group: Applications/Internet
@@ -127,60 +93,6 @@ Requires: createrepo >= 0.9.2
 koji-builder is the daemon that runs on build machines and executes
 tasks that come through the Koji system.
 
-%package vm
-Summary: Koji virtual machine management daemon
-Group: Applications/System
-License: LGPLv2
-Requires: %{name} = %{version}-%{release}
-%if %{use_systemd}
-Requires(post): systemd
-Requires(preun): systemd
-Requires(postun): systemd
-%else
-Requires(post): /sbin/chkconfig
-Requires(post): /sbin/service
-Requires(preun): /sbin/chkconfig
-Requires(preun): /sbin/service
-%endif
-Requires: libvirt-python
-Requires: libxml2-python
-Requires: /usr/bin/virt-clone
-Requires: qemu-img
-
-%description vm
-koji-vm contains a supplemental build daemon that executes certain tasks in a
-virtual machine. This package is not required for most installations.
-
-%package utils
-Summary: Koji Utilities
-Group: Applications/Internet
-License: LGPLv2
-Requires: python-psycopg2
-Requires: %{name} = %{version}-%{release}
-%if %{use_systemd}
-Requires(post): systemd
-Requires(preun): systemd
-Requires(postun): systemd
-%endif
-
-%description utils
-Utilities for the Koji system
-
-%package web
-Summary: Koji Web UI
-Group: Applications/Internet
-License: LGPLv2
-Requires: httpd
-Requires: mod_wsgi
-Requires: mod_auth_kerb
-Requires: python-psycopg2
-Requires: python-cheetah
-Requires: %{name} = %{version}-%{release}
-Requires: python-krbV >= 1.0.13
-
-%description web
-koji-web is a web UI to the Koji system.
-
 %prep
 %setup -q
 
@@ -201,55 +113,12 @@ rm -rf $RPM_BUILD_ROOT
 %dir /etc/koji.conf.d
 %doc docs Authors COPYING LGPL
 
-%files hub
-%defattr(-,root,root)
-%{_datadir}/koji-hub
-%dir %{_libexecdir}/koji-hub
-%{_libexecdir}/koji-hub/rpmdiff
-%config(noreplace) /etc/httpd/conf.d/kojihub.conf
-%dir /etc/koji-hub
-%config(noreplace) /etc/koji-hub/hub.conf
-%dir /etc/koji-hub/hub.conf.d
-
-%files hub-plugins
-%defattr(-,root,root)
-%dir %{_prefix}/lib/koji-hub-plugins
-%{_prefix}/lib/koji-hub-plugins/*.py*
-%dir /etc/koji-hub/plugins
-%config(noreplace) /etc/koji-hub/plugins/*.conf
-
 %files builder-plugins
 %defattr(-,root,root)
 %dir /etc/kojid/plugins
 %config(noreplace) /etc/kojid/plugins/*.conf
 %dir %{_prefix}/lib/koji-builder-plugins
 %{_prefix}/lib/koji-builder-plugins/*.py*
-
-%files utils
-%defattr(-,root,root)
-%{_sbindir}/kojira
-%if %{use_systemd}
-%{_unitdir}/kojira.service
-%else
-%{_initrddir}/kojira
-%config(noreplace) /etc/sysconfig/kojira
-%endif
-%dir /etc/kojira
-%config(noreplace) /etc/kojira/kojira.conf
-%{_sbindir}/koji-gc
-%dir /etc/koji-gc
-%config(noreplace) /etc/koji-gc/koji-gc.conf
-%{_sbindir}/koji-shadow
-%dir /etc/koji-shadow
-%config(noreplace) /etc/koji-shadow/koji-shadow.conf
-
-%files web
-%defattr(-,root,root)
-%{_datadir}/koji-web
-%dir /etc/kojiweb
-%config(noreplace) /etc/kojiweb/web.conf
-%config(noreplace) /etc/httpd/conf.d/kojiweb.conf
-%dir /etc/kojiweb/web.conf.d
 
 %files builder
 %defattr(-,root,root)
@@ -289,65 +158,6 @@ rm -rf $RPM_BUILD_ROOT
 if [ $1 = 0 ]; then
   /sbin/service kojid stop &> /dev/null
   /sbin/chkconfig --del kojid
-fi
-%endif
-
-%files vm
-%defattr(-,root,root)
-%{_sbindir}/kojivmd
-#dir %{_datadir}/kojivmd
-%{_datadir}/kojivmd/kojikamid
-%if %{use_systemd}
-%{_unitdir}/kojivmd.service
-%else
-%{_initrddir}/kojivmd
-%config(noreplace) /etc/sysconfig/kojivmd
-%endif
-%dir /etc/kojivmd
-%config(noreplace) /etc/kojivmd/kojivmd.conf
-
-%if %{use_systemd}
-
-%post vm
-%systemd_post kojivmd.service
-
-%preun vm
-%systemd_preun kojivmd.service
-
-%postun vm
-%systemd_postun kojivmd.service
-
-%else
-
-%post vm
-/sbin/chkconfig --add kojivmd
-
-%preun vm
-if [ $1 = 0 ]; then
-  /sbin/service kojivmd stop &> /dev/null
-  /sbin/chkconfig --del kojivmd
-fi
-%endif
-
-%if %{use_systemd}
-
-%post utils
-%systemd_post kojira.service
-
-%preun utils
-%systemd_preun kojira.service
-
-%postun utils
-%systemd_postun kojira.service
-
-%else
-%post utils
-/sbin/chkconfig --add kojira
-/sbin/service kojira condrestart &> /dev/null || :
-%preun utils
-if [ $1 = 0 ]; then
-  /sbin/service kojira stop &> /dev/null || :
-  /sbin/chkconfig --del kojira
 fi
 %endif
 
