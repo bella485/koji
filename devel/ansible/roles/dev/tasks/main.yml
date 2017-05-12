@@ -1,0 +1,101 @@
+---
+- name: Install dev packages
+  dnf:
+      name: "{{ item }}"
+      state: present
+  with_items:
+      - git
+      - python
+      - python-devel
+      - python-ipdb
+      - python-psycopg2
+      - python-rpdb
+      - python2-coverage
+      - python2-sphinx
+      - rpm-build
+      - vim-enhanced
+
+- name: Build the RPMs
+  shell: make test-rpm
+  args:
+    chdir: /home/vagrant/koji
+    creates: /home/vagrant/koji/noarch
+
+- name: Install dev packages
+  shell: dnf install -y /home/vagrant/koji/noarch/*.rpm
+
+- name: Create /etc/pki/koji
+  file:
+      path: "/etc/pki/koji/{{ item }}"
+      owner: root
+      group: root
+      mode: 0755
+      state: directory
+  with_items:
+      - ""
+      - certs
+      - private
+      - confs
+
+- name: Install ssl.cnf
+  copy:
+      src: ssl.cnf
+      dest: /etc/pki/koji/ssl.cnf
+      mode: 0644
+      owner: root
+      group: root
+
+- name: Create the CA private key
+  shell: openssl genrsa -out /etc/pki/koji/private/koji_ca_cert.key 2048
+
+- name: Create the CA
+  shell: openssl req -config /etc/pki/koji/ssl.cnf -new -x509 -subj "/C=US/ST=Oregon/L=Portland/O=IT/CN=koji.example.com" -days 3650 -key /etc/pki/koji/private/koji_ca_cert.key -out /etc/pki/koji/koji_ca_cert.crt -extensions v3_ca
+
+- name: import the koji db schema
+  shell: cat /usr/share/doc/koji/docs/schema.sql | runuser -l postgres -c 'psql koji' && touch /home/vagrant/.db-imported
+  args:
+      creates: /home/vagrant/.db-imported
+
+- name: Configure koji to use our local postgres db
+  replace:
+    dest: /etc/koji-hub/hub.conf
+    regexp: "^DBUser = koji$"
+    replace: "DBUser = postgres"
+
+- replace:
+    dest: /etc/koji-hub/hub.conf
+    regexp: "^#DBHost = .*$"
+    replace: "DBHost = 127.0.0.1"
+
+- replace:
+    dest: /etc/koji-hub/hub.conf
+    regexp: "^#DBPass = .*$"
+    replace: "DBPass = doesntmatter"
+
+- name: Install the .bashrc
+  copy:
+      src: .bashrc
+      dest: /home/vagrant/.bashrc
+      mode: 0644
+      owner: vagrant
+      group: vagrant
+
+- name: Install the .vimrc
+  copy:
+      src: .vimrc
+      dest: /home/vagrant/.vimrc
+      mode: 0644
+      owner: vagrant
+      group: vagrant
+
+- name: Install the motd
+  copy:
+      src: motd
+      dest: /etc/motd
+      mode: 0644
+
+- name: Start and enable the httpd service
+  service:
+      name: httpd
+      state: started
+      enabled: yes

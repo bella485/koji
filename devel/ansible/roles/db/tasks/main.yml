@@ -1,0 +1,39 @@
+---
+- name: Install database packages
+  dnf:
+      name: "{{ item }}"
+      state: present
+  with_items:
+      - libsemanage-python
+      - postgresql-server
+
+- name: Initialize PostgreSQL
+  command: postgresql-setup initdb
+  args:
+      creates: /var/lib/pgsql/data/pg_hba.conf
+
+- replace:
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    regexp: "host    all             all             127.0.0.1/32            ident"
+    replace: "host    all             all             127.0.0.1/32            trust"
+
+- replace:
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    regexp: "host    all             all             ::1/128                 ident"
+    replace: "host    all             all             ::1/128                 trust"
+
+- service:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: Create a database for Koji
+  shell: runuser -l postgres -c 'createdb koji' && touch /home/vagrant/.koji-db-created
+  args:
+      creates: /home/vagrant/.koji-db-created
+
+- name: Allow httpd to connect to postgres
+  seboolean:
+      name: httpd_can_network_connect_db
+      state: yes
+      persistent: yes

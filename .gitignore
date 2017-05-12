@@ -8,3 +8,7 @@ htmlcov
 .idea
 .DS_STORE
 .vagrant
+noarch
+koji-1.*
+koji-*.tar.bz2
+Vagrantfile
