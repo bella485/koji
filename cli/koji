@@ -1345,9 +1345,9 @@ def handle_clone_task(options, session, args):
     usage += _("\n(Specify the --help global option for a list of other help options)")
     parser = OptionParser(usage=usage)
     parser.add_option('--channel', help=_("Set the channel"))
+    parser.add_option('--scratch', action='store_true',
+            help=_("Attempt to pass the scratch option to new task"))
     (options, args) = parser.parse_args(args)
-    #parser.add_option('--scratch', action='store_true',
-    #        help=_("Attempt to pass the scratch option to new task"))
 
     if len(args) < 1:
         parser.error(_("Please provide a task id"))
@@ -1363,7 +1363,6 @@ def handle_clone_task(options, session, args):
     print "Replicating task %i: %s" % (task_id, koji.taskLabel(taskinfo))
     method = taskinfo['method']
     req = taskinfo['request']
-    # TODO: handle --scratch
     taskopts = {}
     if options.channel:
         chan = session.getChannel(options.channel)
@@ -1371,6 +1370,32 @@ def handle_clone_task(options, session, args):
             print(_("No such channel"))
             return 1
         taskopts['channel'] = chan['id']
+    if options.scratch:
+        # not applicable to all tasks, but we will try
+        if method == 'image':
+            if len(req) == 5:
+                # no opts specified
+                req.append({'scratch':True})
+            elif len(req) == 6:
+                opts = req[5] or {}
+                opts['scratch'] = True
+                req[5] = opts
+            else:
+                print(_("Cannot add scratch option"))
+                return 1
+        elif method in ['build', 'maven', 'chainbuild']:
+            if len(req) != 3:
+                print(_("Cannot add scratch option"))
+                return 1
+            opts = req[2] or {}
+            opts['scratch'] = True
+            req[2] = opts
+        elif method == 'indirectionimage':
+            if len(req) != 1:
+                print(_("Cannot add scratch option"))
+                return 1
+            req[0]['scratch'] = True
+
     new_task = session.makeTask(method , req, **taskopts)
     watch_tasks(session, [new_task])
 
