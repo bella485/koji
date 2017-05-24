@@ -1338,6 +1338,43 @@ def handle_resubmit(options, session, args):
         session.logout()
         return watch_tasks(session, [newID], quiet=options.quiet)
 
+
+def handle_clone_task(options, session, args):
+    "[admin] Replicate an existing task"
+    usage = _("usage: %prog clone-task [options] <task-id>")
+    usage += _("\n(Specify the --help global option for a list of other help options)")
+    parser = OptionParser(usage=usage)
+    parser.add_option('--channel', help=_("Set the channel"))
+    (options, args) = parser.parse_args(args)
+    #parser.add_option('--scratch', action='store_true',
+    #        help=_("Attempt to pass the scratch option to new task"))
+
+    if len(args) < 1:
+        parser.error(_("Please provide a task id"))
+    try:
+        task_id = int(args[0])
+    except ValueError:
+        parser.error(_("Invalid task id"))
+    activate_session(session)
+    taskinfo = session.getTaskInfo(task_id, request=True)
+    if not taskinfo:
+        print(_("No such task: %s") % task_id)
+        return 1
+    print "Replicating task %i: %s" % (task_id, koji.taskLabel(taskinfo))
+    method = taskinfo['method']
+    req = taskinfo['request']
+    # TODO: handle --scratch
+    taskopts = {}
+    if options.channel:
+        chan = session.getChannel(options.channel)
+        if not chan:
+            print(_("No such channel"))
+            return 1
+        taskopts['channel'] = chan['id']
+    new_task = session.makeTask(method , req, **taskopts)
+    watch_tasks(session, [new_task])
+
+
 def handle_call(options, session, args):
     "Execute an arbitrary XML-RPC call"
     usage = _("usage: %prog call [options] name [arg...]")
