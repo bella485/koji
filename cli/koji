@@ -1395,6 +1395,9 @@ def handle_clone_task(options, session, args):
                 print(_("Cannot add scratch option"))
                 return 1
             req[0]['scratch'] = True
+        else:
+            print(_("Cannot add scratch option"))
+            return 1
 
     new_task = session.makeTask(method , req, **taskopts)
     watch_tasks(session, [new_task])
