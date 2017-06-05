@@ -8,7 +8,11 @@ from koji import GenericError
 
 
 class TestGetUploadPath(unittest.TestCase):
-
+    def tearDown(self):
+        try:
+            shutil.rmtree('/tmp/fake')
+        except Exception:
+            pass
 
     def test_get_upload_path_invalid_filename(self):
         with self.assertRaises(GenericError):
@@ -42,8 +46,6 @@ class TestGetUploadPath(unittest.TestCase):
 
         with self.assertRaises(GenericError):
             kojihub.get_upload_path(reldir=reldir, name='error', create=True)
-
-        shutil.rmtree('/tmp/fake')
 
     @mock.patch('koji.pathinfo.work')
     @mock.patch('kojihub.Host')
