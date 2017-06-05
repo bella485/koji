@@ -11,6 +11,7 @@ from koji.tasks import BaseTaskHandler, FakeTask, ForkTask, SleepTask, \
                        WaitTestTask, scan_mounts, umount_all, \
                        safe_rmtree
 import six
+from six.moves import range
 
 
 def get_fake_mounts_file():

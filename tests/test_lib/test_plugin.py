@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import datetime
 import mock
@@ -6,6 +7,7 @@ import unittest
 import koji
 import koji.util
 import koji.plugin
+from six.moves import range
 
 
 class TestCallbackDecorators(unittest.TestCase):

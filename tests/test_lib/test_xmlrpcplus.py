@@ -1,8 +1,10 @@
 # coding=utf-8
+from __future__ import absolute_import
 import unittest
 
 from six.moves import xmlrpc_client
 from koji import xmlrpcplus
+from six.moves import range
 
 
 class TestDump(unittest.TestCase):

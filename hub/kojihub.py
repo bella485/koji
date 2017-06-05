@@ -60,6 +60,7 @@ import zipfile
 import koji.xmlrpcplus
 from koji.context import context
 from six.moves import zip
+from six.moves import range
 
 try:
     import json

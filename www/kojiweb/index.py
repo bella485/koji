@@ -38,6 +38,7 @@ from kojiweb.util import _genHTML
 from kojiweb.util import _getValidTokens
 from koji.util import sha1_constructor
 from six.moves import zip
+from six.moves import range
 
 # Convenience definition of a commonly-used sort function
 _sortbyname = kojiweb.util.sortByKeyFunc('name')
@@ -812,7 +813,7 @@ def tags(environ, start=None, order=None, childID=None):
 
     return _genHTML(environ, 'tags.chtml')
 
-_PREFIX_CHARS = [chr(char) for char in range(48, 58) + range(97, 123)]
+_PREFIX_CHARS = [chr(char) for char in list(range(48, 58)) + list(range(97, 123))]
 
 def packages(environ, tagID=None, userID=None, order='package_name', start=None, prefix=None, inherited='1'):
     values = _initValues(environ, 'Packages', 'packages')
