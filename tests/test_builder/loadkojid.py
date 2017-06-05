@@ -6,9 +6,12 @@ import sys
 KOJID_FILENAME = os.path.dirname(__file__) + "/../../builder/kojid"
 if sys.version_info[0] >= 3:
     import importlib.util
-    spec = importlib.util.spec_from_file_location("koji_kojid", KOJID_FILENAME)
+    import importlib.machinery
+    loader = importlib.machinery.SourceFileLoader('kojid_kojid', KOJID_FILENAME)
+    spec = importlib.util.spec_from_loader(loader.name, loader)
     kojid = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(kojid)
+    loader.exec_module(kojid)
+    sys.modules['kojid_kojid'] = kojid
 else:
     import imp
     kojid = imp.load_source('koji_kojid', KOJID_FILENAME)
