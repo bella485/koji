@@ -305,7 +305,7 @@ class WindowsBuild(object):
         offset = 0
         checksum = hashlib.md5()
         while True:
-            encoded = self.server.getFile(buildinfo, fileinfo, encode_int(offset), 1048576, type)
+            encoded = self.server.getFile(buildinfo, fileinfo, offset, 1048576, type)
             if not encoded:
                 break
             data = base64.b64decode(encoded)
@@ -568,7 +568,7 @@ def upload_file(server, prefix, path):
         if not data:
             break
         encoded = base64.b64encode(data)
-        server.upload(path, encode_int(offset), encoded)
+        server.upload(path, offset, encoded)
         offset += len(data)
         sum.update(data)
     fobj.close()

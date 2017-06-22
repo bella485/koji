@@ -73,13 +73,55 @@ import struct
 import tempfile
 import time
 import traceback
+import types
 from . import util
 import warnings
-import six.moves.xmlrpc_client
 import xml.sax
 import xml.sax.handler
-from six.moves.xmlrpc_client import loads, dumps, Fault
 import six.moves.urllib
+from six.moves.xmlrpc_client import getparser, loads, dumps, Fault
+
+# Workaround to allow xmlrpclib deal with iterators and 64-bit ints
+class Marshaller(six.moves.xmlrpc_client.Marshaller):
+
+    dispatch = six.moves.xmlrpc_client.Marshaller.dispatch.copy()
+
+    def dump_generator(self, value, write):
+        dump = self.__dump
+        write("<value><array><data>\n")
+        for v in value:
+            dump(v, write)
+        write("</data></array></value>\n")
+    dispatch[types.GeneratorType] = dump_generator
+
+    def dump_datetime(self, value, write):
+        # For backwards compatibility, we return datetime objects as strings
+        value = value.isoformat(' ')
+        self.dump_string(value, write)
+    dispatch[datetime.datetime] = dump_datetime
+
+    MAXI8 = 2 ** 64 - 1
+    MINI8 = -2 ** 64
+    def dump_i8(self, value, write):
+        # python2's xmlrpclib doesn't support i8 extension for marshalling,
+        # but can unmarshall it correctly.
+        if value > Marshaller.MAXI8 or value < Marshaller.MINI8:
+            raise OverflowError, "long int exceeds XML-RPC limits"
+        elif value > six.moves.xmlrpc_client.MAXINT or \
+             value < six.moves.xmlrpc_client.MININT:
+            write("<value><i8>")
+            write(str(int(value)))
+            write("</i8></value>\n")
+        else:
+            write("<value><int>")
+            write(str(int(value)))
+            write("</int></value>\n")
+    dispatch[types.LongType] = dump_i8
+    dispatch[types.IntType] = dump_i8
+
+six.moves.xmlrpc_client.Marshaller = Marshaller
+six.moves.xmlrpc_client.FastMarshaller = None
+
 
 PROFILE_MODULES = {}  # {module_name: module_instance}
 
@@ -451,23 +493,6 @@ def decode_args2(args, names, strict=True):
     ret = dict(list(zip(names, args)))
     ret.update(opts)
     return ret
-
-## BEGIN kojikamid dup
-
-def encode_int(n):
-    """If n is too large for a 32bit signed, convert it to a string"""
-    if n <= 2147483647:
-        return n
-    #else
-    return str(n)
-## END kojikamid dup
-
-def decode_int(n):
-    """If n is not an integer, attempt to convert it"""
-    if isinstance(n, six.integer_types):
-        return n
-    #else
-    return int(n)
 
 #commonly used functions
 
@@ -2382,7 +2407,7 @@ class ClientSession(object):
         return ret
 
     def _read_xmlrpc_response(self, response):
-        p, u = six.moves.xmlrpc_client.getparser()
+        p, u = getparser()
         for chunk in response.iter_content(8192):
             if self.opts.get('debug_xmlrpc', False):
                 print("body: %r" % chunk)
@@ -2643,7 +2668,7 @@ class ClientSession(object):
             while True:
                 if debug:
                     self.logger.debug("uploadFile(%r,%r,%r,%r,%r,...)" %(path, name, sz, digest, offset))
-                if self.callMethod('uploadFile', path, name, encode_int(sz), digest, encode_int(offset), data, **volopts):
+                if self.callMethod('uploadFile', path, name, sz, digest, offset, data, **volopts):
                     break
                 if tries <= retries:
                     tries += 1
