@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import mock
 import os
+import six
 import unittest
 
 import koji
@@ -34,14 +35,14 @@ class TestGetRPMDeps(unittest.TestCase):
             result = {}
             for r in res:
                 result.setdefault(r['type'], set()).add(r['name'])
-            self.assertTrue('require1' in result[koji.DEP_REQUIRE])
-            self.assertTrue('provide1' in result[koji.DEP_PROVIDE])
-            self.assertTrue('obsoletes1' in result[koji.DEP_OBSOLETE])
-            self.assertTrue('conflicts1' in result[koji.DEP_CONFLICT])
-            self.assertTrue('suggests1' in result[koji.DEP_SUGGEST])
-            self.assertTrue('enhances1' in result[koji.DEP_ENHANCE])
-            self.assertTrue('supplements1' in result[koji.DEP_SUPPLEMENT])
-            self.assertTrue('recommends1' in result[koji.DEP_RECOMMEND])
+            self.assertTrue(six.b('require1') in result[koji.DEP_REQUIRE])
+            self.assertTrue(six.b('provide1') in result[koji.DEP_PROVIDE])
+            self.assertTrue(six.b('obsoletes1') in result[koji.DEP_OBSOLETE])
+            self.assertTrue(six.b('conflicts1') in result[koji.DEP_CONFLICT])
+            self.assertTrue(six.b('suggests1') in result[koji.DEP_SUGGEST])
+            self.assertTrue(six.b('enhances1') in result[koji.DEP_ENHANCE])
+            self.assertTrue(six.b('supplements1') in result[koji.DEP_SUPPLEMENT])
+            self.assertTrue(six.b('recommends1') in result[koji.DEP_RECOMMEND])
         else:
             self.assertEqual(len(res), 14)
             types = set([x['type'] for x in res])

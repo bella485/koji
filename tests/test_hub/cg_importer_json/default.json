@@ -77,7 +77,7 @@
                                  "repositories": ["repository.example.com/username/imagename:tagname",
                                                   "repository.example.com/username/imagename:latest"]}}},
            {"buildroot_id": 1,
-            "filename": "checkout.log",
+            "filename": "tady_checkoutěščřž.log",
             "filesize": 85724,
             "arch": "noarch",
             "checksum_type": "md5",
