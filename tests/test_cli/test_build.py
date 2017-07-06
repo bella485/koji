@@ -39,7 +39,7 @@ class TestBuild(unittest.TestCase):
         source = 'srpm'
         task_id = 1
         args = [target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -91,7 +91,7 @@ Task info: weburl/taskinfo?taskID=1
         source = 'http://scm'
         task_id = 1
         args = [target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -198,6 +198,8 @@ Options:
   --quiet               Do not print the task information
   --arch-override=ARCH_OVERRIDE
                         Override build arches
+  --fail-slow           Override builder's build_arch_can_fail settings and
+                        doesn't cancel other subtasks if some fails
   --repo-id=REPO_ID     Use a specific repo
   --noprogress          Do not display progress of the upload
   --background          Run the build at a lower priority
@@ -281,7 +283,11 @@ Options:
         task_id = 1
         repo_id = 2
         args = ['--repo-id=' + str(repo_id), target, source]
-        opts = {'repo_id': repo_id, 'skip_tag': True}
+        opts = {
+            'repo_id': repo_id,
+            'skip_tag': True,
+            'fail_fast': True,
+        }
         priority = None
 
         self.session.build.return_value = task_id
@@ -475,7 +481,11 @@ Task info: weburl/taskinfo?taskID=1
             '--scratch',
             target,
             source]
-        opts = {'arch_override': arch_override, 'scratch': True}
+        opts = {
+            'arch_override': arch_override,
+            'scratch': True,
+            'fail_fast': True,
+        }
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -526,7 +536,7 @@ Task info: weburl/taskinfo?taskID=1
         task_id = 1
         args = ['--background', target, source]
         priority = 5
-        opts = {}
+        opts = {'fail_fast': True}
 
         self.session.getBuildTarget.return_value = target_info
         self.session.getTag.return_value = dest_tag_info
@@ -574,7 +584,7 @@ Task info: weburl/taskinfo?taskID=1
         source = 'srpm'
         task_id = 1
         args = [target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -625,7 +635,7 @@ Task info: weburl/taskinfo?taskID=1
         source = 'srpm'
         task_id = 1
         args = ['--noprogress', target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -679,7 +689,7 @@ Task info: weburl/taskinfo?taskID=1
         task_id = 1
         quiet = True
         args = ['--quiet', target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -729,7 +739,7 @@ Task info: weburl/taskinfo?taskID=1
         task_id = 1
         quiet = None
         args = ['--wait', target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
@@ -782,7 +792,7 @@ Task info: weburl/taskinfo?taskID=1
         source = 'srpm'
         task_id = 1
         args = ['--nowait', target, source]
-        opts = {}
+        opts = {'fail_fast': True}
         priority = None
 
         self.session.getBuildTarget.return_value = target_info
