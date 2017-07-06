@@ -87,8 +87,8 @@ class TestImportRPM(unittest.TestCase):
             'size',
         ]
         statement = 'INSERT INTO rpminfo (%s) VALUES (%s)' % (
-            ", ".join(fields),
-            ", ".join(['%%(%s)s' % field for field in fields])
+            ", ".join(sorted(fields)),
+            ", ".join(['%%(%s)s' % field for field in sorted(fields)])
         )
         values = {
             'build_id': 12345,
@@ -146,8 +146,8 @@ class TestImportRPM(unittest.TestCase):
             'size',
         ]
         statement = 'INSERT INTO rpminfo (%s) VALUES (%s)' % (
-            ", ".join(fields),
-            ", ".join(['%%(%s)s' % field for field in fields])
+            ", ".join(sorted(fields)),
+            ", ".join(['%%(%s)s' % field for field in sorted(fields)])
         )
         values = {
             'build_id': 12345,
@@ -264,8 +264,8 @@ class TestImportBuild(unittest.TestCase):
             'id',
         ]
         statement = 'INSERT INTO build (%s) VALUES (%s)' % (
-            ", ".join(fields),
-            ", ".join(['%%(%s)s' % field for field in fields])
+            ", ".join(sorted(fields)),
+            ", ".join(['%%(%s)s' % field for field in sorted(fields)])
         )
         values = {
             'task_id': None,

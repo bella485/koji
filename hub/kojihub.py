@@ -7533,8 +7533,8 @@ class InsertProcessor(object):
         if not self.data and not self.rawdata:
             return "-- incomplete update: no assigns"
         parts = ['INSERT INTO %s ' % self.table]
-        columns = list(self.data.keys())
-        columns.extend(list(self.rawdata.keys()))
+        columns = sorted(self.data.keys())
+        columns.extend(sorted(self.rawdata.keys()))
         parts.append("(%s) " % ', '.join(columns))
         values = []
         for key in columns:
@@ -7762,7 +7762,7 @@ SELECT %(col_str)s
 
     def _seqtostr(self, seq, sep=', '):
         if seq:
-            return sep.join(seq)
+            return sep.join(sorted(seq))
         else:
             return ''
 
