@@ -77,7 +77,7 @@ test3:
 	PYTHONPATH=hub/.:plugins/hub/.:plugins/builder/.:plugins/cli/.:cli/. coverage3 run \
 	    --rcfile .coveragerc3 --source . \
 	    /usr/bin/nosetests-3 \
-	    tests/test_lib tests/test_cli
+	    tests/test_lib tests/test_cli tests/test_hub tests/*.py
 	coverage report
 	coverage html
 	@echo Full coverage report in htmlcov/index.html
