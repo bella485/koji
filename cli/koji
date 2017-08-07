@@ -1345,6 +1345,7 @@ def handle_clone_task(options, session, args):
     usage += _("\n(Specify the --help global option for a list of other help options)")
     parser = OptionParser(usage=usage)
     parser.add_option('--channel', help=_("Set the channel"))
+    parser.add_option('--arch', help=_("Override the arch"))
     parser.add_option('--scratch', action='store_true',
             help=_("Attempt to pass the scratch option to new task"))
     (options, args) = parser.parse_args(args)
@@ -1370,6 +1371,11 @@ def handle_clone_task(options, session, args):
             print(_("No such channel"))
             return 1
         taskopts['channel'] = chan['id']
+    else:
+        # use original channel
+        taskopts['channel'] = taskinfo['channel_id']
+    if options.arch:
+        taskopts['arch'] = options.arch
     if options.scratch:
         # not applicable to all tasks, but we will try
         if method == 'image':
