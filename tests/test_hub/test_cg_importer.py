@@ -4,6 +4,7 @@ import mock
 import os
 import shutil
 
+import koji
 import kojihub
 from koji import GenericError
 
