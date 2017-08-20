@@ -1,14 +1,12 @@
 from __future__ import absolute_import
 import mock
-import os
-import sys
 import unittest
 import xmlrpclib
 from mock import call
 
 import koji
-
-from task_notification import TaskNotificationTask
+from . import load_plugin
+task_notification = load_plugin.load_plugin('builder', 'task_notification')
 
 taskinfo = {'id': 111,
             'host_id': 2,
@@ -38,7 +36,7 @@ class TestTaskNotification(unittest.TestCase):
         self.smtp_server = self.smtpClass.return_value
         options = mock.MagicMock()
         options.from_addr = 'koji@example.com'
-        self.task = TaskNotificationTask(666, 'taskNotification', {}, self.session, options)
+        self.task = task_notification.TaskNotificationTask(666, 'taskNotification', {}, self.session, options)
 
     def tearDown(self):
         mock.patch.stopall()

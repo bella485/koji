@@ -1,16 +1,20 @@
 from __future__ import absolute_import
+
 import copy
 import unittest
+
+import __main__
 import mock
-import six.moves.configparser
 
 # inject builder data
 from tests.test_builder.loadkojid import kojid
-import __main__
+
 __main__.BuildRoot = kojid.BuildRoot
 
-import koji
 import runroot
+
+import koji
+from .helper import FakeConfigParser
 
 
 CONFIG1 = {
@@ -57,37 +61,10 @@ CONFIG2 = {
         }}
 
 
-class FakeConfigParser(object):
-
-    def __init__(self, config=None):
-        if config is None:
-            self.CONFIG = copy.deepcopy(CONFIG1)
-        else:
-            self.CONFIG = copy.deepcopy(config)
-
-    def read(self, path):
-        return
-
-    def sections(self):
-        return self.CONFIG.keys()
-
-    def has_option(self, section, key):
-        return section in self.CONFIG and key in self.CONFIG[section]
-
-    def has_section(self, section):
-        return section in self.CONFIG
-
-    def get(self, section, key):
-        try:
-            return self.CONFIG[section][key]
-        except KeyError:
-            raise six.moves.configparser.NoOptionError(section, key)
-
-
 class TestRunrootConfig(unittest.TestCase):
     @mock.patch('ConfigParser.SafeConfigParser')
     def test_bad_config_paths0(self, safe_config_parser):
-        cp = FakeConfigParser()
+        cp = FakeConfigParser(CONFIG1)
         del cp.CONFIG['path0']['mountpoint']
         safe_config_parser.return_value = cp
         session = mock.MagicMock()
@@ -100,7 +77,7 @@ class TestRunrootConfig(unittest.TestCase):
 
     @mock.patch('ConfigParser.SafeConfigParser')
     def test_bad_config_absolute_path(self, safe_config_parser):
-        cp = FakeConfigParser()
+        cp = FakeConfigParser(CONFIG1)
         cp.CONFIG['paths']['default_mounts'] = ''
         safe_config_parser.return_value = cp
         session = mock.MagicMock()
@@ -113,7 +90,7 @@ class TestRunrootConfig(unittest.TestCase):
 
     @mock.patch('ConfigParser.SafeConfigParser')
     def test_valid_config(self, safe_config_parser):
-        safe_config_parser.return_value = FakeConfigParser()
+        safe_config_parser.return_value = FakeConfigParser(CONFIG1)
         session = mock.MagicMock()
         options = mock.MagicMock()
         options.workdir = '/tmp/nonexistentdirectory'
@@ -163,7 +140,7 @@ class TestRunrootConfig(unittest.TestCase):
 class TestMounts(unittest.TestCase):
     @mock.patch('ConfigParser.SafeConfigParser')
     def setUp(self, safe_config_parser):
-        safe_config_parser.return_value = FakeConfigParser()
+        safe_config_parser.return_value = FakeConfigParser(CONFIG1)
         self.session = mock.MagicMock()
         options = mock.MagicMock()
         options.workdir = '/tmp/nonexistentdirectory'

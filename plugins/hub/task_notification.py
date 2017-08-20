@@ -31,7 +31,7 @@ def read_config():
             allowed_methods = '*'
         allowed_states = config.get('permissions', 'allowed_states').split(',')
         if len(allowed_states) == 1 and allowed_states[0] == '*':
-            allowed_methods = '*'
+            allowed_states = '*'
 
 
 def task_notification(task_id):
