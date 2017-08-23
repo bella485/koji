@@ -1640,6 +1640,7 @@ def read_config(profile_name, user_config=None):
         'authtype': None,
         'debug': False,
         'debug_xmlrpc': False,
+        'pyver' : None,
     }
 
     result = config_defaults.copy()
@@ -1696,7 +1697,7 @@ def read_config(profile_name, user_config=None):
                         result[name] = config.getboolean(profile_name, name)
                     elif name in ('max_retries', 'retry_interval',
                                   'offline_retry_interval', 'poll_interval', 'timeout',
-                                  'upload_blocksize'):
+                                  'upload_blocksize', 'pyver'):
                         try:
                             result[name] = int(value)
                         except ValueError:
