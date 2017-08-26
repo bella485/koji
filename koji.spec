@@ -53,19 +53,25 @@ contains shared libraries and the command-line interface.
 %package -n python2-%{name}
 Summary: Build system tools python library
 %{?python_provide:%python_provide python2-%{name}}
-BuildRequires: python-devel
+BuildRequires: python2-devel
 Requires: python-krbV >= 1.0.13
 %if 0%{?rhel} && 0%{?rhel} <= 7
 Requires: rpm-python
-%else
-Requires: python2-rpm
-%endif
 Requires: pyOpenSSL
 Requires: python-pycurl
 Requires: python-requests
 Requires: python-requests-kerberos
 Requires: python-dateutil
 Requires: python-six
+%else
+Requires: python2-rpm
+Requires: python2-pyOpenSSL
+Requires: python2-pycurl
+Requires: python2-requests
+Requires: python2-requests-kerberos
+Requires: python2-dateutil
+Requires: python2-six
+%endif
 
 %description -n python2-%{name}
 desc
