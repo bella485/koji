@@ -7,15 +7,6 @@
 %bcond_with python3
 %endif
 
-# Compatibility with RHEL. These macros have been added to EPEL but
-# not yet to RHEL proper.
-# https://bugzilla.redhat.com/show_bug.cgi?id=1307190
-%{!?__python2: %global __python2 /usr/bin/python2}
-%{!?python2_sitelib: %global python2_sitelib %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")}
-%{!?python2_sitearch: %global python2_sitearch %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(1))")}
-%{!?py2_build: %global py2_build %{expand: CFLAGS="%{optflags}" %{__python2} setup.py %{?py_setup_args} build --executable="%{__python2} -s"}}
-%{!?py2_install: %global py2_install %{expand: CFLAGS="%{optflags}" %{__python2} setup.py %{?py_setup_args} install -O1 --skip-build --root %{buildroot}}}
-
 %if 0%{?fedora} >= 21 || 0%{?rhel} >= 7
 %global use_systemd 1
 %else
