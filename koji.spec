@@ -55,10 +55,10 @@ Summary: Build system tools python library
 %{?python_provide:%python_provide python2-%{name}}
 BuildRequires: python-devel
 Requires: python-krbV >= 1.0.13
-%if 0%{?fedora} >= 25 || 0%{?rhel} >= 8
-Requires: python2-rpm
-%else
+%if 0%{?rhel} && 0%{?rhel} <= 7
 Requires: rpm-python
+%else
+Requires: python2-rpm
 %endif
 Requires: pyOpenSSL
 Requires: python-pycurl
@@ -75,10 +75,10 @@ desc
 Summary: Build system tools python library
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{name}}
 BuildRequires: python%{python3_pkgversion}-devel
-%if 0%{?fedora} >= 25 || 0%{?rhel} >= 8
-Requires: python%{python3_pkgversion}-rpm
-%else
+%if 0%{?rhel} && 0%{?rhel} <= 7
 Requires: rpm-python%{python3_pkgversion}
+%else
+Requires: python%{python3_pkgversion}-rpm
 %endif
 Requires: python%{python3_pkgversion}-pycurl
 Requires: python%{python3_pkgversion}-pyOpenSSL
