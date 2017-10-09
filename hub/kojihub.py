@@ -5196,6 +5196,8 @@ def cg_import(metadata, directory):
     - a filename containing the metadata
     """
 
+    if os.path.lexists(directory):
+        raise koji.GenericError("Destination directory exists: %s" % directory)
     importer = CG_Importer()
     return importer.do_import(metadata, directory)
 
