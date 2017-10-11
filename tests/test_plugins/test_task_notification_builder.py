@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import os
 import mock
 import unittest
 import xmlrpclib
@@ -16,9 +17,9 @@ taskinfo = {'id': 111,
             'method': 'someMethod',
             'arch': 'someArch',
             'label': None,
-            'create_time': '2017-01-01 00:00:00.12131',
-            'start_time': '2017-02-01 00:00:00.12131',
-            'completion_time': '2017-01-01 00:00:00.12131'}
+            'create_time': '2017-01-01 00:00:00.121313',
+            'start_time': '2017-02-01 00:00:00.121313',
+            'completion_time': '2017-01-01 00:00:00.121313'}
 
 hostinfo = {'id': 2, 'name': 'task.host.com'}
 userinfo = {'id': 222, 'name': 'somebody'}
@@ -27,6 +28,8 @@ taskresult = 'task result'
 
 class TestTaskNotification(unittest.TestCase):
     def setUp(self):
+        self.original_timezone = os.environ.get('TZ')
+        os.environ['TZ'] = 'US/Eastern'
         self.session = mock.MagicMock()
         self.session.getTaskInfo.return_value = taskinfo
         self.session.getHost.return_value = hostinfo
@@ -39,6 +42,10 @@ class TestTaskNotification(unittest.TestCase):
         self.task = task_notification.TaskNotificationTask(666, 'taskNotification', {}, self.session, options)
 
     def tearDown(self):
+        if self.original_timezone is None:
+            del os.environ['TZ']
+        else:
+            os.environ['TZ'] = self.original_timezone
         mock.patch.stopall()
 
     def reset_mock(self):
@@ -76,9 +83,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n'
                                                           'Canceled by: notitaskowner\r\n\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
 
@@ -110,9 +117,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n'
                                                           'Task#111 failed on task.host.com (someArch):\r\n'
                                                           '  task result\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
@@ -142,9 +149,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n'
                                                           'Task#111 failed on task.host.com (someArch):\r\n'
                                                           '  Unknown\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
@@ -174,9 +181,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n'
                                                           'Task#111 failed on task.host.com (someArch):\r\n'
                                                           '  xmlrpc fault\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
@@ -206,9 +213,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n'
                                                           'Task#111 failed on task.host.com (someArch):\r\n'
                                                           '  GenericError: koji generic error\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
@@ -241,9 +248,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
 
     def test_task_notification_no_host_user(self):
@@ -278,9 +285,9 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Parent: None\r\n'
                                                           'Arch: someArch\r\n'
                                                           'Label: None\r\n'
-                                                          'Created: 2017-01-01 00:00:00.12131\r\n'
-                                                          'Started: 2017-02-01 00:00:00.12131\r\n'
-                                                          'Finished: 2017-01-01 00:00:00.12131\r\n\r\n\r\n'
+                                                          'Created: Sun, 01 Jan 2017 00:00:00 EST\r\n'
+                                                          'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
+                                                          'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
 
     def test_task_notification_no_taskinfo(self):

@@ -74,6 +74,9 @@ Task Info: %(weburl)s/taskinfo?taskID=%(id)i\r
         taskinfo['result'] = result
 
         noti_info = taskinfo.copy()
+        noti_info['create_time'] = koji.formatTimeLong(taskinfo.get('create_time'))
+        noti_info['start_time'] = koji.formatTimeLong(taskinfo.get('start_time'))
+        noti_info['completion_time'] = koji.formatTimeLong(taskinfo.get('completion_time'))
         noti_info['host_name'] = hostinfo and hostinfo['name'] or None
         noti_info['state_str'] = koji.TASK_STATES[taskinfo['state']]
 
