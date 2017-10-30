@@ -5595,12 +5595,20 @@ class CG_Importer(object):
                 # should not happen
                 logger.error("No buildroot mapping for file: %r", fileinfo)
                 raise koji.GenericError("Unable to map buildroot %(buildroot_id)s" % fileinfo)
-            if fileinfo['type'] == 'rpm':
-                self.import_rpm(self.buildinfo, brinfo, fileinfo)
-            elif fileinfo['type'] == 'log':
-                self.import_log(self.buildinfo, fileinfo)
-            else:
-                self.import_archive(self.buildinfo, brinfo, fileinfo)
+            try:
+                if fileinfo['type'] == 'rpm':
+                    self.import_rpm(self.buildinfo, brinfo, fileinfo)
+                elif fileinfo['type'] == 'log':
+                    self.import_log(self.buildinfo, fileinfo)
+                else:
+                    self.import_archive(self.buildinfo, brinfo, fileinfo)
+            except koji.GenericError as e:
+                # if import fails during write remove build dir
+                try:
+                    os.rmdir(koji.pathinfo.build(self.buildinfo))
+                except OSError:
+                    pass
+                raise e
 
 
     def prep_archive(self, fileinfo):
