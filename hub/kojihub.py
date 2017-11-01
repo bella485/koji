@@ -11653,8 +11653,12 @@ class HostExports(object):
         rpms = check_noarch_rpms(uploadpath, rpms)
 
         #figure out storage location
-        #  <scratchdir>/<username>/task_<id>
-        scratchdir = koji.pathinfo.scratch()
+        #  <volume>/<scratchdir>/<username>/task_<id>
+        policy_data = {
+            'scratch': True,
+        }
+        vol = check_volume_policy(policy_data, strict=False, default='DEFAULT')
+        scratchdir = koji.pathinfo.scratch(volume=vol['name'])
         username = get_user(task.getOwner())['name']
         dir = "%s/%s/task_%s" % (scratchdir, username, task_id)
         koji.ensuredir(dir)
@@ -11684,7 +11688,11 @@ class HostExports(object):
         host.verify()
         task = Task(task_id)
         task.assertHost(host.id)
-        scratchdir = koji.pathinfo.scratch()
+        policy_data = {
+            'scratch': True,
+        }
+        vol = check_volume_policy(policy_data, strict=False, default='DEFAULT')
+        scratchdir = koji.pathinfo.scratch(volume=vol['name'])
         username = get_user(task.getOwner())['name']
         destdir = os.path.join(scratchdir, username, 'task_%s' % task_id)
         for reldir, files in results['files'].items() + [('', results['logs'])]:
@@ -11716,7 +11724,11 @@ class HostExports(object):
         host.verify()
         task = Task(task_id)
         task.assertHost(host.id)
-        scratchdir = koji.pathinfo.scratch()
+        policy_data = {
+            'scratch': True,
+        }
+        vol = check_volume_policy(policy_data, strict=False, default='DEFAULT')
+        scratchdir = koji.pathinfo.scratch(volume=vol['name'])
         username = get_user(task.getOwner())['name']
         destdir = os.path.join(scratchdir, username, 'task_%s' % task_id)
         for relpath in results['output'].keys() + results['logs']:
@@ -11747,7 +11759,11 @@ class HostExports(object):
                 logger.warning('Task %s failed, no image available' % task_id)
                 continue
             workdir = koji.pathinfo.task(sub_results['task_id'])
-            scratchdir = koji.pathinfo.scratch()
+            policy_data = {
+                'scratch': True,
+            }
+            vol = check_volume_policy(policy_data, strict=False, default='DEFAULT')
+            scratchdir = koji.pathinfo.scratch(volume=vol['name'])
             username = get_user(task.getOwner())['name']
             destdir = os.path.join(scratchdir, username,
                 'task_%s' % sub_results['task_id'])

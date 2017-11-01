@@ -1902,9 +1902,9 @@ class PathInfo(object):
             tmp = self.work(volume) + '/tmp/' + ''.join([random.choice(self.ASCII_CHARS) for dummy in '123456'])
         return tmp
 
-    def scratch(self):
+    def scratch(self, volume=None):
         """Return the main scratch dir"""
-        return self.topdir + '/scratch'
+        return self.volumedir(volume) + '/scratch'
 
     def task(self, task_id, volume=None):
         """Return the output directory for the task with the given id"""
