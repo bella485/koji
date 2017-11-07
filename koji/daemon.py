@@ -21,24 +21,23 @@
 #       Mike Bonnet <mikeb@redhat.com>
 
 from __future__ import absolute_import
+import base64
+import errno
+import logging
+import os
+import signal
+import six
+import sys
+import time
+import traceback
+from fnmatch import fnmatch
+from six.moves import range
+
 import koji
 import koji.tasks
 import koji.xmlrpcplus
 from koji.tasks import safe_rmtree
 from koji.util import md5_constructor, adler32_constructor, parseStatus, dslice
-import os
-import signal
-import logging
-import urlparse
-from fnmatch import fnmatch
-import base64
-import time
-import sys
-import traceback
-import errno
-from six.moves import range
-import six
-
 
 def incremental_upload(session, fname, fd, path, retries=5, logger=None):
     if not fd:
@@ -251,7 +250,7 @@ class SCM(object):
 
         # replace the scheme with http:// so that the urlparse works in all cases
         dummyurl = self.url.replace(scheme, 'http://', 1)
-        dummyscheme, netloc, path, params, query, fragment = urlparse.urlparse(dummyurl)
+        dummyscheme, netloc, path, params, query, fragment = six.moves.urllib.parse.urlparse(dummyurl)
 
         user = None
         userhost = netloc.split('@')

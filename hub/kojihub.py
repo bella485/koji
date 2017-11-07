@@ -25,7 +25,6 @@
 from __future__ import absolute_import
 import base64
 import calendar
-import urlparse
 import koji
 import koji.auth
 import koji.db
@@ -54,14 +53,12 @@ import tarfile
 import tempfile
 import traceback
 import time
-import six.moves.xmlrpc_client
 import zipfile
 
 import koji.xmlrpcplus
 from koji.context import context
 from six.moves import zip
 from six.moves import range
-import six
 
 try:
     import json
@@ -12671,7 +12668,7 @@ def handle_upload(environ):
     start = time.time()
     if not context.session.logged_in:
         raise koji.ActionNotAllowed('you must be logged-in to upload a file')
-    args = urlparse.parse_qs(environ.get('QUERY_STRING', ''), strict_parsing=True)
+    args = six.moves.urllib.parse.parse_qs(environ.get('QUERY_STRING', ''), strict_parsing=True)
     #XXX - already parsed by auth
     name = args['filename'][0]
     path = args.get('filepath', ('',))[0]

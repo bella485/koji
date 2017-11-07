@@ -9,7 +9,6 @@ the bits that koji needs.
 
 from __future__ import absolute_import
 import six.moves.http_client
-import urlparse
 import urllib
 import six
 import sys
@@ -29,7 +28,7 @@ class Session(object):
 
     def post(self, url, data=None, headers=None, stream=None, verify=None,
                 cert=None, timeout=None):
-        uri = urlparse.urlsplit(url)
+        uri = six.moves.urllib.parse.urlsplit(url)
         if uri[3]:
             handler = "%s?%s" % (uri[2], uri[3])
         else:
