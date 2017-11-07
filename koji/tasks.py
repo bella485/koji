@@ -25,7 +25,7 @@ import koji
 import koji.util
 import os
 import logging
-import xmlrpclib
+import six.moves.xmlrpc_client
 import signal
 import shutil
 import random
@@ -235,7 +235,7 @@ class BaseTaskHandler(object):
                                 continue
                             try:
                                 self.session.getTaskResult(task)
-                            except (koji.GenericError, xmlrpclib.Fault) as task_error:
+                            except (koji.GenericError, six.moves.xmlrpc_client.Fault) as task_error:
                                 self.logger.info("task %s failed or was canceled" % task)
                                 failed = True
                                 break
