@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import mock
 import StringIO
 import unittest
 
 import koji
 
-import load_plugin
+from . import load_plugin
 save_failed_tree = load_plugin.load_plugin('cli', 'save_failed_tree')
 
 

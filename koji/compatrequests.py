@@ -7,14 +7,15 @@ module that is based on the older codepaths in koji. It only provides
 the bits that koji needs.
 """
 
+from __future__ import absolute_import
 import six.moves.http_client
 import urlparse
 import urllib
 import sys
-import ssl.SSLCommon
+from . import ssl.SSLCommon
 from warnings import warn
 try:
-    from ssl import ssl as pyssl
+    from .ssl import ssl as pyssl
 except ImportError:  # pragma: no cover
     pass
 
