@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import os
+import six
 import subprocess
 import unittest
 
@@ -22,7 +23,10 @@ class TestDocsVersion(unittest.TestCase):
         output = subprocess.check_output(cmd)
         # rpm outputs a line for each subpackage
         version = output.splitlines()[0]
-        return version
+        if six.PY2:
+            return version
+        else:
+            return version.decode()
 
     def test_docs_version(self):
         koji_version = self.get_koji_version()

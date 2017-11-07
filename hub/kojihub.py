@@ -6233,7 +6233,7 @@ def import_archive_internal(filepath, buildinfo, type, typeInfo, buildroot_id=No
         filename = koji.fixEncoding(os.path.basename(filepath))
         archiveinfo['filename'] = filename
         archiveinfo['size'] = os.path.getsize(filepath)
-        archivefp = open(filepath)
+        archivefp = open(filepath, 'rb')
         m = md5_constructor()
         while True:
             contents = archivefp.read(8192)
@@ -6348,8 +6348,8 @@ def _import_archive_file(filepath, destdir):
     A symlink pointing from the old location to the new location will
     be created.
     """
-    final_path = "%s/%s" % (destdir,
-                            koji.fixEncoding(os.path.basename(filepath)))
+    final_path = os.path.join(destdir,
+                              koji.fixEncoding(os.path.basename(filepath)))
     if os.path.exists(final_path):
         raise koji.GenericError("Error importing archive file, %s already exists" % final_path)
     if os.path.islink(filepath) or not os.path.isfile(filepath):
@@ -6373,7 +6373,7 @@ def _generate_maven_metadata(mavendir):
             sumfile = mavenfile + ext
             if sumfile not in mavenfiles:
                 sum = sum_constr()
-                fobj = open('%s/%s' % (mavendir, mavenfile))
+                fobj = open('%s/%s' % (mavendir, mavenfile), 'rb')
                 while True:
                     content = fobj.read(8192)
                     if not content:
@@ -7620,8 +7620,8 @@ class UpdateProcessor(object):
         if not self.data and not self.rawdata:
             return "-- incomplete update: no assigns"
         parts = ['UPDATE %s SET ' % self.table]
-        assigns = ["%s = %%(data.%s)s" % (key, key) for key in self.data]
-        assigns.extend(["%s = (%s)" % (key, self.rawdata[key]) for key in self.rawdata])
+        assigns = ["%s = %%(data.%s)s" % (key, key) for key in sorted(self.data)]
+        assigns.extend(["%s = (%s)" % (key, self.rawdata[key]) for key in sorted(self.rawdata)])
         parts.append(', '.join(assigns))
         if self.clauses:
             parts.append('\nWHERE ')
@@ -8500,7 +8500,7 @@ def importImageInternal(task_id, build_id, imgdata):
     insert = InsertProcessor('archive_rpm_components')
     for archive in archives:
         logger.info('working on archive %s', archive)
-        if archive['filename'].endswith('xml'):
+        if archive['filename'].endswith('.xml'):
             continue
         insert.set(archive_id = archive['id'])
         logger.info('associating installed rpms with %s', archive['id'])

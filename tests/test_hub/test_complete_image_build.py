@@ -5,6 +5,7 @@ import mock
 import os
 import os.path
 import shutil
+import six
 import tempfile
 import unittest
 
@@ -269,4 +270,5 @@ class TestCompleteImageBuild(unittest.TestCase):
         # with our other mocks, we should never reach _dml
         self._dml.assert_not_called()
         data = {'inserts': self.inserts, 'updates': self.updates}
+        self.maxDiff = None
         self.assertEqual(data, self.db_expect)

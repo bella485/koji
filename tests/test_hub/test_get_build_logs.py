@@ -14,6 +14,7 @@ class TestGetBuildLogs(unittest.TestCase):
     def setUp(self):
         self.get_build = mock.patch('kojihub.get_build').start()
         self.pathinfo = mock.patch('koji.pathinfo').start()
+        self.pathinfo.topdir = 'topdir'
         self.tempdir = tempfile.mkdtemp()
         koji.pathinfo.build_logs.return_value = self.tempdir
 

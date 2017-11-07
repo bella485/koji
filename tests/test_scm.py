@@ -208,8 +208,8 @@ class TestSCMCheckouts(unittest.TestCase):
         self.log_output.return_value = None
         self.tempdir = tempfile.mkdtemp()
         self.session = mock.MagicMock()
-        self.uploadpath = mock.MagicMock()
-        self.logfile = mock.MagicMock()
+        self.uploadpath = 'uploadpath'
+        self.logfile = 'logfile'
         self.config = '''
             default:*
             nocommon:*:no
