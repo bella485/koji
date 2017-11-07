@@ -6219,7 +6219,7 @@ def import_archive_internal(filepath, buildinfo, type, typeInfo, buildroot_id=No
     archiveinfo = {'buildroot_id': buildroot_id}
     archiveinfo['build_id'] = buildinfo['id']
     if metadata_only:
-        filename = koji.fixEncoding(fileinfo['filename'])
+        filename = fileinfo['filename']
         archiveinfo['filename'] = filename
         archiveinfo['size'] = fileinfo['filesize']
         archiveinfo['checksum'] = fileinfo['checksum']
@@ -6230,7 +6230,7 @@ def import_archive_internal(filepath, buildinfo, type, typeInfo, buildroot_id=No
         archiveinfo['checksum_type'] = koji.CHECKSUM_TYPES[fileinfo['checksum_type']]
         archiveinfo['metadata_only'] = True
     else:
-        filename = koji.fixEncoding(os.path.basename(filepath))
+        filename = os.path.basename(filepath)
         archiveinfo['filename'] = filename
         archiveinfo['size'] = os.path.getsize(filepath)
         archivefp = open(filepath, 'rb')
@@ -6349,7 +6349,7 @@ def _import_archive_file(filepath, destdir):
     be created.
     """
     final_path = os.path.join(destdir,
-                              koji.fixEncoding(os.path.basename(filepath)))
+                              os.path.basename(filepath))
     if os.path.exists(final_path):
         raise koji.GenericError("Error importing archive file, %s already exists" % final_path)
     if os.path.islink(filepath) or not os.path.isfile(filepath):
