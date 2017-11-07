@@ -22,6 +22,7 @@
 #       Mike Bonnet <mikeb@redhat.com>
 #       Cristian Balint <cbalint@redhat.com>
 
+from __future__ import absolute_import
 import base64
 import calendar
 import urlparse
@@ -58,6 +59,7 @@ import zipfile
 
 import koji.xmlrpcplus
 from koji.context import context
+from six.moves import zip
 
 try:
     import json
@@ -1307,7 +1309,7 @@ def readTaggedRPMS(tag, package=None, arch=None, event=None, inherit=False, late
         else:
             raise koji.GenericError('invalid arch option: %s' % arch)
 
-    fields, aliases = zip(*fields)
+    fields, aliases = list(zip(*fields))
     query = QueryProcessor(tables=tables, joins=joins, clauses=clauses,
                            columns=fields, aliases=aliases, values=data, transform=_fix_rpm_row)
 
@@ -2550,7 +2552,7 @@ def repo_references(repo_id):
         'host_id': 'host_id',
         'create_event': 'create_event',
         'state': 'state'}
-    fields, aliases = zip(*fields.items())
+    fields, aliases = list(zip(*fields.items()))
     values = {'repo_id': repo_id}
     clauses = ['repo_id=%(repo_id)s', 'retire_event IS NULL']
     query = QueryProcessor(columns=fields, aliases=aliases, tables=['standard_buildroot'],
@@ -2579,7 +2581,7 @@ def get_active_repos():
         ('repo.dist', 'dist'),
         ('tag.name', 'tag_name'),
     )
-    fields, aliases = zip(*fields)
+    fields, aliases = list(zip(*fields))
     values = {'st_deleted': koji.REPO_DELETED}
     joins = ['tag ON repo.tag_id=tag.id', 'events ON repo.create_event = events.id']
     clauses = ['repo.state != %(st_deleted)s']
@@ -2984,7 +2986,7 @@ def get_tag(tagInfo, strict=False, event=None):
         raise koji.GenericError('invalid type for tagInfo: %s' % type(tagInfo))
 
     data = {'tagInfo': tagInfo}
-    fields, aliases = zip(*fields.items())
+    fields, aliases = list(zip(*fields.items()))
     query = QueryProcessor(columns=fields, aliases=aliases, tables=tables,
                            joins=joins, clauses=clauses, values=data)
     result = query.executeOne()
@@ -3529,7 +3531,7 @@ def get_build(buildInfo, strict=False):
               ('users.id', 'owner_id'), ('users.name', 'owner_name'),
               ('build.source', 'source'),
               ('build.extra', 'extra'))
-    fields, aliases = zip(*fields)
+    fields, aliases = list(zip(*fields))
     joins = ['events ON build.create_event = events.id',
              'package on build.pkg_id = package.id',
              'volume on build.volume_id = volume.id',
@@ -3793,7 +3795,7 @@ def list_rpms(buildID=None, buildrootID=None, imageID=None, componentBuildrootID
         else:
             raise koji.GenericError('invalid type for "arches" parameter: %s' % type(arches))
 
-    fields, aliases = zip(*fields)
+    fields, aliases = list(zip(*fields))
     query = QueryProcessor(columns=fields, aliases=aliases,
                            tables=['rpminfo'], joins=joins, clauses=clauses,
                            values=locals(), transform=_fix_rpm_row, opts=queryOpts)
@@ -4118,7 +4120,7 @@ def list_archives(buildID=None, buildrootID=None, componentBuildrootID=None, hos
         clauses.append('archiveinfo.btype_id = %(btype_id)s')
         values['btype_id'] = btype['id']
 
-    columns, aliases = zip(*fields)
+    columns, aliases = list(zip(*fields))
     ret = QueryProcessor(tables=tables, columns=columns, aliases=aliases, joins=joins,
                           transform=_fix_archive_row,
                           clauses=clauses, values=values, opts=queryOpts).execute()
@@ -6815,7 +6817,7 @@ def query_history(tables=None, **kwargs):
                 fields[r_test] = '_revoked_before_event'
         if skip:
             continue
-        fields, aliases = zip(*fields.items())
+        fields, aliases = list(zip(*fields.items()))
         query = QueryProcessor(columns=fields, aliases=aliases, tables=[table],
                                joins=joins, clauses=clauses, values=data)
         ret[table] = query.iterate()
@@ -11252,7 +11254,7 @@ class BuildRoot(object):
                   ('checksum_type', 'checksum_type'),
                   ('project_dep', 'project_dep'),
                  ]
-        columns, aliases = zip(*fields)
+        columns, aliases = list(zip(*fields))
         query = QueryProcessor(tables=tables, columns=columns,
                                joins=joins, clauses=clauses,
                                values=self.data,

@@ -20,6 +20,7 @@
 #       Mike Bonnet <mikeb@redhat.com>
 #       Mike McLean <mikem@redhat.com>
 
+from __future__ import absolute_import
 import os
 import os.path
 import re
@@ -36,6 +37,7 @@ from kojiweb.util import _initValues
 from kojiweb.util import _genHTML
 from kojiweb.util import _getValidTokens
 from koji.util import sha1_constructor
+from six.moves import zip
 
 # Convenience definition of a commonly-used sort function
 _sortbyname = kojiweb.util.sortByKeyFunc('name')
