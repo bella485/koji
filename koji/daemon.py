@@ -509,22 +509,15 @@ class SCM(object):
     def get_source(self):
         r = {
             'url': self.url,
-            'source': '',
+            'source': self.url,
         }
-        if self.scmtype.startswith('CVS') or self.scmtype.startswith('SVN'):
-            scheme = self.scheme[:-3]
-            netloc = self.host
-            path = self.repository
-            query = self.module
-            fragment = self.revision
-        elif self.scmtype.startswith('GIT'):
+        if self.scmtype.startswith('GIT'):
             cmd = ['git', 'rev-parse', 'HEAD']
-            fragment = subprocess.check_output(cmd, cwd=self.sourcedir).strip()
-            scheme = self.scheme[:-3]
-            netloc = self.host
-            path = self.repository
-            query = self.module
-            r['source'] = urlparse.urlunsplit([scheme, netloc, path, query, fragment])
+            commit = subprocess.check_output(cmd, cwd=self.sourcedir).strip()
+            if '#' in self.url:
+                r['source'] = '%s#%s' % (self.url[self.url.find('#')], commit)
+            else:
+                r['source'] = '%s#%s' % (self.url, commit)
         return r
 
 
