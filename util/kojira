@@ -532,6 +532,14 @@ class RepoManager(object):
         #find out which tags require repos
         tags = {}
         for target in self.session.getBuildTargets():
+            ignore = False
+            for pat in self.options.ignore_tags.split():
+                if fnmatch.fnmatch(target['build_tag'], pat):
+                    ignore = True
+                    break
+            if ignore:
+                self.logger.debug("Ignoring repo %s" % target['build_tag'])
+                continue
             tag_id = target['build_tag']
             tags[tag_id] = target['build_tag_name']
         #index repos by tag
@@ -728,6 +736,7 @@ def get_options():
     defaults = {'with_src': False,
                 'debuginfo_tags': '',
                 'source_tags': '',
+                'ignore_tags': '',
                 'verbose': False,
                 'debug': False,
                 'ignore_stray_repos': False,
@@ -765,7 +774,8 @@ def get_options():
                     'max_delete_processes', 'max_repo_tasks_maven',
                     'delete_batch_size', 'dist_repo_lifetime')
         str_opts = ('topdir', 'server', 'user', 'password', 'logfile', 'principal', 'keytab', 'krbservice',
-                    'cert', 'ca', 'serverca', 'debuginfo_tags', 'source_tags')  # FIXME: remove ca here
+                    'cert', 'ca', 'serverca', 'debuginfo_tags',
+                    'source_tags', 'ignore_tags')  # FIXME: remove ca here
         bool_opts = ('with_src','verbose','debug','ignore_stray_repos', 'offline_retry',
                      'krb_rdns', 'krb_canon_host', 'use_old_ssl', 'no_ssl_verify')
         for name in config.options(section):
