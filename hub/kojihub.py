@@ -10698,6 +10698,23 @@ class RootExports(object):
 
         return _multiRow(query, {}, ['id', 'name'])
 
+    def getUsersWithPerm(self, perm):
+        """Get a list of users with given permission. Returns a list of maps.
+        Each map contains following keys:
+
+        - id
+        - user
+        """
+        query = """SELECT users.id, users.name
+        FROM permissions, users, user_perms
+        WHERE
+        permissions.name = %(perm)s AND
+        permissions.id = user_perms.perm_id AND
+        user_perms.user_id = users.id
+        ORDER BY users.name"""
+        return _multiRow(query, {'perm': perm}, ['id', 'name'])
+
+
     def getLoggedInUser(self):
         """Return information about the currently logged-in user.  Returns data
         in the same format as getUser(), plus the authtype.  If there is no
