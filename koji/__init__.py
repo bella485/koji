@@ -37,6 +37,7 @@ import httplib
 import imp
 import logging
 import logging.handlers
+import time
 from koji.util import md5_constructor
 SSL_Error = None
 try:
@@ -2724,7 +2725,7 @@ def formatTime(value):
     if not value:
         return ''
     if isinstance(value, xmlrpclib.DateTime):
-        value = datetime.datetime.strptime(value.value, "%Y%m%dT%H:%M:%S")
+        value = datetime.datetime(*(time.strptime(value.value, "%Y%m%dT%H:%M:%S")[0:6]))
     if isinstance(value, datetime.datetime):
         return value.strftime('%Y-%m-%d %H:%M:%S')
     else:
