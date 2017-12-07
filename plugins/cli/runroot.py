@@ -90,7 +90,7 @@ def handle_runroot(options, session, args):
     if 'runroot.log' in output:
         for volume in output['runroot.log']:
             log = session.downloadTaskOutput(task_id, 'runroot.log', volume=volume)
-            sys.stdout.write(log)
+            sys.stdout.write(log.decode('utf8'))
     info = session.getTaskInfo(task_id)
     if info is None:
         sys.exit(1)
