@@ -14,7 +14,7 @@ def handle_runroot(options, session, args):
     parser = OptionParser(usage=usage)
     parser.disable_interspersed_args()
     parser.add_option("-p", "--package", action="append", default=[], help=_("make sure this package is in the chroot"))
-    parser.add_option("-m", "--mount", action="append", default=[], help=_("mount this directory read-write in the chroot"))
+    parser.add_option("-m", "--mount", action="append", default=[], help=_("mount this directory read-write in the chroot, prefix with ro: to request readonly mount"))
     parser.add_option("--skip-setarch", action="store_true", default=False,
             help=_("bypass normal setarch in the chroot"))
     parser.add_option("-w", "--weight", type='int', help=_("set task weight"))

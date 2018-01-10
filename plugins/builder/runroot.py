@@ -28,7 +28,7 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         self._read_config()
         return super(RunRootTask, self).__init__(*args, **kwargs)
 
-    def _get_path_params(self, path, rw=False):
+    def _get_path_params(self, path, rw=None):
         found = False
         for mount_data in self.config['paths']:
             if path.startswith(mount_data['mountpoint']):
@@ -37,11 +37,18 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         if not found:
             raise koji.GenericError("bad config: missing corresponding mountpoint")
         options = []
+        seenrx = False
         for o in mount_data['options'].split(','):
+            if o in ['ro', 'rw']:
+                seenrx = True
             if rw and o == 'ro':
                 options.append('rw')
+            elif rw is False and o == 'rw':
+                options.append('ro')
             else:
                 options.append(o)
+        if not seenrx:
+            options = ['rw' if rw else 'ro'] + options
         rel_path = path[len(mount_data['mountpoint']):]
         rel_path = rel_path[1:] if rel_path.startswith('/') else rel_path
         res = (os.path.join(mount_data['path'], rel_path), path, mount_data['fstype'], ','.join(options))
@@ -53,6 +60,7 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         self.config = {
            'default_mounts': [],
            'safe_roots': [],
+           'safe_ro_roots': [],
            'path_subs': [],
            'paths': [],
         }
@@ -61,6 +69,8 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
             self.config['default_mounts'] = cp.get('paths', 'default_mounts').split(',')
         if cp.has_option('paths', 'safe_roots'):
             self.config['safe_roots'] = cp.get('paths', 'safe_roots').split(',')
+        if cp.has_option('paths', 'safe_ro_roots'):
+            self.config['safe_ro_roots'] = cp.get('paths', 'safe_ro_roots').split(',')
         if cp.has_option('paths', 'path_subs'):
             self.config['path_subs'] = []
             for line in cp.get('paths', 'path_subs').splitlines():
@@ -86,9 +96,9 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
             except ConfigParser.NoOptionError:
                 raise koji.GenericError("bad config: missing options in %s section" % section_name)
 
-        for path in self.config['default_mounts'] + self.config['safe_roots'] + [x[0] for x in self.config['path_subs']]:
+        for path in self.config['default_mounts'] + self.config['safe_roots'] + self.config['safe_ro_roots'] + [x[0] for x in self.config['path_subs']]:
             if not path.startswith('/'):
-                raise koji.GenericError("bad config: all paths (default_mounts, safe_roots, path_subs) needs to be absolute: %s" % path)
+                raise koji.GenericError("bad config: all paths (default_mounts, safe_roots, safe_ro_roots, path_subs) needs to be absolute: %s" % path)
 
     def handler(self, root, arch, command, keep=False, packages=[], mounts=[], repo_id=None, skip_setarch=False, weight=None, upload_logs=None, new_chroot=False):
         """Create a buildroot and run a command (as root) inside of it
@@ -218,21 +228,31 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
     def do_extra_mounts(self, rootdir, mounts):
         mnts = []
         for mount in mounts:
+            rw = True
+            # We copy the list, since we might be modifying it
+            safe_roots = self.config['safe_roots'][:]
+            if mount.startswith('ro:'):
+                mount = mount[len('ro:'):]
+                safe_roots += self.config['safe_ro_roots']
+                rw = False
             mount = os.path.normpath(mount)
-            for safe_root in self.config['safe_roots']:
+            for safe_root in safe_roots:
                 if mount.startswith(safe_root):
                     break
             else:
                 #no match
-                raise koji.GenericError("read-write mount point is not safe: %s" % mount)
+                if rw:
+                    raise koji.GenericError("read-write mount point is not safe: %s" % mount)
+                else:
+                    raise koji.GenericError("read-only mount point is not safe: %s" % mount)
             #normpath should have removed any .. dirs, but just in case...
             if mount.find('/../') != -1:
-                raise koji.GenericError("read-write mount point is not safe: %s" % mount)
+                raise koji.GenericError("requested mount point is not safe: %s" % mount)
 
             for rep, sub in self.config['path_subs']:
                 mount = mount.replace(rep, sub)
 
-            mnts.append(self._get_path_params(mount, rw=True))
+            mnts.append(self._get_path_params(mount, rw=rw))
         self.do_mounts(rootdir, mnts)
 
     def do_mounts(self, rootdir, mounts):

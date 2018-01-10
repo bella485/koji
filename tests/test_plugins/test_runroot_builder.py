@@ -17,6 +17,7 @@ CONFIG1 = {
         'paths': {
             'default_mounts': '/mnt/archive,/mnt/workdir',
             'safe_roots': '/mnt/workdir/tmp',
+            'safe_ro_roots': '/mnt/workdir/ro/tmp',
             'path_subs':
             '/mnt/archive/prehistory/,/mnt/prehistoric_disk/archive/prehistory',
         },
@@ -25,6 +26,12 @@ CONFIG1 = {
             'path': 'archive.org:/vol/archive',
             'fstype': 'nfs',
             'options': 'ro,hard,intr,nosuid,nodev,noatime,tcp',
+        },
+        'path1': {
+            'mountpoint': '/mnt/workdir',
+            'path': 'archive.org:/vol/workdir',
+            'fstype': 'nfs',
+            'options': 'rw,hard,intr,nosuid,nodev,noatime,tcp',
         }}
 
 
@@ -32,6 +39,7 @@ CONFIG2 = {
         'paths': {
             'default_mounts': '/mnt/archive,/mnt/workdir',
             'safe_roots': '/mnt/workdir/tmp',
+            'safe_ro_roots': '/mnt/workdir/ro/tmp',
             'path_subs':
                 '\n'
                 '/mnt/archive/prehistory/,/mnt/prehistoric_disk/archive/prehistory\n'
@@ -109,7 +117,7 @@ class TestRunrootConfig(unittest.TestCase):
         with self.assertRaises(koji.GenericError) as cm:
             runroot.RunRootTask(123, 'runroot', {}, session, options)
         self.assertEqual(cm.exception.message,
-            "bad config: all paths (default_mounts, safe_roots, path_subs) needs to be absolute: ")
+            "bad config: all paths (default_mounts, safe_roots, safe_ro_roots, path_subs) needs to be absolute: ")
 
     @mock.patch('ConfigParser.SafeConfigParser')
     def test_valid_config(self, safe_config_parser):
@@ -177,6 +185,30 @@ class TestMounts(unittest.TestCase):
         # valid item
         self.assertEqual(self.t._get_path_params('/mnt/archive', 'rw'),
             ('archive.org:/vol/archive/', '/mnt/archive', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # ro volume, no rw flag
+        self.assertEqual(self.t._get_path_params('/mnt/archive'),
+            ('archive.org:/vol/archive/', '/mnt/archive', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # ro volume, rw True
+        self.assertEqual(self.t._get_path_params('/mnt/archive', True),
+            ('archive.org:/vol/archive/', '/mnt/archive', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # ro volume, rw False
+        self.assertEqual(self.t._get_path_params('/mnt/archive', False),
+            ('archive.org:/vol/archive/', '/mnt/archive', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # rw volume, no rw flag
+        self.assertEqual(self.t._get_path_params('/mnt/workdir'),
+            ('archive.org:/vol/workdir/', '/mnt/workdir', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # rw volume, rw True
+        self.assertEqual(self.t._get_path_params('/mnt/workdir', True),
+            ('archive.org:/vol/workdir/', '/mnt/workdir', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # rw volume, rw False
+        self.assertEqual(self.t._get_path_params('/mnt/workdir', False),
+            ('archive.org:/vol/workdir/', '/mnt/workdir', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
 
     @mock.patch('os.path.isdir')
     @mock.patch('runroot.open')
@@ -263,13 +295,41 @@ class TestMounts(unittest.TestCase):
 
         # safe mount
         self.t.do_mounts.reset_mock()
+        self.t._get_path_params.reset_mock()
         self.t.do_extra_mounts('rootdir', ['/mnt/workdir/tmp/xyz'])
         self.t.do_mounts.assert_called_once_with('rootdir', ['path_params'])
+        self.t._get_path_params.assert_called_once_with('/mnt/workdir/tmp/xyz', rw=True)
+
+        # safe RO mount
+        self.t.do_mounts.reset_mock()
+        self.t._get_path_params.reset_mock()
+        self.t.do_extra_mounts('rootdir', ['ro:/mnt/workdir/ro/tmp/xyz'])
+        self.t.do_mounts.assert_called_once_with('rootdir', ['path_params'])
+        self.t._get_path_params.assert_called_once_with('/mnt/workdir/ro/tmp/xyz', rw=False)
+
+        # RO mount safe for RW
+        self.t.do_mounts.reset_mock()
+        self.t._get_path_params.reset_mock()
+        self.t.do_extra_mounts('rootdir', ['ro:/mnt/workdir/tmp/xyz'])
+        self.t.do_mounts.assert_called_once_with('rootdir', ['path_params'])
+        self.t._get_path_params.assert_called_once_with('/mnt/workdir/tmp/xyz', rw=False)
+
+        # RO-safe mounted as RW
+        self.t.do_mounts.reset_mock()
+        with self.assertRaises(koji.GenericError):
+            self.t.do_extra_mounts('rootdir', ['/mnt/workdir/ro/tmp/xyz'])
+        self.t.do_mounts.assert_not_called()
 
         # unsafe mount
         self.t.do_mounts.reset_mock()
         with self.assertRaises(koji.GenericError):
             self.t.do_extra_mounts('rootdir', ['unsafe'])
+        self.t.do_mounts.assert_not_called()
+
+        # unsafe RO mount
+        self.t.do_mounts.reset_mock()
+        with self.assertRaises(koji.GenericError):
+            self.t.do_extra_mounts('rootdir', ['ro:unsafe'])
         self.t.do_mounts.assert_not_called()
 
         # hackish mount
