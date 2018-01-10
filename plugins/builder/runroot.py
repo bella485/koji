@@ -36,6 +36,10 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
                 break
         if not found:
             raise koji.GenericError("bad config: missing corresponding mountpoint")
+        if mount_data.get('permission'):
+            perm = mount_data['permission']
+            if perm not in self.task_owner_perms and 'admin' not in self.task_owner_perms:
+                raise koji.GenericError('permission %s is required to mount %s' % (perm, path))
         options = []
         seenrx = False
         for o in mount_data['options'].split(','):
@@ -87,11 +91,15 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         path_sections = [p for p in cp.sections() if re.match('path\d+', p)]
         for section_name in sorted(path_sections, key=lambda x: int(x[4:])):
             try:
+                perm = None
+                if cp.has_option(section_name, 'permission'):
+                    perm = cp.get(section_name, 'permission')
                 self.config['paths'].append({
                     'mountpoint': cp.get(section_name, 'mountpoint'),
                     'path': cp.get(section_name, 'path'),
                     'fstype': cp.get(section_name, 'fstype'),
                     'options': cp.get(section_name, 'options'),
+                    'permission': perm,
                 })
             except ConfigParser.NoOptionError:
                 raise koji.GenericError("bad config: missing options in %s section" % section_name)
@@ -117,6 +125,8 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         archiving on hub. It always consists of /tmp/runroot.log, but can be
         used for additional logs (pungi.log, etc.)
         """
+        self.task_info = self.session.getTaskInfo(self.id)
+        self.task_owner_perms = self.session.getUserPerms(self.task_info['owner'])
         if weight is not None:
             weight = max(weight, 0.5)
             self.session.host.setTaskWeight(self.id, weight)

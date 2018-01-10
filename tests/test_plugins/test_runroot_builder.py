@@ -32,6 +32,13 @@ CONFIG1 = {
             'path': 'archive.org:/vol/workdir',
             'fstype': 'nfs',
             'options': 'rw,hard,intr,nosuid,nodev,noatime,tcp',
+        },
+        'path2': {
+            'mountpoint': '/mnt/secrets',
+            'path': '/vol/secrets',
+            'fstype': 'nfs',
+            'options': 'ro,hard,intr,nosuid,nodev,noatime,tcp',
+            'permission': 'myperm',
         }}
 
 
@@ -154,6 +161,10 @@ class TestRunrootConfig(unittest.TestCase):
         # resulting processed config should be the same
         self.assertEqual(task1.config, task2.config)
         paths = list([CONFIG2[k] for k in ('path0', 'path1', 'path2')])
+        for path in paths:
+            if not 'permission' in path:
+                # If there's no permission configured, we default to None
+                path['permission'] = None
         self.assertEqual(task2.config['paths'], paths)
 
     @mock.patch('ConfigParser.SafeConfigParser')
@@ -209,6 +220,26 @@ class TestMounts(unittest.TestCase):
         # rw volume, rw False
         self.assertEqual(self.t._get_path_params('/mnt/workdir', False),
             ('archive.org:/vol/workdir/', '/mnt/workdir', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # item with permission: no permission
+        self.t.task_owner_perms = []
+        with self.assertRaises(koji.GenericError):
+            self.t._get_path_params('/mnt/secrets')
+
+        # item with permission: missing permission
+        self.t.task_owner_perms = ['someperm', 'otherperm']
+        with self.assertRaises(koji.GenericError):
+            self.t._get_path_params('/mnt/secrets')
+
+        # item with permission: normal permission
+        self.t.task_owner_perms = ['myperm']
+        self.assertEqual(self.t._get_path_params('/mnt/secrets'),
+            ('/vol/secrets/', '/mnt/secrets', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # item with permission: admin permission
+        self.t.task_owner_perms = ['admin']
+        self.assertEqual(self.t._get_path_params('/mnt/secrets'),
+            ('/vol/secrets/', '/mnt/secrets', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
 
     @mock.patch('os.path.isdir')
     @mock.patch('runroot.open')
@@ -401,6 +432,7 @@ class TestHandler(unittest.TestCase):
     @mock.patch('os.system')
     def test_handler_simple(self, os_system, platform_uname):
         platform_uname.return_value = ('system', 'node', 'release', 'version', 'machine', 'arch')
+        self.session.getUserPerms.return_value = ['someperm', 'otherperm']
         self.session.getBuildConfig.return_value = {
             'id': 456,
             'name': 'tag_name',
@@ -445,3 +477,4 @@ class TestHandler(unittest.TestCase):
             mock.call('/rootdir/log_1'),
             mock.call('/rootdir/log_2'),
         ])
+        self.assertEqual(self.t.task_owner_perms, ['someperm', 'otherperm'])
