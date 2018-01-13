@@ -29,6 +29,8 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         return super(RunRootTask, self).__init__(*args, **kwargs)
 
     def _get_path_params(self, path, rw=None):
+        if rw not in [None, True, False]:
+            raise ValueError('Invalid RW flag provided to get_path_params')
         found = False
         for mount_data in self.config['paths']:
             if path.startswith(mount_data['mountpoint']):
@@ -45,7 +47,7 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
         for o in mount_data['options'].split(','):
             if o in ['ro', 'rw']:
                 seenrx = True
-            if rw and o == 'ro':
+            if rw is True and o == 'ro':
                 options.append('rw')
             elif rw is False and o == 'rw':
                 options.append('ro')

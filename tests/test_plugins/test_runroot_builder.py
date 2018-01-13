@@ -37,7 +37,7 @@ CONFIG1 = {
             'mountpoint': '/mnt/secrets',
             'path': '/vol/secrets',
             'fstype': 'nfs',
-            'options': 'ro,hard,intr,nosuid,nodev,noatime,tcp',
+            'options': 'hard,intr,nosuid,nodev,noatime,tcp',
             'permission': 'myperm',
         }}
 
@@ -194,7 +194,7 @@ class TestMounts(unittest.TestCase):
             self.t._get_path_params('nonexistent_dir')
 
         # valid item
-        self.assertEqual(self.t._get_path_params('/mnt/archive', 'rw'),
+        self.assertEqual(self.t._get_path_params('/mnt/archive', True),
             ('archive.org:/vol/archive/', '/mnt/archive', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
 
         # ro volume, no rw flag
@@ -240,6 +240,22 @@ class TestMounts(unittest.TestCase):
         self.t.task_owner_perms = ['admin']
         self.assertEqual(self.t._get_path_params('/mnt/secrets'),
             ('/vol/secrets/', '/mnt/secrets', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # norx volume, no rw flag
+        self.assertEqual(self.t._get_path_params('/mnt/secrets'),
+            ('/vol/secrets/', '/mnt/secrets', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # norx volume, rw True
+        self.assertEqual(self.t._get_path_params('/mnt/secrets', True),
+            ('/vol/secrets/', '/mnt/secrets', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # norx volume, rw False
+        self.assertEqual(self.t._get_path_params('/mnt/secrets', False),
+            ('/vol/secrets/', '/mnt/secrets', 'nfs', 'ro,hard,intr,nosuid,nodev,noatime,tcp'))
+
+        # invalid rw value
+        with self.assertRaises(ValueError):
+            self.t._get_path_params('/mnt/secrets', 'rw')
 
     @mock.patch('os.path.isdir')
     @mock.patch('runroot.open')
