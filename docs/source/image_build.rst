@@ -254,6 +254,8 @@ be.
           policycoreutils, python-dbus, sed, selinux-policy-targeted,
           shadow-utils, squashfs-tools, sssd-client, tar, unzip, util-linux,
           which, yum
+          
+          * As of February 23, 2018 The livecd creator builder requires python2-kickstart  
 
 
 Building Disk Images
