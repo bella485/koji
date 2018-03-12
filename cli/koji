@@ -81,7 +81,7 @@ def load_plugins(options, path):
             register_plugin(tracker.get(name))
 
 
-def get_options():
+def get_options(no_cmd=False):
     """process options from command line and config file"""
 
     common_commands = ['build', 'help', 'download-build',
@@ -167,6 +167,8 @@ def get_options():
                    (sys.prefix, sys.version_info[0], sys.version_info[1])
     load_plugins(options, plugins_path)
 
+    if no_cmd:
+        return options, args
     if options.help_commands:
         list_commands()
         sys.exit(0)
