@@ -1,20 +1,24 @@
 from __future__ import absolute_import
-import mock
+
 import os
 import unittest
 
-from . import loadcli
-cli = loadcli.cli
+import mock
+
+from koji_cli import lib
 
 
 class TestLoadPlugins(unittest.TestCase):
-
     @mock.patch('logging.getLogger')
     def test_load_plugins(self, getLogger):
         options = mock.MagicMock()
-        cli.load_plugins(options, os.path.dirname(__file__) + '/data/plugins')
-        self.assertTrue(callable(cli.foobar))
-        self.assertTrue(callable(cli.foo2))
-        self.assertFalse(hasattr(cli, 'foo3'))
-        self.assertFalse(hasattr(cli, 'foo4'))
-        self.assertFalse(hasattr(cli, 'sth'))
+        lib.load_plugins(options, [os.path.dirname(__file__) + '/data/plugins',
+                                   os.path.dirname(
+                                       __file__) + '/data/plugins2'])
+        self.assertTrue(callable(lib.CommandExports.foobar))
+        self.assertTrue(callable(lib.CommandExports.foo2))
+        self.assertTrue(hasattr(lib.CommandExports, 'foo6'))
+        self.assertFalse(hasattr(lib.CommandExports, 'foo3'))
+        self.assertFalse(hasattr(lib.CommandExports, 'foo4'))
+        self.assertFalse(hasattr(lib.CommandExports, 'foo5'))
+        self.assertFalse(hasattr(lib.CommandExports, 'sth'))

@@ -1,25 +1,30 @@
 from __future__ import absolute_import
-import mock
+
 import os
-import six
 import unittest
 
+import mock
+import six
+
+import koji_cli.lib
 from . import loadcli
+
 cli = loadcli.cli
 
 
 class TestListCommands(unittest.TestCase):
-
     def setUp(self):
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
         self.args = mock.MagicMock()
         self.original_parser = cli.OptionParser
         cli.OptionParser = mock.MagicMock()
+        koji_cli.lib.OptionParser = cli.OptionParser
         self.parser = cli.OptionParser.return_value
 
     def tearDown(self):
         cli.OptionParser = self.original_parser
+        koji_cli.lib.OptionParser = self.original_parser
 
     # Show long diffs in error output...
     maxDiff = None
@@ -42,7 +47,7 @@ class TestListCommands(unittest.TestCase):
         options, arguments = mock.MagicMock(), mock.MagicMock()
         options.admin = True
         self.parser.parse_args.return_value = [options, arguments]
-        cli.handle_help(self.options, self.session, self.args)
+        cli.CommandExports.handle_help(self.options, self.session, self.args)
         actual = stdout.getvalue()
         if six.PY2:
             actual = actual.replace('nosetests', 'koji')

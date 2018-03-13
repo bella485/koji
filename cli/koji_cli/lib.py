@@ -1,16 +1,20 @@
 # coding=utf-8
 from __future__ import absolute_import
 from __future__ import division
+
+import logging
 import optparse
 import os
 import random
-import requests
-import six
+import re
 import socket
 import string
 import sys
 import time
 from contextlib import closing
+
+import requests
+import six
 from six.moves import range
 
 try:
@@ -19,6 +23,7 @@ except ImportError:  # pragma: no cover
     krbV = None
 
 import koji
+import koji.plugin
 
 # fix OptionParser for python 2.3 (optparse verion 1.4.1+)
 # code taken from optparse version 1.5a2
@@ -636,3 +641,247 @@ def _list_tasks(options, session):
                 t['sub'] = True
 
     return tasklist
+
+
+def register_plugin(plugin):
+    """Scan a given plugin for handlers
+
+    Handlers are functions marked with one of the decorators defined in koji.plugin
+    """
+    for v in six.itervalues(vars(plugin)):
+        if isinstance(v, six.class_types):
+            #skip classes
+            continue
+        if callable(v):
+            if getattr(v, 'exported_cli', False):
+                if hasattr(v, 'export_alias'):
+                    name = getattr(v, 'export_alias')
+                else:
+                    name = v.__name__
+                # copy object to local namespace
+                setattr(CommandExports, name, staticmethod(v))
+
+
+def load_plugins(options, paths):
+    """Load plugins specified by our configuration plus system plugins. Order
+    is that system plugins are first, so they can be overridden by
+    user-specified ones with same name."""
+    logger = logging.getLogger('koji.plugins')
+    tracker = koji.plugin.PluginTracker(path=paths)
+    names = set()
+    for path in paths:
+        if os.path.exists(path):
+            for name in sorted(os.listdir(path)):
+                if not name.endswith('.py'):
+                    continue
+                name = name[:-3]
+                names.add(name)
+    for name in names:
+        logger.info('Loading plugin: %s', name)
+        tracker.load(name)
+        register_plugin(tracker.get(name))
+
+
+def get_options(no_cmd=False):
+    """process options from command line and config file.
+
+    If no_cmd is False, command is required, and it must be registered.
+    Returns (options, cmd, args)
+
+    If no_cmd is True, command would be an option.
+    Returns (options, args)
+    It's usually used by standalone cli script,
+    but global options and customized options should be divided by '--'.
+    """
+
+    common_commands = ['build', 'help', 'download-build',
+                       'latest-pkg', 'search', 'list-targets']
+    usage = _("%%prog [global-options] command [command-options-and-arguments]"
+                "\n\nCommon commands: %s" % ', '.join(sorted(common_commands)))
+    parser = OptionParser(usage=usage)
+    parser.disable_interspersed_args()
+    progname = os.path.basename(sys.argv[0]) or 'koji'
+    parser.__dict__['origin_format_help'] = parser.format_help
+    parser.__dict__['format_help'] = lambda formatter=None: (
+        "%(origin_format_help)s%(epilog)s" % ({
+            'origin_format_help': parser.origin_format_help(formatter),
+            'epilog': get_epilog_str()}))
+    parser.add_option("-c", "--config", dest="configFile",
+                      help=_("use alternate configuration file"), metavar="FILE")
+    parser.add_option("-p", "--profile", default=progname,
+                      help=_("specify a configuration profile"))
+    parser.add_option("--keytab", help=_("specify a Kerberos keytab to use"), metavar="FILE")
+    parser.add_option("--principal", help=_("specify a Kerberos principal to use"))
+    parser.add_option("--krbservice", help=_("specify the Kerberos service name for the hub"))
+    parser.add_option("--runas", help=_("run as the specified user (requires special privileges)"))
+    parser.add_option("--user", help=_("specify user"))
+    parser.add_option("--password", help=_("specify password"))
+    parser.add_option("--noauth", action="store_true", default=False,
+                      help=_("do not authenticate"))
+    parser.add_option("--force-auth", action="store_true", default=False,
+                      help=_("authenticate even for read-only operations"))
+    parser.add_option("--authtype", help=_("force use of a type of authentication, options: noauth, ssl, password, or kerberos"))
+    parser.add_option("-d", "--debug", action="store_true",
+                      help=_("show debug output"))
+    parser.add_option("--debug-xmlrpc", action="store_true",
+                      help=_("show xmlrpc debug output"))
+    parser.add_option("-q", "--quiet", action="store_true", default=False,
+                      help=_("run quietly"))
+    parser.add_option("--skip-main", action="store_true", default=False,
+                      help=_("don't actually run main"))
+    parser.add_option("-s", "--server", help=_("url of XMLRPC server"))
+    parser.add_option("--topdir", help=_("specify topdir"))
+    parser.add_option("--weburl", help=_("url of the Koji web interface"))
+    parser.add_option("--topurl", help=_("url for Koji file access"))
+    parser.add_option("--pkgurl", help=optparse.SUPPRESS_HELP)
+    parser.add_option("--plugin-paths", help=_("specify plugin paths divided by ':'"))
+    parser.add_option("--help-commands", action="store_true", default=False, help=_("list commands"))
+    (options, args) = parser.parse_args()
+
+    # load local config
+    try:
+        result = koji.read_config(options.profile, user_config=options.configFile)
+    except koji.ConfigurationError as e:
+        parser.error(e.args[0])
+        assert False  # pragma: no cover
+
+    # update options according to local config
+    for name, value in six.iteritems(result):
+        if getattr(options, name, None) is None:
+            setattr(options, name, value)
+
+    dir_opts = ('topdir', 'cert', 'serverca')
+    for name in dir_opts:
+        # expand paths here, so we don't have to worry about it later
+        value = os.path.expanduser(getattr(options, name))
+        setattr(options, name, value)
+
+    #honor topdir
+    if options.topdir:
+        koji.BASEDIR = options.topdir
+        koji.pathinfo.topdir = options.topdir
+
+    #pkgurl is obsolete
+    if options.pkgurl:
+        if options.topurl:
+            warn("Warning: the pkgurl option is obsolete")
+        else:
+            suggest = re.sub(r'/packages/?$', '', options.pkgurl)
+            if suggest != options.pkgurl:
+                warn("Warning: the pkgurl option is obsolete, using topurl=%r"
+                     % suggest)
+                options.topurl = suggest
+            else:
+                warn("Warning: The pkgurl option is obsolete, please use topurl instead")
+
+
+    # update plugin_paths to list
+    plugin_paths = options.plugin_paths or []
+    if plugin_paths:
+        plugin_paths = [os.path.expanduser(p) for p in plugin_paths.split(':')]
+    # always load plugins from koji_cli_plugins module
+    plugin_paths.append('%s/lib/python%s.%s/site-packages/koji_cli_plugins' %
+                        (sys.prefix, sys.version_info[0], sys.version_info[1]))
+    setattr(options, 'plugin_paths', plugin_paths)
+    load_plugins(options, plugin_paths)
+
+    if no_cmd:
+        return options, args
+    if options.help_commands:
+        list_commands()
+        sys.exit(0)
+    if not args:
+        list_commands()
+        sys.exit(0)
+
+    aliases = {
+        'cancel-task' : 'cancel',
+        'cxl' : 'cancel',
+        'list-commands' : 'help',
+        'move-pkg': 'move-build',
+        'move': 'move-build',
+        'latest-pkg': 'latest-build',
+        'tag-pkg': 'tag-build',
+        'tag': 'tag-build',
+        'untag-pkg': 'untag-build',
+        'untag': 'untag-build',
+        'watch-tasks': 'watch-task',
+    }
+    cmd = args[0]
+    cmd = aliases.get(cmd, cmd)
+    if cmd.lower() in greetings:
+        cmd = "moshimoshi"
+    cmd = cmd.replace('-', '_')
+    if hasattr(CommandExports, 'anon_handle_' + cmd):
+        if not options.force_auth and '--mine' not in args:
+            options.noauth = True
+        cmd = 'anon_handle_' + cmd
+    elif hasattr(CommandExports, 'handle_' + cmd):
+        cmd = 'handle_' + cmd
+    else:
+        list_commands()
+        parser.error('Unknown command: %s' % args[0])
+        assert False  # pragma: no cover
+
+    return options, cmd, args[1:]
+
+
+def list_commands(categories_chosen=None):
+    if categories_chosen is None or "all" in categories_chosen:
+        categories_chosen = list(categories.keys())
+    else:
+        # copy list since we're about to modify it
+        categories_chosen = list(categories_chosen)
+    categories_chosen.sort()
+    handlers = []
+    for name, value in six.iteritems(vars(CommandExports)):
+        if name.startswith('handle_'):
+            alias = name.replace('handle_', '')
+            alias = alias.replace('_', '-')
+            handlers.append((alias, value))
+        elif name.startswith('anon_handle_'):
+            alias = name.replace('anon_handle_', '')
+            alias = alias.replace('_', '-')
+            handlers.append((alias, value))
+    handlers.sort()
+    print(_("Available commands:"))
+    for category in categories_chosen:
+        print(_("\n%s:" % categories[category]))
+        for alias, handler in handlers:
+            if isinstance(handler, staticmethod):
+                handler = handler.__func__
+            desc = handler.__doc__ or ''
+            if desc.startswith('[%s] ' % category):
+                desc = desc[len('[%s] ' % category):]
+            elif category != 'misc' or desc.startswith('['):
+                continue
+            print("        %-25s %s" % (alias, desc))
+
+    print("%s" % get_epilog_str().rstrip("\n"))
+
+
+class CommandExports(object):
+
+    @staticmethod
+    def handle_help(options, session, args):
+        "[info] List available commands"
+        usage = _("usage: %prog help <category> ...")
+        usage += _("\n(Specify the --help global option for a list of other help options)")
+        parser = OptionParser(usage=usage)
+        # the --admin opt is for backwards compatibility. It is equivalent to: koji help admin
+        parser.add_option("--admin", action="store_true", help=optparse.SUPPRESS_HELP)
+
+        (options, args) = parser.parse_args(args)
+
+        chosen = set(args)
+        if options.admin:
+            chosen.add('admin')
+        avail = set(list(categories.keys()) + ['all'])
+        unavail = chosen - avail
+        for arg in unavail:
+            print("No such help category: %s" % arg)
+
+        if not chosen:
+            list_commands()
+        else:
+            list_commands(chosen)
