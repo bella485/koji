@@ -17,13 +17,11 @@ class TestListCommands(unittest.TestCase):
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
         self.args = mock.MagicMock()
-        self.original_parser = cli.OptionParser
-        cli.OptionParser = mock.MagicMock()
-        koji_cli.lib.OptionParser = cli.OptionParser
-        self.parser = cli.OptionParser.return_value
+        self.original_parser = koji_cli.lib.OptionParser
+        koji_cli.lib.OptionParser = mock.MagicMock()
+        self.parser = koji_cli.lib.OptionParser.return_value
 
     def tearDown(self):
-        cli.OptionParser = self.original_parser
         koji_cli.lib.OptionParser = self.original_parser
 
     # Show long diffs in error output...
@@ -31,7 +29,7 @@ class TestListCommands(unittest.TestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     def test_list_commands(self, stdout):
-        cli.list_commands()
+        koji_cli.lib.list_commands()
         actual = stdout.getvalue()
         if six.PY2:
             actual = actual.replace('nosetests', 'koji')
@@ -47,7 +45,7 @@ class TestListCommands(unittest.TestCase):
         options, arguments = mock.MagicMock(), mock.MagicMock()
         options.admin = True
         self.parser.parse_args.return_value = [options, arguments]
-        cli.CommandExports.handle_help(self.options, self.session, self.args)
+        koji_cli.lib.CommandExports.handle_help(self.options, self.session, self.args)
         actual = stdout.getvalue()
         if six.PY2:
             actual = actual.replace('nosetests', 'koji')
