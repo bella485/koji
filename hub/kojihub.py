@@ -3610,8 +3610,6 @@ def get_next_release(build_info):
 
 
 def _fix_rpm_row(row):
-    if 'size' in row:
-        row['size'] = koji.encode_int(row['size'])
     if 'extra' in row:
         row['extra'] = parse_json(row['extra'], desc='rpm extra')
     return row
@@ -8899,7 +8897,7 @@ class RootExports(object):
             st = os.fstat(fd)
             if not stat.S_ISREG(st.st_mode):
                 raise koji.GenericError("Not a regular file: %s" % fn)
-            data['size'] = koji.encode_int(st.st_size)
+            data['size'] = st.st_size
             data['mtime'] = st.st_mtime
             if verify:
                 sum_cls = get_verify_class(verify)
@@ -8915,7 +8913,7 @@ class RootExports(object):
                     length += len(chunk)
                     chksum.update(chunk)
                     chunk = os.read(fd, 8192)
-                data['sumlength'] = koji.encode_int(length)
+                data['sumlength'] = length
                 data['hexdigest'] = chksum.hexdigest()
             return data
         finally:
@@ -12703,9 +12701,9 @@ def handle_upload(environ):
         # this will also remove our lock
         os.close(fd)
     ret = {
-        'size': koji.encode_int(size),
+        'size': size,
         'fileverify': verify,
-        'offset': koji.encode_int(offset),
+        'offset': offset,
     }
     if verify:
         # unsigned 32bit - could be too big for xmlrpc
