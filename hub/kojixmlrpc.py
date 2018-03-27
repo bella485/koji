@@ -387,8 +387,13 @@ def load_config(environ):
         configs = koji.config_directory_contents(cfdir)
     else:
         configs = []
-    if cf and os.path.isfile(cf):
-        configs.append(cf)
+    if cf:
+        # Only consider the config file only if it is a readable file
+        if os.path.isfile(cf) and os.access(cf, os.R_OK):
+            configs.append(cf)
+        else:
+            # Log the permissions error if the config file is not readable
+            logger.error('Unable to read configuration file (%s)', cf)
     if configs:
         config = RawConfigParser()
         config.read(configs)
