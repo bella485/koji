@@ -42,7 +42,7 @@ import base64
 import pwd
 import requests
 import fnmatch
-from ConfigParser import ConfigParser
+from ConfigParser import SafeConfigParser
 from contextlib import closing
 from optparse import OptionParser
 try:
@@ -98,7 +98,7 @@ def get_options():
         assert False  # pragma: no cover
 
     # load local config
-    config = ConfigParser()
+    config = SafeConfigParser()
     config.read(options.configFile)
     for x in config.sections():
         if x != 'kojivmd':

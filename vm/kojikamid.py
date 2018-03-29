@@ -27,7 +27,7 @@
 # in a cygwin shell.
 
 from optparse import OptionParser
-from ConfigParser import ConfigParser
+from ConfigParser import SafeConfigParser
 import os
 import subprocess
 import sys
@@ -201,7 +201,7 @@ class WindowsBuild(object):
         elif len(specfiles) > 1:
             raise BuildError('Multiple .ini files found')
 
-        conf = ConfigParser()
+        conf = SafeConfigParser()
         conf.read(os.path.join(self.spec_dir, specfiles[0]))
 
         # [naming] section

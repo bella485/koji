@@ -12,7 +12,6 @@ from koji.util import rmtree
 import ConfigParser
 import fnmatch
 import os
-import shutil
 import subprocess
 
 CONFIG_FILE = '/etc/koji-hub/plugins/rpm2maven.conf'

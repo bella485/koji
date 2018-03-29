@@ -1630,6 +1630,34 @@ def config_directory_contents(dir_name):
     return configs
 
 
+def get_config_files(dirs=None, files=None, strict=False):
+    # get list of config files in given directories and files, order is
+    # preserved
+    configs = []
+    if dirs is not None:
+        for d in dirs:
+            cfgs = config_directory_contents(d)
+            if cfgs:
+                configs.extend(cfgs)
+            else:
+                logging.debug("No config files found in directory: %s" % d)
+    if files is not None:
+        configs += files
+
+    # check access
+    result = []
+    for f in configs:
+        if os.path.isfile(f) and os.access(f, os.F_OK):
+            result.append(f)
+        else:
+            if strict:
+                raise ConfigurationError("Config file %s can't be opened." % f)
+            else:
+                logging.warn("Config file %s can't be opened." % f)
+
+    return result
+
+
 def read_config(profile_name, user_config=None):
     config_defaults = {
         'server' : 'http://localhost/kojihub',
@@ -1667,42 +1695,25 @@ def read_config(profile_name, user_config=None):
     #note: later config files override earlier ones
 
     # /etc/koji.conf.d
-    configs = config_directory_contents('/etc/koji.conf.d')
-
-    # /etc/koji.conf
-    if os.access('/etc/koji.conf', os.F_OK):
-        configs.append('/etc/koji.conf')
+    config_dirs = ['/etc/koji.conf.d']
+    config_files = ['/etc/koji.conf']
 
     # User specific configuration
     if user_config:
         # Config file specified on command line
-        fn = os.path.expanduser(user_config)
-        if os.path.isdir(fn):
-            # Specified config is a directory
-            contents = config_directory_contents(fn)
-            if not contents:
-                raise ConfigurationError("No config files found in directory: %s" % fn)
-            configs.extend(contents)
-        else:
-            # Specified config is a file
-            if not os.access(fn, os.F_OK):
-                raise ConfigurationError("No such file: %s" % fn)
-            configs.append(fn)
+        config_dirs.append(os.path.expanduser(user_config))
     else:
         # User config
-        user_config_dir = os.path.expanduser("~/.koji/config.d")
-        configs.extend(config_directory_contents(user_config_dir))
-        fn = os.path.expanduser("~/.koji/config")
-        if os.access(fn, os.F_OK):
-            configs.append(fn)
+        config_dirs.append(os.path.expanduser("~/.koji/config.d"))
+        config_files.append(os.path.expanduser("~/.koji/config"))
+
+    configs = get_config_files(dirs=config_dirs, files=config_files)
 
     # Load the configs in a particular order
     got_conf = False
     for configFile in configs:
-        f = open(configFile)
-        config = six.moves.configparser.ConfigParser()
-        config.readfp(f)
-        f.close()
+        config = six.moves.configparser.SafeConfigParser()
+        config.read(configFile)
         if config.has_section(profile_name):
             got_conf = True
             for name, value in config.items(profile_name):

@@ -18,7 +18,7 @@
 # Authors:
 #       Mike McLean <mikem@redhat.com>
 
-from ConfigParser import RawConfigParser
+from ConfigParser import SafeConfigParser
 import datetime
 import inspect
 import logging
@@ -381,16 +381,11 @@ def load_config(environ):
     """
     logger = logging.getLogger("koji")
     #get our config file(s)
-    cf = environ.get('koji.hub.ConfigFile', '/etc/koji-hub/hub.conf')
-    cfdir = environ.get('koji.hub.ConfigDir', '/etc/koji-hub/hub.conf.d')
-    if cfdir:
-        configs = koji.config_directory_contents(cfdir)
-    else:
-        configs = []
-    if cf and os.path.isfile(cf):
-        configs.append(cf)
+    cfs = [environ.get('koji.hub.ConfigFile', '/etc/koji-hub/hub.conf')] or []
+    cfdirs = [environ.get('koji.hub.ConfigDir', '/etc/koji-hub/hub.conf.d')] or []
+    configs = koji.get_config_files(cfdirs, cfs)
     if configs:
-        config = RawConfigParser()
+        config = SafeConfigParser()
         config.read(configs)
     else:
         config = None

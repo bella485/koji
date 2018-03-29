@@ -270,8 +270,7 @@ def send_queued_msgs(cbtype, *args, **kws):
     global CONFIG
     if not CONFIG:
         conf = ConfigParser.SafeConfigParser()
-        with open(CONFIG_FILE) as conffile:
-            conf.readfp(conffile)
+        conf.read(CONFIG_FILE)
         CONFIG = conf
     urls = CONFIG.get('broker', 'urls').split()
     test_mode = False

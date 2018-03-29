@@ -40,6 +40,3 @@ def stress(errors, n):
         return
     else:
         errors[n] = None
-
-
-

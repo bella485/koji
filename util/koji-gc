@@ -114,21 +114,14 @@ def get_options():
 
     defaults = parser.get_default_values()
 
-    config = ConfigParser.ConfigParser()
-    cf = getattr(options, 'config_file', None)
-    if cf:
-        if not os.access(cf, os.F_OK):
-            parser.error(_("No such file: %s") % cf)
-            assert False  # pragma: no cover
-    else:
-        cf = '/etc/koji-gc/koji-gc.conf'
-        if not os.access(cf, os.F_OK):
-            cf = None
-    if not cf:
+    config = ConfigParser.SafeConfigParser()
+    cf = getattr(options, 'config_file', '/etc/koji-gc/koji-gc.conf')
+    configs = koji.get_config_files(files=[cf])
+    if not configs:
         print("no config file")
         config = None
     else:
-        config.read(cf)
+        config.read(configs)
         # List of values read from config file to update default parser values
         cfgmap = [
             # name, alias, type

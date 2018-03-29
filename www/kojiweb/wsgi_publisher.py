@@ -29,7 +29,7 @@ import pprint
 import sys
 import traceback
 
-from ConfigParser import RawConfigParser
+from ConfigParser import SafeConfigParser
 from koji.server import ServerError, ServerRedirect
 from koji.util import dslice
 
@@ -123,16 +123,11 @@ class Dispatcher(object):
             - all PythonOptions (except koji.web.ConfigFile) are now deprecated and
               support for them will disappear in a future version of Koji
         """
-        cf = environ.get('koji.web.ConfigFile', '/etc/kojiweb/web.conf')
-        cfdir = environ.get('koji.web.ConfigDir', '/etc/kojiweb/web.conf.d')
-        if cfdir:
-            configs = koji.config_directory_contents(cfdir)
-        else:
-            configs = []
-        if cf and os.path.isfile(cf):
-            configs.append(cf)
+        cfs = [environ.get('koji.web.ConfigFile', '/etc/kojiweb/web.conf')] or []
+        cfdirs = [environ.get('koji.web.ConfigDir', '/etc/kojiweb/web.conf.d')] or []]
+        configs = koji.get_config_files(dirs=cfdirs, files=cfs)
         if configs:
-            config = RawConfigParser()
+            config = SafeConfigParser()
             config.read(configs)
         else:
             raise koji.GenericError("Configuration missing")

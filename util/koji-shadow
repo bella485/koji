@@ -160,21 +160,14 @@ def get_options():
     (options, args) = parser.parse_args()
 
     defaults = parser.get_default_values()
-    config = ConfigParser.ConfigParser()
-    cf = getattr(options, 'config_file', None)
-    if cf:
-        if not os.access(cf, os.F_OK):
-            parser.error(_("No such file: %s") % cf)
-            assert False  # pragma: no cover
-    else:
-        cf = '/etc/koji-shadow/koji-shadow.conf'
-        if not os.access(cf, os.F_OK):
-            cf = None
-    if not cf:
+    config = ConfigParser.SafeConfigParser()
+    cf = getattr(options, 'config_file', '/etc/koji-shadow/koji-shadow.conf')
+    configs = koji.get_config_files(files=[cf])
+    if not configs:
         log("no config file")
         config = None
     else:
-        config.read(cf)
+        config.read(configs)
         #allow config file to update defaults
         for opt in parser.option_list:
             if not opt.dest:

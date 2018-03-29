@@ -487,7 +487,7 @@ class MavenUtilTestCase(unittest.TestCase):
         self.assertEqual(cm.exception.args[0], 'total ordering not possible')
 
     def _read_conf(self, cfile):
-        config = six.moves.configparser.ConfigParser()
+        config = six.moves.configparser.SafeConfigParser()
         path = os.path.dirname(__file__)
         with open(path + cfile, 'r') as conf_file:
             config.readfp(conf_file)

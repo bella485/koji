@@ -667,11 +667,9 @@ def parse_maven_params(confs, chain=False, scratch=False):
     """
     if not isinstance(confs, (list, tuple)):
         confs = [confs]
-    config = six.moves.configparser.ConfigParser()
-    for conf in confs:
-        conf_fd = open(conf)
-        config.readfp(conf_fd)
-        conf_fd.close()
+    configs = koji.get_config_files(files=confs)
+    config = six.moves.configparser.SafeConfigParser()
+    config.read(configs)
     builds = {}
     for package in config.sections():
         buildtype = 'maven'

@@ -213,10 +213,10 @@ class TestImageBuild(utils.CliTestCase):
             return self.custom_os_path_exists[filepath]
         return self.os_path_exists(filepath)
 
-    def mock_builtin_open(self, filepath, *args):
+    def mock_builtin_open(self, filepath, *args, **kwargs):
         if filepath in self.custom_open:
             return self.custom_open[filepath]
-        return self.builtin_open(filepath, *args)
+        return self.builtin_open(filepath, *args, **kwargs)
 
     def setUp(self):
         self.os_path_exists = os.path.exists
@@ -307,12 +307,14 @@ factory_test_ver=1.0
 """
         self.custom_open[config_file] = six.StringIO(fake_config)
 
-        with mock.patch('os.path.exists', new=self.mock_os_path_exists), \
-                mock.patch('koji_cli.commands.open', new=self.mock_builtin_open):
-            handle_image_build(
-                self.options,
-                self.session,
-                ['--config', config_file])
+        if six.PY2:
+            with mock.patch('os.path.exists', new=self.mock_os_path_exists), \
+                    mock.patch('__builtin__.open', new=self.mock_builtin_open):
+                handle_image_build(self.options, self.session, ['--config', config_file])
+        else:
+            with mock.patch('os.path.exists', new=self.mock_os_path_exists), \
+                    mock.patch('builtins.open', new=self.mock_builtin_open):
+                handle_image_build(self.options, self.session, ['--config', config_file])
 
         args, kwargs = build_image_oz_mock.call_args
         self.assertDictEqual(TASK_OPTIONS, args[1].__dict__)

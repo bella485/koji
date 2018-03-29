@@ -25,7 +25,7 @@ import os
 import koji
 from koji.util import rmtree, parseStatus
 from optparse import OptionParser
-from ConfigParser import ConfigParser
+from ConfigParser import SafeConfigParser
 import errno
 import logging
 import logging.handlers
@@ -811,7 +811,7 @@ def get_options():
     parser.add_option("--logfile", help="Specify logfile")
     (options, args) = parser.parse_args()
 
-    config = ConfigParser()
+    config = SafeConfigParser()
     config.read(options.configFile)
     section = 'kojira'
     for x in config.sections():
