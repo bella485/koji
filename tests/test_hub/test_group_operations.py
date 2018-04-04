@@ -15,6 +15,9 @@ class TestGrouplist(unittest.TestCase):
     def getQuery(self, *args, **kwargs):
         query = QP(*args, **kwargs)
         query.execute = mock.MagicMock()
+        if self.qp_rv:
+            query.singleValue = mock.MagicMock()
+            query.singleValue.return_value = self.qp_rv
         self.queries.append(query)
         return query
 
@@ -44,6 +47,7 @@ class TestGrouplist(unittest.TestCase):
         self.QueryProcessor = mock.patch('kojihub.QueryProcessor',
                 side_effect=self.getQuery).start()
         self.queries = []
+        self.qp_rv = None
         self.InsertProcessor = mock.patch('kojihub.InsertProcessor',
                 side_effect=self.getInsert).start()
         self.inserts = []
@@ -178,7 +182,8 @@ class TestGrouplist(unittest.TestCase):
         self.assertEqual(update.data, {'revoke_event': 42, 'revoker_id': 24})
         self.assertEqual(update.rawdata, {'active': 'NULL'})
 
-    def test_grplist_unblock(self):
+    @mock.patch('kojihub._grp_pkg_add')
+    def test_grplist_unblock_unblocked(self, _grp_pkg_add):
         # identical with test_grplist_add except blocked=True
         tag = 'tag'
         group = 'group'
@@ -199,11 +204,41 @@ class TestGrouplist(unittest.TestCase):
         # db
         self.assertEqual(len(self.queries), 1)
         query = self.queries[0]
-        q = "SELECT blocked FROM group_config WHERE (active = TRUE) AND (group_id=%(grp_id)s) AND (tag_id=%(tag_id)s) FOR UPDATE"
+        q = "SELECT blocked FROM group_config WHERE (group_id=%(grp_id)s) AND (tag_id=%(tag_id)s) AND (active=TRUE) FOR UPDATE"
         actual = ' '.join(str(query).split())
         self.assertEqual(actual, q)
         self.assertEqual(len(self.updates), 0)
         self.assertEqual(len(self.inserts), 0)
+        _grp_pkg_add.assert_not_called()
+
+    @mock.patch('kojihub._grplist_add')
+    def test_grplist_unblock(self, _grplist_add):
+        # identical with test_grplist_add except blocked=True
+        tag = 'tag'
+        group = 'group'
+        self.lookup_tag.return_value = {'name': 'tag', 'id': 'tag_id'}
+        self.lookup_group.return_value = {'name': 'group', 'id': 'group_id'}
+        #self.context.event_id = 42
+        #self.context.session.user_id = 24
+        self.qp_rv = True
+
+        # will fail for non-blocked group
+        kojihub.grplist_unblock(tag, group)
+
+        # what was called
+        self.context.session.assertPerm.assert_called_once_with('admin')
+        self.lookup_tag.assert_called_once_with(tag, strict=True)
+        self.lookup_group.assert_called_once_with(group, strict=True)
+
+        # db
+        self.assertEqual(len(self.queries), 1)
+        query = self.queries[0]
+        q = "SELECT blocked FROM group_config WHERE (group_id=%(grp_id)s) AND (tag_id=%(tag_id)s) AND (active=TRUE) FOR UPDATE"
+        actual = ' '.join(str(query).split())
+        self.assertEqual(actual, q)
+        self.assertEqual(len(self.updates), 0)
+        self.assertEqual(len(self.inserts), 0)
+        _grplist_add.assert_called_once_with(tag, group, block=False, force=True)
 
     def test_readTagGroups_empty(self):
         self.get_tag_groups.return_value = {}
