@@ -1692,22 +1692,22 @@ def grplist_unblock(taginfo, grpinfo):
 
 
 def _grplist_unblock(taginfo, grpinfo):
-    """grplist_unblock without permssion check"""
+    """grplist_unblock without permission check"""
     tag = lookup_tag(taginfo, strict=True)
     group = lookup_group(grpinfo, strict=True)
     tag_id = tag['id']
     grp_id = group['id']
     table = 'group_config'
-    clauses = ('group_id=%(grp_id)s', 'tag_id=%(tag_id)s')
+    clauses = ('group_id=%(grp_id)s', 'tag_id=%(tag_id)s', 'active=TRUE')
     query = QueryProcessor(columns=['blocked'], tables=[table],
-                           clauses=('active = TRUE',)+clauses,
+                           clauses=clauses,
                            values=locals(), opts={'rowlock':True})
     blocked = query.singleValue(strict=False)
     if not blocked:
         raise koji.GenericError("group %s is NOT blocked in tag %s" % (group['name'], tag['name']))
-    update = UpdateProcessor(table, values=locals(), clauses=clauses)
-    update.make_revoke()
-    update.execute()
+
+    # just set block to false, leave other data untouched
+    _grplist_add(taginfo, grpinfo, block=False, force=True)
 
 
 # tag-group-pkg operations
