@@ -3474,11 +3474,9 @@ def handle_clone_tag(goptions, session, args):
         if not options.test:
             session.multiCall()
         # DEL packages.
-        if not options.test:
-            session.multicall = True
         for pkg in pdellist:
             # delete only non-inherited packages.
-            if build['tag_name'] == dsttag['name']:
+            if pkg['tag_name'] == dsttag['name']:
                 # check if package have owned builds inside.
                 builds = session.listTagged(dsttag['name'], package=pkg['package_name'], inherit=False)
                 #remove all its builds first if there are any.
@@ -3496,13 +3494,11 @@ def handle_clone_tag(goptions, session, args):
                 if not options.test:
                     session.packageListRemove(dsttag['name'], pkg['package_name'], force=False)
             # mark as blocked inherited packages.
-            if build['tag_name'] != dsttag['name']:
+            if pkg['tag_name'] != dsttag['name']:
                 chgpkglist.append(('[blk]', pkg['package_name'], pkg['blocked'],
                                     pkg['owner_name'], pkg['tag_name']))
                 if not options.test:
                     session.packageListBlock(dsttag['name'], pkg['package_name'])
-        if not options.test:
-            session.multiCall()
         # DEL groups.
         if not options.test:
             session.multicall = True
