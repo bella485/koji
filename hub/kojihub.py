@@ -516,9 +516,9 @@ def make_task(method, arglist, **opts):
         policy_data['req_channel'] = opts['channel']
         req_channel_id = get_channel_id(opts['channel'], strict=True)
     if method == 'build':
-        # arglist = source, target, [opts]
-        args = koji.decode_args2(arglist, ('source', 'target', 'opts'))
-        policy_data['source'] = args['source']
+        # arglist = src, target, [opts]
+        args = koji.decode_args2(arglist, ('src', 'target', 'opts'))
+        policy_data['source'] = args['src']
         if args['target'] is None:
             #koji-shadow makes null-target builds
             policy_data['target'] = None
