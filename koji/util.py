@@ -35,7 +35,6 @@ import sys
 import time
 import six.moves.configparser
 from zlib import adler32
-from six.moves import range
 import six
 import warnings
 
