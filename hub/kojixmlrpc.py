@@ -29,6 +29,8 @@ import traceback
 import pprint
 import resource
 
+import six
+
 import koji
 import koji.auth
 import koji.db
@@ -379,7 +381,6 @@ def load_config(environ):
         - all PythonOptions (except ConfigFile) are now deprecated and support for them
           will disappear in a future version of Koji
     """
-    logger = logging.getLogger("koji")
     #get our config file(s)
     cf = environ.get('koji.hub.ConfigFile', '/etc/koji-hub/hub.conf')
     cfdir = environ.get('koji.hub.ConfigDir', '/etc/koji-hub/hub.conf.d')
@@ -549,7 +550,7 @@ def get_policy(opts, plugins):
             # tests can be limited to certain policies by setting a class variable
             for name, test in tests.iteritems():
                 if hasattr(test, 'policy'):
-                    if isinstance(test.policy, basestring):
+                    if isinstance(test.policy, six.string_types):
                         if pname != test.policy:
                             continue
                     elif pname not in test.policy:
