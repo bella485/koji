@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import mock
 import unittest
 import six
+import logging
 
 import koji
 from koji.xmlrpcplus import Fault
