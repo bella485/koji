@@ -1,9 +1,11 @@
 import unittest
-import mock
-from koji.context import context
 
-from .helper import FakeConfigParser
+import mock
+
+from koji import GenericError
+from koji.context import context
 from . import load_plugin
+from .helper import FakeConfigParser
 
 task_notification = load_plugin.load_plugin('hub', 'task_notification')
 
@@ -25,9 +27,14 @@ class TestTaskNotificationCallback(unittest.TestCase):
         context.opts = {'DisableNotifications': False,
                         'EmailDomain': 'example.com',
                         'KojiWebURL': 'https://koji.org'}
-        self.parser = mock.patch('ConfigParser.SafeConfigParser', return_value=FakeConfigParser(CONFIG1)).start()
+        self.parser = mock.patch('ConfigParser.SafeConfigParser',
+                                 return_value=FakeConfigParser(
+                                     CONFIG1)).start()
         self.getTaskInfo = mock.patch('kojihub.Task.getInfo').start()
-        self.get_user = mock.patch('kojihub.get_user', return_value={'id': 999, 'name': 'someone'}).start()
+        self.get_user = mock.patch('kojihub.get_user',
+                                   return_value={'id': 999, 'name': 'someone',
+                                                 'status': 0,
+                                                 'usertype': 0}).start()
         self.make_task = mock.patch('kojihub.make_task').start()
 
     def tearDown(self):
@@ -128,3 +135,46 @@ class TestTaskNotificationCallback(unittest.TestCase):
         )
         self.make_task.assert_not_called()
 
+    def test_no_user_found(self):
+        self.get_user.side_effect = GenericError('not found')
+        with self.assertRaises(GenericError) as cm:
+            task_notification.task_notification_callback(
+                'postTaskStateChange',
+                attribute='state',
+                new='FAILED',
+                info={'id': 123, 'method': 'someMethod'}
+            )
+        self.assertEqual(cm.exception.args[0], 'not found')
+        self.make_task.assert_not_called()
+
+    def test_disabled_owner(self):
+        self.get_user.return_value = {'id': 999,
+                                      'name': 'someone',
+                                      'status': 1,
+                                      'usertype': 0}
+        with self.assertRaises(GenericError) as cm:
+            task_notification.task_notification_callback(
+                'postTaskStateChange',
+                attribute='state',
+                new='FAILED',
+                info={'id': 123, 'method': 'someMethod'}
+            )
+        self.assertEqual(cm.exception.args[0], 'Unable to send notification to'
+                                               ' disabled task#123 owner: someone')
+        self.make_task.assert_not_called()
+
+    def test_host_owner(self):
+        self.get_user.return_value = {'id': 999,
+                                      'name': 'somehost',
+                                      'status': 0,
+                                      'usertype': 1}
+        with self.assertRaises(GenericError) as cm:
+            task_notification.task_notification_callback(
+                'postTaskStateChange',
+                attribute='state',
+                new='FAILED',
+                info={'id': 123, 'method': 'someMethod'}
+            )
+        self.assertEqual(cm.exception.args[0], 'Unable to send notification to'
+                                               ' host: somehost whom owns task#123')
+        self.make_task.assert_not_called()

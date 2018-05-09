@@ -9,6 +9,7 @@ import sys
 
 import six
 
+import koji
 from koji.context import context
 from koji.plugin import callback, ignore_error
 from koji.util import multi_fnmatch
@@ -48,9 +49,15 @@ def task_notification(task_id):
     # sanity check for the existence of task
     taskinfo = kojihub.Task(task_id).getInfo(strict=True)
     # only send notification to the task's owner
-    owner = kojihub.get_user(taskinfo['owner'], strict=True)['name']
+    user = kojihub.get_user(taskinfo['owner'], strict=True)
+    if user['status'] == koji.USER_STATUS['BLOCKED']:
+        raise koji.GenericError('Unable to send notification to disabled'
+                                ' task#%s owner: %s' % (task_id, user['name']))
+    if user['usertype'] == koji.USERTYPES['HOST']:
+        raise koji.GenericError('Unable to send notification to host: %s whom'
+                                ' owns task#%s' % (user['name'], task_id))
     email_domain = context.opts['EmailDomain']
-    recipient = '%s@%s' % (owner, email_domain)
+    recipient = '%s@%s' % (user['name'], email_domain)
     web_url = context.opts.get('KojiWebURL', 'http://localhost/koji')
     kojihub.make_task("taskNotification", [recipient, task_id, web_url])
 
