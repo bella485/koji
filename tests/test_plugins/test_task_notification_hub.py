@@ -7,14 +7,15 @@ from . import load_plugin
 
 task_notification = load_plugin.load_plugin('hub', 'task_notification')
 
-CONFIG1 = {'permissions': {
-    'allowed_methods': "someMethod,someotherMethod",
-    'allowed_states': "FAILED,NEW"
+CONFIG1 = {'filters': {
+    'methods': "someMethod,someotherMethod",
+    'disallowed_methods': 'disallowedMethods,*Whatever',
+    'states': "FAILED,NEW"
 }}
 
-CONFIG2 = {'permissions': {
-    'allowed_methods': "*",
-    'allowed_states': "*"
+CONFIG2 = {'filters': {
+    'methods': "*",
+    'states': "*"
 }}
 
 
@@ -40,8 +41,6 @@ class TestTaskNotificationCallback(unittest.TestCase):
             new='FAILED',
             info={'id': 123, 'method': 'someMethod'},
         )
-        self.assertEqual(task_notification.allowed_methods, ['someMethod', 'someotherMethod'])
-        self.assertEqual(task_notification.allowed_states, ['FAILED', 'NEW'])
         self.make_task.assert_called_once_with(
             'taskNotification',
             ['someone@example.com', 123, 'https://koji.org'])
@@ -79,7 +78,21 @@ class TestTaskNotificationCallback(unittest.TestCase):
             'postTaskStateChange',
             attribute='state',
             new='FAILED',
+            info={'id': 123, 'method': 'disallowedMethod'}
+        )
+        self.make_task.assert_not_called()
+        task_notification.task_notification_callback(
+            'postTaskStateChange',
+            attribute='state',
+            new='FAILED',
             info={'id': 123, 'method': 'xxxMethod'}
+        )
+        self.make_task.assert_not_called()
+        task_notification.task_notification_callback(
+            'postTaskStateChange',
+            attribute='state',
+            new='FAILED',
+            info={'id': 123, 'method': 'Whatever'}
         )
         self.make_task.assert_not_called()
 
@@ -104,4 +117,14 @@ class TestTaskNotificationCallback(unittest.TestCase):
         self.make_task.assert_called_once_with(
             'taskNotification',
             ['someone@example.com', 123, 'https://koji.org'])
+
+    def test_force_disallowed(self):
+        self.parser.return_value = FakeConfigParser(CONFIG2)
+        task_notification.task_notification_callback(
+            'postTaskStateChange',
+            attribute='state',
+            new='somestate',
+            info={'id': 123, 'method': 'xxxNotification'}
+        )
+        self.make_task.assert_not_called()
 

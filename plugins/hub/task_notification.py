@@ -2,10 +2,16 @@
 # by default, only failed MavenTask can trigger a TaskNotification,
 # which is exported as a task handler in a relative koji builder plugin.
 
+
+import ConfigParser
+import re
+import sys
+
+import six
+
 from koji.context import context
 from koji.plugin import callback, ignore_error
-import ConfigParser
-import sys
+from koji.util import multi_fnmatch
 
 # XXX - have to import kojihub for make_task
 sys.path.insert(0, '/usr/share/koji-hub/')
@@ -14,24 +20,25 @@ import kojihub
 __all__ = ('task_notification',)
 
 CONFIG_FILE = '/etc/koji-hub/plugins/task_notification.conf'
-config = None
-allowed_methods = '*'
-disallowed_methods = ['taskNotification']
-allowed_states = '*'
+FILTERS = {'methods': (['*'], None),
+           'disallowed_methods': ([], ['*Notification']),
+           'states': (['*'], None)}
 
 
 def read_config():
-    global config, allowed_methods, disallowed_methods, allowed_states
-    # read configuration only once
-    if config is None:
-        config = ConfigParser.SafeConfigParser()
-        config.read(CONFIG_FILE)
-        allowed_methods = config.get('permissions', 'allowed_methods').split(',')
-        if len(allowed_methods) == 1 and allowed_methods[0] == '*':
-            allowed_methods = '*'
-        allowed_states = config.get('permissions', 'allowed_states').split(',')
-        if len(allowed_states) == 1 and allowed_states[0] == '*':
-            allowed_states = '*'
+    result = {}
+    config = ConfigParser.SafeConfigParser()
+    config.read(CONFIG_FILE)
+    for k, (default, force) in six.iteritems(FILTERS):
+        try:
+            value = config.get('filters', k)
+            value = re.split(r'[\s,]+', value)
+        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+            value = default
+        if force is not None:
+            value.extend(force)
+        result[k] = value
+    return result
 
 
 def task_notification(task_id):
@@ -51,13 +58,12 @@ def task_notification(task_id):
 @callback('postTaskStateChange')
 @ignore_error
 def task_notification_callback(cbtype, *args, **kws):
-    global allowed_methods, disallowed_methods, allowed_states
     if kws['attribute'] != 'state':
         return
-    read_config()
+    cfg = read_config()
     taskinfo = kws['info']
     new = kws['new']
-    if (allowed_states == '*' or new in allowed_states) \
-            and (allowed_methods == '*' or taskinfo['method'] in allowed_methods) \
-            and taskinfo['method'] not in disallowed_methods:
+    if multi_fnmatch(new, cfg['states']) \
+            and multi_fnmatch(taskinfo['method'], cfg['methods']) \
+            and not multi_fnmatch(taskinfo['method'], cfg['disallowed_methods']):
         task_notification(taskinfo['id'])
