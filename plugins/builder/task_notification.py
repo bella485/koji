@@ -41,10 +41,6 @@ Task Info: %(weburl)s/taskinfo?taskID=%(id)i\r
     def _get_notification_info(self, task_id, recipient, weburl):
         taskinfo = self.session.getTaskInfo(task_id, request=True)
 
-        if not taskinfo:
-            # invalid task_id
-            raise koji.GenericError('Cannot find task#%i' % task_id)
-
         if taskinfo['host_id']:
             hostinfo = self.session.getHost(taskinfo['host_id'])
         else:

@@ -289,14 +289,3 @@ class TestTaskNotification(unittest.TestCase):
                                                           'Started: Wed, 01 Feb 2017 00:00:00 EST\r\n'
                                                           'Finished: Sun, 01 Jan 2017 00:00:00 EST\r\n\r\n\r\n'
                                                           'Task Info: https://kojiurl.com/taskinfo?taskID=111\r\n')
-
-    def test_task_notification_no_taskinfo(self):
-        self.session.getTaskInfo.return_value = None
-        with self.assertRaises(koji.GenericError) as cm:
-            self.task.handler('someone@example.com', 111, 'https://kojiurl.com')
-        self.assertEqual(cm.exception.args[0], 'Cannot find task#111')
-        self.session.getTaskInfo.assert_called_once_with(111, request=True)
-        self.session.getHost.assert_not_called()
-        self.session.getUser.assert_not_called()
-        self.session.getTaskResult.assert_not_called()
-        self.smtp_server.sendmail.assert_not_called()
