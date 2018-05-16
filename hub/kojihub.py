@@ -61,6 +61,7 @@ from koji.util import md5_constructor
 from koji.util import multi_fnmatch
 from koji.util import safer_move
 from koji.util import sha1_constructor
+from koji.util import to_list
 from six.moves import range
 logger = logging.getLogger('koji.hub')
 
@@ -2020,17 +2021,17 @@ def readTagGroups(tag, event=None, inherit=True, incl_pkgs=True, incl_reqs=True,
     Blocked packages/groups can alternatively also be listed if incl_blocked is set to True
     """
     groups = get_tag_groups(tag, event, inherit, incl_pkgs, incl_reqs)
-    groups = list(groups.values())
+    groups = to_list(groups.values())
     for group in groups:
         #filter blocked entries and collapse to a list
         if 'packagelist' in group:
             if incl_blocked:
-                group['packagelist'] = list(group['packagelist'].values())
+                group['packagelist'] = to_list(group['packagelist'].values())
             else:
                 group['packagelist'] = [x for x in group['packagelist'].values() if not x['blocked']]
         if 'grouplist' in group:
             if incl_blocked:
-                group['grouplist'] = list(group['grouplist'].values())
+                group['grouplist'] = to_list(group['grouplist'].values())
             else:
                 group['grouplist'] = [x for x in group['grouplist'].values() if not x['blocked']]
     #filter blocked entries and collapse to a list
@@ -2182,7 +2183,7 @@ def get_all_arches():
             #in a perfect world, this list would only include canonical
             #arches, but not all admins will undertand that.
             ret[koji.canonArch(arch)] = 1
-    return list(ret.keys())
+    return to_list(ret.keys())
 
 def get_active_tasks(host=None):
     """Return data on tasks that are yet to be run"""
@@ -2588,7 +2589,7 @@ def repo_references(repo_id):
         'host_id': 'host_id',
         'create_event': 'create_event',
         'state': 'state'}
-    fields, aliases = zip(*list(fields.items()))
+    fields, aliases = zip(*fields.items())
     values = {'repo_id': repo_id}
     clauses = ['repo_id=%(repo_id)s', 'retire_event IS NULL']
     query = QueryProcessor(columns=fields, aliases=aliases, tables=['standard_buildroot'],
@@ -3031,7 +3032,7 @@ def get_tag(tagInfo, strict=False, event=None):
         raise koji.GenericError('invalid type for tagInfo: %s' % type(tagInfo))
 
     data = {'tagInfo': tagInfo}
-    fields, aliases = zip(*list(fields.items()))
+    fields, aliases = zip(*fields.items())
     query = QueryProcessor(columns=fields, aliases=aliases, tables=tables,
                            joins=joins, clauses=clauses, values=data)
     result = query.executeOne()
@@ -4593,7 +4594,7 @@ def get_host(hostInfo, strict=False, event=None):
         raise koji.GenericError('invalid type for hostInfo: %s' % type(hostInfo))
 
     data = {'hostInfo': hostInfo}
-    fields, aliases = zip(*list(fields.items()))
+    fields, aliases = zip(*fields.items())
     query = QueryProcessor(columns=fields, aliases=aliases, tables=tables,
                            joins=joins, clauses=clauses, values=data)
     result = query.executeOne()
@@ -4750,7 +4751,7 @@ def list_channels(hostID=None, event=None):
     """List channels.  If hostID is specified, only list
     channels associated with the host with that ID."""
     fields = {'channels.id': 'id', 'channels.name': 'name'}
-    columns, aliases = zip(*list(fields.items()))
+    columns, aliases = zip(*fields.items())
     if hostID:
         tables = ['host_channels']
         joins = ['channels ON channels.id = host_channels.channel_id']
@@ -5168,7 +5169,7 @@ def import_build(srpm, rpms, brmap=None, task_id=None, build_id=None, logs=None)
 
     policy_data = {
             'package': build['name'],
-            'buildroots': list(brmap.values()),
+            'buildroots': to_list(brmap.values()),
             'import': True,
             'import_type': 'rpm',
             }
@@ -6852,7 +6853,7 @@ def query_history(tables=None, **kwargs):
                 fields[r_test] = '_revoked_before_event'
         if skip:
             continue
-        fields, aliases = zip(*list(fields.items()))
+        fields, aliases = zip(*fields.items())
         query = QueryProcessor(columns=fields, aliases=aliases, tables=[table],
                                joins=joins, clauses=clauses, values=data)
         ret[table] = query.iterate()
@@ -6991,7 +6992,7 @@ def build_references(build_id, limit=None):
             idx.setdefault(row['id'], row)
         if limit is not None and len(idx) > limit:
             break
-    ret['rpms'] = list(idx.values())
+    ret['rpms'] = to_list(idx.values())
 
     ret['component_of'] = []
     # find images/archives that contain the build rpms
@@ -7022,7 +7023,7 @@ def build_references(build_id, limit=None):
             idx.setdefault(row['id'], row)
         if limit is not None and len(idx) > limit:
             break
-    ret['archives'] = list(idx.values())
+    ret['archives'] = to_list(idx.values())
 
     # find images/archives that contain the build archives
     fields = ['archive_id']
@@ -7364,7 +7365,7 @@ def tag_notification(is_successful, tag_id, from_id, build_id, user_id, ignore_s
         from_tag = get_tag(from_id)
         for email in get_notification_recipients(build, from_tag['id'], state):
             recipients[email] = 1
-    recipients_uniq = list(recipients.keys())
+    recipients_uniq = to_list(recipients.keys())
     if len(recipients_uniq) > 0 and not (is_successful and ignore_success):
         task_id = make_task('tagNotification', [recipients_uniq, is_successful, tag_id, from_id, build_id, user_id, ignore_success, failure_msg])
         return task_id
@@ -7592,8 +7593,8 @@ class InsertProcessor(object):
         if not self.data and not self.rawdata:
             return "-- incomplete update: no assigns"
         parts = ['INSERT INTO %s ' % self.table]
-        columns = list(self.data.keys())
-        columns.extend(list(self.rawdata.keys()))
+        columns = to_list(self.data.keys())
+        columns.extend(to_list(self.rawdata.keys()))
         parts.append("(%s) " % ', '.join(columns))
         values = []
         for key in columns:
@@ -7636,7 +7637,7 @@ class InsertProcessor(object):
             del data['create_event']
             del data['creator_id']
         clauses = ["%s = %%(%s)s" % (k, k) for k in data]
-        query = QueryProcessor(columns=list(data.keys()), tables=[self.table],
+        query = QueryProcessor(columns=to_list(data.keys()), tables=[self.table],
                                clauses=clauses, values=data)
         if query.execute():
             return True
@@ -10761,7 +10762,7 @@ class RootExports(object):
               'host_config.enabled': 'enabled',
               }
         tables = ['host_config']
-        fields, aliases = zip(*list(fields.items()))
+        fields, aliases = zip(*fields.items())
         query = QueryProcessor(columns=fields, aliases=aliases,
                 tables=tables, joins=joins, clauses=clauses, values=locals())
         return query.execute()
@@ -11837,7 +11838,7 @@ class HostExports(object):
         scratchdir = koji.pathinfo.scratch()
         username = get_user(task.getOwner())['name']
         destdir = os.path.join(scratchdir, username, 'task_%s' % task_id)
-        for reldir, files in list(results['files'].items()) + [('', results['logs'])]:
+        for reldir, files in to_list(results['files'].items()) + [('', results['logs'])]:
             for filename in files:
                 if reldir:
                     relpath = os.path.join(reldir, filename)
@@ -11869,7 +11870,7 @@ class HostExports(object):
         scratchdir = koji.pathinfo.scratch()
         username = get_user(task.getOwner())['name']
         destdir = os.path.join(scratchdir, username, 'task_%s' % task_id)
-        for relpath in list(results['output'].keys()) + results['logs']:
+        for relpath in to_list(results['output'].keys()) + results['logs']:
             filename = os.path.join(koji.pathinfo.task(results['task_id']), relpath)
             dest = os.path.join(destdir, relpath)
             koji.ensuredir(os.path.dirname(dest))
@@ -12483,7 +12484,7 @@ class HostExports(object):
                         logger.error("Current build is %s, new build is %s.", idx_build, archive['build_id'])
                         maven_build_index[archive['group_id']][archive['artifact_id']][archive['version']] = archive['build_id']
 
-        ignore.extend(list(task_deps.values()))
+        ignore.extend(task_deps.values())
 
         SNAPSHOT_RE = re.compile(r'-\d{8}\.\d{6}-\d+')
         ignore_by_label = {}
@@ -12536,7 +12537,7 @@ class HostExports(object):
                         if build_id:
                             build = get_build(build_id)
                             logger.error("g:a:v supplied by build %(nvr)s", build)
-                            logger.error("Build supplies %i archives: %r", len(build_archives), list(build_archives.keys()))
+                            logger.error("Build supplies %i archives: %r", len(build_archives), to_list(build_archives.keys()))
                         if tag_archive:
                             logger.error("Size mismatch, br: %i, db: %i", fileinfo['size'], tag_archive['size'])
                         raise koji.BuildrootError('Unknown file in build environment: %s, size: %s' % \
