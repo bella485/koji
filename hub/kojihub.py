@@ -2239,7 +2239,7 @@ def get_task_descendents(task, childMap=None, request=False):
     if childMap == None:
         childMap = {}
     children = task.getChildren(request=request)
-    children.sort(lambda a, b: cmp(a['id'], b['id']))
+    children.sort(key=lambda x: x['id'])
     # xmlrpclib requires dict keys to be strings
     childMap[str(task.id)] = children
     for child in children:
@@ -8006,9 +8006,7 @@ def _applyQueryOpts(results, queryOpts):
         if order.startswith('-'):
             order = order[1:]
             reverse = True
-        results.sort(key=lambda o: o[order])
-        if reverse:
-            results.reverse()
+        results.sort(key=lambda o: o[order], reverse=reverse)
     if queryOpts.get('offset'):
         results = results[queryOpts['offset']:]
     if queryOpts.get('limit'):
