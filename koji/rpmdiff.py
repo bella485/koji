@@ -81,12 +81,12 @@ class Rpmdiff:
         if self.ignore is None:
             self.ignore = []
 
-        FILEIDX = [entry[:] for entry in self.__FILEIDX]
+        toggle = [True] * len(self.__FILEIDX)
         for tag in self.ignore:
-            for entry in FILEIDX:
+            for idx, entry in enumerate(self.__FILEIDX):
                 if tag == entry[0]:
                     # store marked position for erasing data
-                    entry[1] = -entry[1]
+                    toggle[idx] = False
                     break
 
         old = self.__load_pkg(old)
@@ -133,18 +133,18 @@ class Rpmdiff:
                 self.__add(self.FORMAT, (self.REMOVED, f))
             else:
                 format = ''
-                for entry in FILEIDX:
-                    if entry[1] >= 0 and \
-                            old_file[entry[1]] != new_file[entry[1]]:
+                for idx, entry in enumerate(self.__FILEIDX):
+                    d = toggle[idx] and old_file[entry[1]] != new_file[entry[1]]
+                    if d:
                         format = format + entry[0]
-                        diff = 1
-                    elif entry[1] < 0:
-                        # erase fields which are ignored
-                        old_file[-entry[1]] = None
-                        new_file[-entry[1]] = None
-                        format = format + '.'
+                        diff |= d
                     else:
                         format = format + '.'
+                        # ignored or same, clean field for generating hash
+                        # for corresponding flags in kojihash()
+                        old_file[entry[1]] = None
+                        new_file[entry[1]] = None
+
                 if diff:
                     self.__add(self.FORMAT, (format, f))
 

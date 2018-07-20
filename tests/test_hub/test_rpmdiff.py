@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 import copy
 import mock
+import json
+import hashlib
 import os
 try:
     import unittest2 as unittest
@@ -12,6 +14,8 @@ import kojihub
 
 
 class TestRPMDiff(unittest.TestCase):
+    def setUp(self):
+        self.rpms_path = os.path.abspath("tests/test_hub/data/rpms")
 
     @mock.patch('koji.rpmdiff.Rpmdiff')
     def test_rpmdiff_empty_invocation(self, Rpmdiff):
@@ -39,11 +43,9 @@ class TestRPMDiff(unittest.TestCase):
         d.textdiff.assert_called_once_with()
 
     def test_rpmdiff_real_target(self):
-        data_path = os.path.abspath("tests/test_hub/data/rpms")
-
         # the only differences between rpm1 and rpm2 are 1) create time 2) file name
-        rpm1 = os.path.join(data_path, 'test-pkg-1.0.0-1.el7.noarch.rpm')
-        rpm2 = os.path.join(data_path, 'test-pkg-1.0.0-1.fc24.noarch.rpm')
+        rpm1 = os.path.join(self.rpms_path, 'test-pkg-1.0.0-1.el7.noarch.rpm')
+        rpm2 = os.path.join(self.rpms_path, 'test-pkg-1.0.0-1.fc24.noarch.rpm')
 
         diff_output = "..........T /usr/share/test-pkg/test-doc01.txt\n" + \
                       "..........T /usr/share/test-pkg/test-doc02.txt\n" + \
@@ -61,6 +63,83 @@ class TestRPMDiff(unittest.TestCase):
         for r in range(0, 2):
             d = koji.rpmdiff.Rpmdiff(rpm1, rpm2, ignore='S5TN')
             self.assertEqual(d.textdiff(), '')
+
+    def test_rpmdiff_ignore_test(self):
+        # a template file for parsing rpm header
+        rpm = os.path.join(self.rpms_path, 'test-pkg-1.0.0-1.el7.noarch.rpm')
+
+        # dummy file info
+        defattr = [19L, 33188, 1531970408, 0, 0, 2, 1, -1, -1, 'root', 'root', '02d2c91b']
+
+        rpm_dict_old = {'a_file': defattr }
+        rpm_dict_new = {'a_file': defattr }
+
+        def check_diff_result(opt, idx, value, textdiff):
+            attr = defattr[:]
+            attr[idx] = value
+            rpm_dict_new = {'a_file': attr}
+
+            orig_init = koji.rpmdiff.Rpmdiff.__init__
+            def init_mock(*args, **kwargs):
+                args[0]._Rpmdiff__fileIteratorToDict = mock.MagicMock()
+                args[0]._Rpmdiff__fileIteratorToDict.side_effect = [copy.deepcopy(rpm_dict_old), copy.deepcopy(rpm_dict_new)]
+                orig_init(*args, **kwargs)
+
+            def calculate_hash(data):
+                return hashlib.sha256(json.dumps(data, sort_keys=True)).hexdigest()
+
+            # compare with every option
+            with mock.patch('koji.rpmdiff.Rpmdiff.__init__', new=init_mock):
+                for token in 'SM5DNLVUGFT':
+                    #import pdb; pdb.set_trace()
+                    diff = koji.rpmdiff.Rpmdiff(rpm, rpm, ignore=token)
+                    self.assertEqual(diff.textdiff(), textdiff if token not in opt else '')
+
+                    # kojihash checksum compare
+                    old_data = diff.old_data
+                    new_data = diff.new_data
+                    self.assertEqual(diff.kojihash(), calculate_hash(old_data))
+                    self.assertEqual(diff.kojihash(new=True), calculate_hash(new_data))
+
+                    # new_data['file'] should not be the same to original rpm_dict_new
+                    # since its entries will be changed in Rpmdiff()
+                    exp_data = copy.deepcopy(new_data)
+                    exp_data['files'] = rpm_dict_new
+                    self.assertNotEqual(diff.kojihash(new=True), calculate_hash(exp_data))
+
+        # case 1 size diffrerent
+        check_diff_result('S', 0, 99L, "S.......... a_file")
+
+        # case 2 mode different
+        check_diff_result('M', 1, 22188, ".M......... a_file")
+
+        # case 3 time different
+        check_diff_result('T', 2, 1531976666, "..........T a_file")
+
+        # case 4 flag different
+        check_diff_result('F', 3, 3, ".........F. a_file")
+
+        # case 5 device different
+        check_diff_result('D', 4, 4, "...D....... a_file")
+
+        # case 6 inode different
+        check_diff_result('N', 6, 6, "....N...... a_file")
+
+        # case 7 number of links different
+        check_diff_result('L', 7, 7, ".....L..... a_file")
+
+        # case 8 vflag different
+        check_diff_result('V', 8, 8, "......V.... a_file")
+
+        # case 9 user different
+        check_diff_result('U', 9, 'tester', ".......U... a_file")
+
+        # case 10 group different
+        check_diff_result('G', 10, 'tester', "........G.. a_file")
+
+        # case 11 checksum different
+        check_diff_result('5', 11, 'aabbccdd', "..5........ a_file")
+
 
 class TestCheckNoarchRpms(unittest.TestCase):
     @mock.patch('kojihub.rpmdiff')
