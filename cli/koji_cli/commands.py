@@ -6972,7 +6972,7 @@ def anon_handle_download_logs(options, session, args):
 
 def anon_handle_download_task(options, session, args):
     "[download] Download the output of a build task"
-    usage = _("usage: %prog download-task <task_id>")
+    usage = _("usage: %prog download-task <task_id>|<task_url>")
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--arch", dest="arches", metavar="ARCH", action="append", default=[],
                       help=_("Only download packages for this arch (may be used multiple times)"))
@@ -6989,11 +6989,18 @@ def anon_handle_download_task(options, session, args):
 
     (suboptions, args) = parser.parse_args(args)
     if len(args) == 0:
-        parser.error(_("Please specify a task ID"))
+        parser.error(_("Please specify a task ID or URL"))
     elif len(args) > 1:
-        parser.error(_("Only one task ID may be specified"))
+        parser.error(_("Only one task ID or URL may be specified"))
 
-    base_task_id = int(args.pop())
+    task_arg = args.pop()
+    if task_arg.startswith('https://'):
+      # extract base_task_id from the following URL structure
+      # https://koji.fedoraproject.org/koji/taskinfo?taskID=28483236
+      base_task_id = int(task_arg.split('=').pop())
+    else:
+      base_task_id = int(task_arg)
+
     if len(suboptions.arches) > 0:
         suboptions.arches = ",".join(suboptions.arches).split(",")
 
