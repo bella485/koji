@@ -329,7 +329,7 @@ class TestDownloadTask(utils.CliTestCase):
             anon_handle_download_task(self.options, self.session, args)
         self.assertExitCode(ex, 0)
         actual = self.stdout.getvalue()
-        expected = """Usage: %s download-task <task_id>
+        expected = """Usage: %s download-task <task_id|task_url>
 (Specify the --help global option for a list of other help options)
 
 Options:
@@ -359,12 +359,12 @@ Options:
         expected = ''
         self.assertMultiLineEqual(actual, expected)
         actual = self.stderr.getvalue()
-        expected = """Usage: %s download-task <task_id>
+        expected = """Usage: %s download-task <task_id|task_url>
 (Specify the --help global option for a list of other help options)
 
-%s: error: Please specify a task ID
+%s: error: Please specify a task ID or URL
 """ % (progname, progname)
-        self.assertEqual(actual, expected)
+        self.assertMultiLineEqual(actual, expected)
 
     def test_handle_download_multi_task_id(self):
         args = ["123", "456"]
@@ -378,9 +378,9 @@ Options:
         expected = ''
         self.assertMultiLineEqual(actual, expected)
         actual = self.stderr.getvalue()
-        expected = """Usage: %s download-task <task_id>
+        expected = """Usage: %s download-task <task_id|task_url>
 (Specify the --help global option for a list of other help options)
 
-%s: error: Only one task ID may be specified
+%s: error: Only one task ID or URL may be specified
 """ % (progname, progname)
-        self.assertEqual(actual, expected)
+        self.assertMultiLineEqual(actual, expected)

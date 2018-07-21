@@ -6972,7 +6972,7 @@ def anon_handle_download_logs(options, session, args):
 
 def anon_handle_download_task(options, session, args):
     "[download] Download the output of a build task"
-    usage = _("usage: %prog download-task <task_id>|<task_url>")
+    usage = _("usage: %prog download-task <task_id|task_url>")
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--arch", dest="arches", metavar="ARCH", action="append", default=[],
                       help=_("Only download packages for this arch (may be used multiple times)"))
