@@ -6994,7 +6994,7 @@ def anon_handle_download_task(options, session, args):
         parser.error(_("Only one task ID or URL may be specified"))
 
     task_arg = args.pop()
-    if task_arg.startswith('https://'):
+    if "?taskID=" in task_arg:
       # extract base_task_id from the following URL structure
       # https://koji.fedoraproject.org/koji/taskinfo?taskID=28483236
       base_task_id = int(task_arg.split('=').pop())
