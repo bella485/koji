@@ -1724,7 +1724,7 @@ def read_config(profile_name, user_config=None):
                         except ValueError:
                             raise ConfigurationError("value for %s config option must be a valid integer" % name)
                     else:
-                        result[name] = value
+                        result[name] = os.path.expanduser(value)
 
     # Check if the specified profile had a config specified
     if configs and not got_conf:
