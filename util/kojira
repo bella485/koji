@@ -160,7 +160,7 @@ class ManagedRepo(object):
                 # No such file or directory, so the repo either never existed,
                 # or has already been deleted, so allow it to be marked deleted.
                 self.logger.info("Repo directory does not exist: %s" % path)
-                pass
+                return True
             else:
                 self.logger.error("Can't stat repo directory: %s, %s" % (path, e.strerror))
                 return False
