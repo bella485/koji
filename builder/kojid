@@ -605,7 +605,7 @@ class BuildRoot(object):
         try:
             ts = rpm.TransactionSet()
             for h in ts.dbMatch():
-                pkg = koji.get_header_fields(h,fields)
+                pkg = koji.get_header_fields(h, fields)
                 #skip our fake packages
                 if pkg['name'] in ['buildsys-build', 'gpg-pubkey']:
                     #XXX config
@@ -922,7 +922,7 @@ class BuildTask(BaseTaskHandler):
             self.event_id = self.session.getLastEvent()['id']
         srpm = self.getSRPM(src, build_tag, repo_info['id'])
         h = self.readSRPMHeader(srpm)
-        data = koji.get_header_fields(h,['name','version','release','epoch'])
+        data = koji.get_header_fields(h, ['name','version','release','epoch'])
         data['task_id'] = self.id
         if getattr(self, 'source', False):
             data['source'] = self.source['source']
@@ -1009,7 +1009,7 @@ class BuildTask(BaseTaskHandler):
         fo = koji.openRemoteFile(relpath, **opts)
         h = koji.get_rpm_header(fo)
         fo.close()
-        if h[rpm.RPMTAG_SOURCEPACKAGE] != 1:
+        if koji.get_header_field(h , 'sourcepackage'):
             raise koji.BuildError("%s is not a source package" % srpm)
         return h
 
@@ -1028,9 +1028,9 @@ class BuildTask(BaseTaskHandler):
         archlist = arches.split()
         self.logger.debug('base archlist: %r' % archlist)
         # - adjust arch list based on srpm macros
-        buildarchs = h[rpm.RPMTAG_BUILDARCHS]
-        exclusivearch = h[rpm.RPMTAG_EXCLUSIVEARCH]
-        excludearch = h[rpm.RPMTAG_EXCLUDEARCH]
+        buildarchs = koji.get_header_field(h, 'buildarchs')
+        exclusivearch = koji.get_header_field(h, 'exclusivearch')
+        excludearch = koji.get_header_field(h, 'excludearch')
         if buildarchs:
             archlist = buildarchs
             self.logger.debug('archlist after buildarchs: %r' % archlist)
@@ -1071,8 +1071,8 @@ class BuildTask(BaseTaskHandler):
         # see https://pagure.io/koji/issue/19
 
         h = self.readSRPMHeader(srpm)
-        exclusivearch = h[rpm.RPMTAG_EXCLUSIVEARCH]
-        excludearch = h[rpm.RPMTAG_EXCLUDEARCH]
+        exclusivearch = koji.get_header_field(h, 'exclusivearch')
+        excludearch = koji.get_header_field(h, 'excludearch')
 
         if exclusivearch or excludearch:
             # if one of the tag arches is filtered out, then we can't use a
@@ -1218,11 +1218,11 @@ class BuildArchTask(BaseBuildTask):
     def srpm_sanity_checks(self, filename):
         header = koji.get_rpm_header(filename)
 
-        if not header[rpm.RPMTAG_PACKAGER]:
+        if not koji.get_header_field(header, 'packager'):
             raise koji.BuildError("The build system failed to set the packager tag")
-        if not header[rpm.RPMTAG_VENDOR]:
+        if not koji.get_header_field(header, 'vendor'):
             raise koji.BuildError("The build system failed to set the vendor tag")
-        if not header[rpm.RPMTAG_DISTRIBUTION]:
+        if not koji.get_header_field(header, 'distribution'):
             raise koji.BuildError("The build system failed to set the distribution tag")
 
     def handler(self, pkg, root, arch, keep_srpm, opts=None):
@@ -1243,15 +1243,12 @@ class BuildArchTask(BaseBuildTask):
             raise koji.BuildError("SRPM file missing: %s" % fn)
         # peel E:N-V-R from package
         h = koji.get_rpm_header(fn)
-        name = h[rpm.RPMTAG_NAME]
-        ver = h[rpm.RPMTAG_VERSION]
-        rel = h[rpm.RPMTAG_RELEASE]
-        epoch = h[rpm.RPMTAG_EPOCH]
-        if h[rpm.RPMTAG_SOURCEPACKAGE] != 1:
+        name = koji.get_header_field(h, 'name')
+        if koji.get_header_field(h, 'sourcepackage'):
             raise koji.BuildError("not a source package")
         # Disable checking for distribution in the initial SRPM because it
         # might have been built outside of the build system
-        # if not h[rpm.RPMTAG_DISTRIBUTION]:
+        # if not koji.get_header_field(h, 'distribution'):
         #    raise koji.BuildError, "the distribution tag is not set in the original srpm"
 
         self.updateWeight(name)
@@ -4641,9 +4638,9 @@ class BuildSRPMFromSCMTask(BaseBuildTask):
 
         # check srpm name
         h = koji.get_rpm_header(srpm)
-        name = h[rpm.RPMTAG_NAME]
-        version = h[rpm.RPMTAG_VERSION]
-        release = h[rpm.RPMTAG_RELEASE]
+        name = koji.get_header_field(h, 'name')
+        version = koji.get_header_field(h, 'version')
+        release = koji.get_header_field(h, 'release')
         srpm_name = "%(name)s-%(version)s-%(release)s.src.rpm" % locals()
         if srpm_name != os.path.basename(srpm):
             raise koji.BuildError('srpm name mismatch: %s != %s' % (srpm_name, os.path.basename(srpm)))

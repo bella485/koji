@@ -204,6 +204,7 @@ class TestDistRepoMove(unittest.TestCase):
 
 
     def test_distRepoMove(self):
+        kojihub.context.session = mock.MagicMock()
         exports = kojihub.HostExports()
         exports.distRepoMove(self.rinfo['id'], self.uploadpath, self.arch)
         # check result
