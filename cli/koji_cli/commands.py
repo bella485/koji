@@ -7192,7 +7192,7 @@ def handle_add_notification(goptions, session, args):
         try:
             tag_id = session.getTagID(options.tag, strict=True)
         except koji.GenericError:
-            parser.error("Uknown tag: %s" % options.tag)
+            parser.error("Unknown tag: %s" % options.tag)
     else:
         tag_id = None
 
@@ -7267,7 +7267,7 @@ def handle_edit_notification(goptions, session, args):
         try:
             tag_id = session.getTagID(options.tag, strict=True)
         except koji.GenericError:
-            parser.error("Uknown tag: %s" % options.tag)
+            parser.error("Unknown tag: %s" % options.tag)
     else:
         tag_id = old['tag_id']
 
