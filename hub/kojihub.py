@@ -5275,9 +5275,8 @@ def import_build(srpm, rpms, brmap=None, task_id=None, build_id=None, logs=None)
         update.rawset(completion_time='NOW()')
         update.set(volume_id=build['volume_id'])
         update.execute()
+        binfo = get_build(build_id, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=binfo['state'], new=st_complete, info=binfo)
-        binfo['volume_id'] = build['volume_id']
-        binfo['volume_name'] = build['volume_name']
 
     # now to handle the individual rpms
     for relpath in [srpm] + rpms:
@@ -7242,6 +7241,7 @@ def _delete_build(binfo):
     builddir = koji.pathinfo.build(binfo)
     if os.path.exists(builddir):
         koji.util.rmtree(builddir)
+    binfo = get_build(build_id, strict=True)
     koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=binfo['state'], new=st_deleted, info=binfo)
 
 def reset_build(build):
@@ -7309,6 +7309,7 @@ def reset_build(build):
     builddir = koji.pathinfo.build(binfo)
     if os.path.exists(builddir):
         koji.util.rmtree(builddir)
+    binfo = get_build(build, strict=True)
     koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=binfo['state'], new=koji.BUILD_STATES['CANCELED'], info=binfo)
 
 def cancel_build(build_id, cancel_task=True):
@@ -7341,6 +7342,7 @@ def cancel_build(build_id, cancel_task=True):
         build_notification(task_id, build_id)
         if cancel_task:
             Task(task_id).cancelFull(strict=False)
+    build = get_build(build_id, strict=True)
     koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=build['state'], new=st_canceled, info=build)
     return True
 
@@ -10918,17 +10920,14 @@ class RootExports(object):
 
     def setBuildOwner(self, build, user):
         context.session.assertPerm('admin')
-        buildinfo = get_build(build)
-        if not buildinfo:
-            raise koji.GenericError('build does not exist: %s' % build)
-        userinfo = get_user(user)
-        if not userinfo:
-            raise koji.GenericError('user does not exist: %s' % user)
+        buildinfo = get_build(build, strict=True)
+        userinfo = get_user(user, strict=True)
         userid = userinfo['id']
         buildid = buildinfo['id']
         koji.plugin.run_callbacks('preBuildStateChange', attribute='owner_id', old=buildinfo['owner_id'], new=userid, info=buildinfo)
         q = """UPDATE build SET owner=%(userid)i WHERE id=%(buildid)i"""
         _dml(q, locals())
+        buildinfo = get_build(build, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='owner_id', old=buildinfo['owner_id'], new=userid, info=buildinfo)
 
     def setBuildTimestamp(self, build, ts):
@@ -10938,10 +10937,8 @@ class RootExports(object):
         ts should be # of seconds since epoch or optionally an
             xmlrpc DateTime value"""
         context.session.assertPerm('admin')
-        buildinfo = get_build(build)
-        if not buildinfo:
-            raise koji.GenericError('build does not exist: %s' % build)
-        elif isinstance(ts, six.moves.xmlrpc_client.DateTime):
+        buildinfo = get_build(build, strict=True)
+        if isinstance(ts, six.moves.xmlrpc_client.DateTime):
             #not recommended
             #the xmlrpclib.DateTime class is almost useless
             try:
@@ -10956,6 +10953,7 @@ class RootExports(object):
         SET completion_time=TIMESTAMP 'epoch' AT TIME ZONE 'utc' + '%(ts)f seconds'::interval
         WHERE id=%%(buildid)i""" % locals()
         _dml(q, locals())
+        buildinfo = get_build(build, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='completion_ts', old=buildinfo['completion_ts'], new=ts, info=buildinfo)
 
     def count(self, methodName, *args, **kw):
@@ -12040,7 +12038,7 @@ class HostExports(object):
         task = Task(task_id)
         task.assertHost(host.id)
 
-        build_info = get_build(build_id)
+        build_info = get_build(build_id, strict=True)
 
         # check volume policy
         vol_update = False
@@ -12070,7 +12068,7 @@ class HostExports(object):
         if vol_update:
             update.set(volume_id=build_info['volume_id'])
         update.execute()
-
+        build_info = get_build(build_id, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=build_info['state'], new=st_complete, info=build_info)
 
         # send email
@@ -12195,6 +12193,7 @@ class HostExports(object):
             update.set(volume_id=build_info['volume_id'])
         update.rawset(completion_time='now()')
         update.execute()
+        build_info = get_build(build_id, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=build_info['state'], new=st_complete, info=build_info)
 
         # send email
@@ -12338,6 +12337,7 @@ class HostExports(object):
             update.set(volume_id=build_info['volume_id'])
         update.rawset(completion_time='now()')
         update.execute()
+        build_info = get_build(build_id, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=build_info['state'], new=st_complete, info=build_info)
 
         # send email
@@ -12374,8 +12374,9 @@ class HostExports(object):
         completion_time = NOW()
         WHERE id = %(build_id)i"""
         _dml(update, locals())
-        build_notification(task_id, build_id)
+        buildinfo = get_build(build_id, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange', attribute='state', old=buildinfo['state'], new=st_failed, info=buildinfo)
+        build_notification(task_id, build_id)
 
     def tagBuild(self, task_id, tag, build, force=False, fromtag=None):
         """Tag a build (host version)
