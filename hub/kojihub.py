@@ -5095,14 +5095,24 @@ def query_buildroots(hostID=None, tagID=None, state=None, rpmID=None, archiveID=
               ('repo_create.id', 'repo_create_event_id'), ('repo_create.time', 'repo_create_event_time')]
 
     tables = ['buildroot']
-    joins = ['LEFT OUTER JOIN standard_buildroot ON standard_buildroot.buildroot_id = buildroot.id',
-           'LEFT OUTER JOIN content_generator ON buildroot.cg_id = content_generator.id',
-           'LEFT OUTER JOIN host ON host.id = standard_buildroot.host_id',
-           'LEFT OUTER JOIN repo ON repo.id = standard_buildroot.repo_id',
-           'LEFT OUTER JOIN tag ON tag.id = repo.tag_id',
-           'LEFT OUTER JOIN events AS create_events ON create_events.id = standard_buildroot.create_event',
-           'LEFT OUTER JOIN events AS retire_events ON standard_buildroot.retire_event = retire_events.id',
-           'LEFT OUTER JOIN events AS repo_create ON repo_create.id = repo.create_event']
+
+    # filter on first join as much as possible due to following left joins
+    std_broot_join = 'LEFT OUTER JOIN standard_buildroot ON standard_buildroot.buildroot_id = buildroot.id'
+    if taskID is not None:
+        std_broot_join += ' AND standard_buildroot.task_id = %(taskID)i'
+    if state != None:
+        if isinstance(state, (list, tuple)):
+            std_broot_join += ' AND standard_buildroot.state IN %(state)s'
+        else:
+            std_broot_join += ' AND standard_buildroot.state = %(state)i'
+    joins = [
+        std_broot_join,
+       'LEFT OUTER JOIN content_generator ON buildroot.cg_id = content_generator.id',
+       'LEFT OUTER JOIN repo ON repo.id = standard_buildroot.repo_id',
+       'LEFT OUTER JOIN events AS create_events ON create_events.id = standard_buildroot.create_event',
+       'LEFT OUTER JOIN events AS retire_events ON standard_buildroot.retire_event = retire_events.id',
+       'LEFT OUTER JOIN events AS repo_create ON repo_create.id = repo.create_event'
+    ]
 
     clauses = []
     if buildrootID != None:
@@ -5111,23 +5121,18 @@ def query_buildroots(hostID=None, tagID=None, state=None, rpmID=None, archiveID=
         else:
             clauses.append('buildroot.id = %(buildrootID)i')
     if hostID != None:
-        clauses.append('host.id = %(hostID)i')
+        joins.append('LEFT OUTER JOIN host ON host.id = standard_buildroot.host_id AND host.id = %(hostID)i')
+    else:
+        joins.append('LEFT OUTER JOIN host ON host.id = standard_buildroot.host_id')
     if tagID != None:
-        clauses.append('tag.id = %(tagID)i')
-    if state != None:
-        if isinstance(state, (list, tuple)):
-            clauses.append('standard_buildroot.state IN %(state)s')
-        else:
-            clauses.append('standard_buildroot.state = %(state)i')
+        joins.append('LEFT OUTER JOIN tag ON tag.id = repo.tag_id AND tag.id = %(tagID)i')
+    else:
+        joins.append('LEFT OUTER JOIN tag ON tag.id = repo.tag_id')
     if rpmID != None:
-        joins.insert(0, 'buildroot_listing ON buildroot.id = buildroot_listing.buildroot_id')
+        joins.insert(0, 'buildroot_listing ON buildroot.id = buildroot_listing.buildroot_id AND buildroot_listing.rpm_id = %(rpmID)i')
         fields.append(('buildroot_listing.is_update', 'is_update'))
-        clauses.append('buildroot_listing.rpm_id = %(rpmID)i')
     if archiveID != None:
-        joins.append('buildroot_archives ON buildroot.id = buildroot_archives.buildroot_id')
-        clauses.append('buildroot_archives.archive_id = %(archiveID)i')
-    if taskID != None:
-        clauses.append('standard_buildroot.task_id = %(taskID)i')
+        joins.insert(0, 'buildroot_archives ON buildroot.id = buildroot_archives.buildroot_id AND buildroot_archives.archive_id = %(archiveID)i')
 
     query = QueryProcessor(columns=[f[0] for f in fields], aliases=[f[1] for f in fields],
                            tables=tables, joins=joins, clauses=clauses, values=locals(),
