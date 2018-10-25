@@ -1,6 +1,8 @@
 from __future__ import absolute_import
+
 import mock
 import six
+
 try:
     import unittest2 as unittest
 except ImportError:
@@ -11,7 +13,6 @@ from . import utils
 
 
 class TestMockConfig(utils.CliTestCase):
-
     # Show long diffs in error output...
     maxDiff = None
 
@@ -77,7 +78,10 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         # Mock out the xmlrpc server
         session = mock.MagicMock()
         session.getBuildroot.return_value = buildroot_info
-
+        session.repoInfo.return_value = {
+            'id': 101,
+            'create_event': 1
+        }
         # Mock config
         gen_config_mock.return_value = self.mock_output
 
@@ -141,19 +145,28 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
             stderr=expected)
 
         arguments = ['--task', str(task_id)]
-        expected = "No buildroots for task %s (or no such task)\n" % str(task_id)
-        self.assertEqual(1, anon_handle_mock_config(options, session, arguments))
-        self.assert_console_message(stdout, expected)
+        expected = self.format_error_message(
+            "No buildroots for task %s (or no such task)" % str(task_id))
+        self.assert_system_exit(
+            anon_handle_mock_config,
+            options,
+            session,
+            arguments,
+            stderr=expected)
 
         multi_broots = [
-            {'id': 1101, 'repo_id': 101, 'tag_name': 'tag_101', 'arch': 'x86_64'},
-            {'id': 1111, 'repo_id': 111, 'tag_name': 'tag_111', 'arch': 'x86_64'},
-            {'id': 1121, 'repo_id': 121, 'tag_name': 'tag_121', 'arch': 'x86_64'}
+            {'id': 1101, 'repo_id': 101, 'tag_name': 'tag_101',
+             'arch': 'x86_64'},
+            {'id': 1111, 'repo_id': 111, 'tag_name': 'tag_111',
+             'arch': 'x86_64'},
+            {'id': 1121, 'repo_id': 121, 'tag_name': 'tag_121',
+             'arch': 'x86_64'}
         ]
         session.listBuildroots.return_value = multi_broots
         anon_handle_mock_config(options, session, arguments)
-        expected = "Multiple buildroots found: %s" % [br['id'] for br in multi_broots]
-        self.assert_console_message(stdout, "%s\n\n" % expected)
+        expected = '# Multiple buildroots found: [1101, 1111, 1121]\n' \
+                   '# Would use the latest one: buildroot: 1121\n\n'
+        self.assert_console_message(stdout, expected)
 
         opts = self.common_opts.copy()
         opts.update({
@@ -178,9 +191,12 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
     def test_handle_mock_config_tag_option(
             self, activate_session_mock, gen_config_mock, stdout, stderr):
         """Test anon_handle_mock_config with tag option"""
-        arguments = []
-        tag = 'tag'
-        tag = {'id': 201, 'name': 'tag', 'arch': 'x86_64'}
+        tag = {'id': 201,
+               'name': 'tag',
+               'arch': 'x86_64',
+               'extra': {
+                   'mock.package_manager': 'dnf'
+               }}
         options = mock.MagicMock()
 
         # Mock out the xmlrpc server
@@ -190,9 +206,13 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         session.getRepo.return_value = None
 
         arguments = ['--tag', tag['name']]
-        expected = "Please specify an arch\n"
-        self.assertEqual(1, anon_handle_mock_config(options, session, arguments))
-        self.assert_console_message(stdout, expected)
+        expected = self.format_error_message("Please specify an arch")
+        self.assert_system_exit(
+            anon_handle_mock_config,
+            options,
+            session,
+            arguments,
+            stderr=expected)
 
         arguments = ['--tag', tag['name'], '--arch', tag['arch']]
         expected = self.format_error_message("Invalid tag: %s" % tag['name'])
@@ -205,18 +225,31 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
 
         # return tag info
         session.getTag.return_value = tag
-        expected = "Could not get config info for tag: %(name)s\n" % tag
-        self.assertEqual(1, anon_handle_mock_config(options, session, arguments))
-        self.assert_console_message(stdout, expected)
+        expected = self.format_error_message(
+            "Could not get config info for tag: %(name)s" % tag)
+        self.assert_system_exit(
+            anon_handle_mock_config,
+            options,
+            session,
+            arguments,
+            stderr=expected)
 
         # return build config
-        session.getBuildConfig.return_value = {'id': 301}
-        expected = "Could not get a repo for tag: %(name)s\n" % tag
-        self.assertEqual(1, anon_handle_mock_config(options, session, arguments))
-        self.assert_console_message(stdout, expected)
+        session.getBuildConfig.return_value = {'id': 201,
+                                               'extra': {
+                                                   'mock.package_manager': 'dnf'
+                                               }}
+        expected = self.format_error_message(
+            "Could not get a repo for tag: %(name)s" % tag)
+        self.assert_system_exit(
+            anon_handle_mock_config,
+            options,
+            session,
+            arguments,
+            stderr=expected)
 
         # return repo
-        session.getRepo.return_value = {'id': 101}
+        session.getRepo.return_value = {'id': 101, 'create_event': 1}
         gen_config_mock.return_value = self.mock_output
         anon_handle_mock_config(options, session, arguments)
         self.assert_console_message(
@@ -230,6 +263,7 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         opts.update({
             'repoid': 'latest',
             'tag_name': tag['name'],
+            'package_manager': 'dnf'
         })
         anon_handle_mock_config(options, session, arguments)
         self.assert_console_message(
@@ -260,14 +294,18 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         session.getRepo.return_value = None
 
         arguments = ['--target', target['name']]
-        expected = "Please specify an arch\n"
-        self.assertEqual(1, anon_handle_mock_config(options, session, arguments))
-        self.assert_console_message(stdout, expected)
+        expected = self.format_error_message("Please specify an arch")
+        self.assert_system_exit(
+            anon_handle_mock_config,
+            options,
+            session,
+            arguments,
+            stderr=expected)
 
         arguments = ['--target', target['name'],
                      '--arch', arch]
         expected = self.format_error_message(
-                "Invalid target: %s" % target['name'])
+            "Invalid target: %s" % target['name'])
         self.assert_system_exit(
             anon_handle_mock_config,
             options,
@@ -276,9 +314,14 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
             stderr=expected)
 
         session.getBuildTarget.return_value = target
-        expected = "Could not get a repo for tag: %s\n" % target['build_tag_name']
-        self.assertEqual(1, anon_handle_mock_config(options, session, arguments))
-        self.assert_console_message(stdout, expected)
+        expected = self.format_error_message(
+            "Could not get a repo for tag: %s" % target['build_tag_name'])
+        self.assert_system_exit(
+            anon_handle_mock_config,
+            options,
+            session,
+            arguments,
+            stderr=expected)
 
         arguments = self.common_args + ['--target', target['name'],
                                         '--arch', arch,
@@ -288,7 +331,7 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
             'repoid': 101,
             'tag_name': target['build_tag_name']
         })
-        session.getRepo.return_value = {'id': 101}
+        session.getRepo.return_value = {'id': 101, 'create_event': 1}
         gen_config_mock.return_value = self.mock_output
         anon_handle_mock_config(options, session, arguments)
         self.assert_console_message(
@@ -308,7 +351,8 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
             self.progname, arch, **opts)
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    def test_handle_mock_config_errors(self, stderr):
+    @mock.patch('koji_cli.commands.activate_session')
+    def test_handle_mock_config_errors(self, as_mock, stderr):
         """Test anon_handle_mock_config general error messages"""
         arguments = []
         options = mock.MagicMock()
@@ -319,7 +363,7 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         # Run it and check immediate output
         # argument is empty
         expected = self.format_error_message(
-                "Please specify one of: --tag, --target, --task, --buildroot")
+            "Please specify one of: --tag, --target, --task, --buildroot")
         self.assert_system_exit(
             anon_handle_mock_config,
             options,
@@ -330,12 +374,13 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         # name is specified twice case
         arguments = [self.progname, '--name', 'name']
         expected = self.format_error_message(
-                "Name already specified via option")
+            "Name already specified via option")
         self.assert_system_exit(
             anon_handle_mock_config,
             options,
             session,
             arguments,
+            activate_session=None,
             stderr=expected)
 
     def test_handle_mock_config_help(self):

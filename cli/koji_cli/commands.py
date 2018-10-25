@@ -903,7 +903,7 @@ def anon_handle_mock_config(goptions, session, args):
                       help=_("Specify mockdir"))
     parser.add_option("--topdir", metavar="DIR",
                       help=_("Specify topdir"))
-    parser.add_option("--topurl", metavar="URL", default=options.topurl,
+    parser.add_option("--topurl", metavar="URL", default=goptions.topurl,
                       help=_("URL under which Koji files are accessible"))
     parser.add_option("--distribution", default="Koji Testing",
                       help=_("Change the distribution macro"))
@@ -1021,7 +1021,7 @@ def anon_handle_mock_config(goptions, session, args):
     else:
         parser.error(
             _("Please specify one of: --tag, --target, --task, --buildroot"))
-        assert False  # pragma: no cover
+
     taginfo = session.getBuildConfig(opts['tag_name'], event=event_id)
     if 'mock.package_manager' in taginfo['extra']:
         opts['package_manager'] = taginfo['extra']['mock.package_manager']
