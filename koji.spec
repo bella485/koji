@@ -31,7 +31,7 @@
 %define release %{baserelease}
 %endif
 Name: koji
-Version: 1.16.0
+Version: 1.16.1
 Release: %{release}%{?dist}
 License: LGPLv2
 Summary: Build system tools
