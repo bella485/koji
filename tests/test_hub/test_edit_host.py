@@ -12,7 +12,7 @@ UP = kojihub.UpdateProcessor
 IP = kojihub.InsertProcessor
 
 
-class TestSetHostEnabled(unittest.TestCase):
+class TestEditHost(unittest.TestCase):
     def getInsert(self, *args, **kwargs):
         insert = IP(*args, **kwargs)
         insert.execute = mock.MagicMock()

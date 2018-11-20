@@ -2073,11 +2073,15 @@ def readTagGroups(tag, event=None, inherit=True, incl_pkgs=True, incl_reqs=True,
     else:
         return [x for x in groups if not x['blocked']]
 
-def set_host_enabled(hostname, enabled=True):
+def set_host_enabled(hostname, enabled=True, force=False):
     context.session.assertPerm('admin')
     host = get_host(hostname)
     if not host:
         raise koji.GenericError('host does not exist: %s' % hostname)
+    if not force and host['enabled'] == enabled:
+        str_enabled = 'enabled' if enabled else 'disabled'
+        raise koji.GenericError('host: %s has already been %s'
+                                % (host['name'], str_enabled))
 
     update = UpdateProcessor('host_config', values=host, clauses=['host_id = %(id)i'])
     update.make_revoke()
@@ -10817,13 +10821,13 @@ class RootExports(object):
 
         return hostID
 
-    def enableHost(self, hostname):
+    def enableHost(self, hostname, force=False):
         """Mark a host as enabled"""
-        set_host_enabled(hostname, True)
+        set_host_enabled(hostname, True, force=force)
 
-    def disableHost(self, hostname):
+    def disableHost(self, hostname, force=False):
         """Mark a host as disabled"""
-        set_host_enabled(hostname, False)
+        set_host_enabled(hostname, False, force=force)
 
     getHost = staticmethod(get_host)
     editHost = staticmethod(edit_host)

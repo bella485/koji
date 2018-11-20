@@ -104,6 +104,36 @@ class TestSetHostEnabled(unittest.TestCase):
 
         self.assertEqual(len(self.inserts), 1)
 
+    def test_enableHost_enabled(self):
+        kojihub.get_host = mock.MagicMock()
+        hostinfo = {
+            'id': 123,
+            'user_id': 234,
+            'name': 'hostname',
+            'arches': ['x86_64'],
+            'capacity': 100.0,
+            'description': 'description',
+            'comment': 'comment',
+            'enabled': True,
+        }
+        kojihub.get_host.return_value = hostinfo
+        self.context.event_id = 42
+        self.context.session.user_id = 23
+
+        with self.assertRaises(koji.GenericError) as cm:
+            self.exports.enableHost('hostname')
+        kojihub.get_host.assert_called_once_with('hostname')
+        self.assertEqual(self.updates, [])
+        self.assertEqual(self.inserts, [])
+        self.assertEqual(cm.exception.args[0],
+                         'host: hostname has already been enabled')
+
+        kojihub.get_host.reset_mock()
+        self.exports.enableHost('hostname', force=True)
+        kojihub.get_host.assert_called_once_with('hostname')
+        self.assertEqual(len(self.updates), 1)
+        self.assertEqual(len(self.inserts), 1)
+
     def test_disableHost_valid(self):
         kojihub.get_host = mock.MagicMock()
         hostinfo = {
@@ -154,4 +184,34 @@ class TestSetHostEnabled(unittest.TestCase):
         self.assertEqual(insert.data, data)
         self.assertEqual(insert.rawdata, rawdata)
 
+        self.assertEqual(len(self.inserts), 1)
+
+    def test_disableHost_disabled(self):
+        kojihub.get_host = mock.MagicMock()
+        hostinfo = {
+            'id': 123,
+            'user_id': 234,
+            'name': 'hostname',
+            'arches': ['x86_64'],
+            'capacity': 100.0,
+            'description': 'description',
+            'comment': 'comment',
+            'enabled': False,
+        }
+        kojihub.get_host.return_value = hostinfo
+        self.context.event_id = 42
+        self.context.session.user_id = 23
+
+        with self.assertRaises(koji.GenericError) as cm:
+            self.exports.disableHost('hostname')
+        kojihub.get_host.assert_called_once_with('hostname')
+        self.assertEqual(self.updates, [])
+        self.assertEqual(self.inserts, [])
+        self.assertEqual(cm.exception.args[0],
+                         'host: hostname has already been disabled')
+
+        kojihub.get_host.reset_mock()
+        self.exports.disableHost('hostname', force=True)
+        kojihub.get_host.assert_called_once_with('hostname')
+        self.assertEqual(len(self.updates), 1)
         self.assertEqual(len(self.inserts), 1)
