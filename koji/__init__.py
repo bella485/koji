@@ -1705,7 +1705,10 @@ def read_config(profile_name, user_config=None):
     for configFile in configs:
         f = open(configFile)
         config = six.moves.configparser.ConfigParser()
-        config.readfp(f)
+        if six.PY3:
+            config.read_file(f)
+        else:
+            config.readfp(f)
         f.close()
         if config.has_section(profile_name):
             got_conf = True
