@@ -65,22 +65,22 @@ git-clean:
 	@git clean -d -q -x
 
 test:
-	coverage erase
-	PYTHONPATH=hub/.:plugins/hub/.:plugins/builder/.:plugins/cli/.:cli/.:www/lib coverage run \
+	coverage2 erase
+	PYTHONPATH=hub/.:plugins/hub/.:plugins/builder/.:plugins/cli/.:cli/.:www/lib coverage2 run \
 	    --source . /usr/bin/nosetests
-	coverage report
-	coverage html
-	@echo Full coverage report in htmlcov/index.html
+	coverage2 report
+	coverage2 html
+	@echo Full coverage2 report in htmlcov/index.html
 
 test3:
 	coverage erase
 	PYTHONPATH=hub/.:plugins/hub/.:plugins/builder/.:plugins/cli/.:cli/. coverage3 run \
 	    --rcfile .coveragerc3 --source . \
-	    /usr/bin/nosetests-3 \
+	    /usr/bin/nosetests \
 	    tests/test_lib tests/test_cli
 	coverage report --rcfile .coveragerc3
 	coverage html --rcfile .coveragerc3
-	@echo Full coverage report at file://${PWD}/htmlcov/index.html
+	@echo Full coverage3 report at file://${PWD}/htmlcov/index.html
 
 test-tarball:
 	@rm -rf .koji-$(VERSION)
