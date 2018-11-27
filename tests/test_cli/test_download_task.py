@@ -9,6 +9,7 @@ try:
 except ImportError:
     import unittest
 
+import koji
 from koji_cli.commands import anon_handle_download_task
 
 progname = os.path.basename(sys.argv[0]) or 'koji'
@@ -83,7 +84,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_not_called()
         self.list_task_output_all_volumes.assert_called_once_with(self.session, task_id)
         self.assertListEqual(self.download_file.mock_calls, calls)
@@ -92,28 +93,20 @@ class TestDownloadTask(unittest.TestCase):
     def test_handle_download_task_not_found(self):
         task_id = 123333
         args = [str(task_id)]
-        self.session.getTaskInfo.return_value = None
+        self.session.getTaskInfo.side_effect = koji.GenericError('no task found')
 
         # Run it and check immediate output
         # args: task_id
         # expected: error
-        with self.assertRaises(SystemExit) as cm:
+        with self.assertRaises(koji.GenericError) as cm:
             anon_handle_download_task(self.options, self.session, args)
-        actual = self.stdout.getvalue()
-        expected = ''
-        self.assertMultiLineEqual(actual, expected)
-        actual = self.stderr.getvalue()
-        expected = 'No such task: #123333\n'
-        self.assertMultiLineEqual(actual, expected)
+
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session,
                                                       self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_not_called()
-        if isinstance(cm.exception, int):
-            self.assertEqual(cm.exception, 1)
-        else:
-            self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(cm.exception.args[0], 'no task found')
 
     def test_handle_download_task_parent(self):
         task_id = 123333
@@ -154,7 +147,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_called_once_with(task_id)
         self.assertEqual(self.list_task_output_all_volumes.mock_calls, [
             call(self.session, 22222),
@@ -195,7 +188,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_not_called()
         self.list_task_output_all_volumes.assert_called_once_with(self.session, task_id)
         self.assertListEqual(self.download_file.mock_calls, calls)
@@ -229,7 +222,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_not_called()
         self.list_task_output_all_volumes.assert_called_once_with(self.session, task_id)
         self.download_file.assert_not_called()
@@ -265,7 +258,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_not_called()
         self.list_task_output_all_volumes.assert_called_once_with(self.session, task_id)
         self.download_file.assert_not_called()
@@ -299,7 +292,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_called_once_with(task_id)
         self.list_task_output_all_volumes.assert_called_once_with(self.session, 22222)
         self.download_file.assert_not_called()
@@ -329,7 +322,7 @@ class TestDownloadTask(unittest.TestCase):
         self.assertMultiLineEqual(actual, expected)
         # Finally, assert that things were called as we expected.
         self.activate_session.assert_called_once_with(self.session, self.options)
-        self.session.getTaskInfo.assert_called_once_with(task_id)
+        self.session.getTaskInfo.assert_called_once_with(task_id, strict=True)
         self.session.getTaskChildren.assert_not_called()
         self.list_task_output_all_volumes.assert_called_once_with(self.session, task_id)
         self.download_file.assert_not_called()
