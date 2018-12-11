@@ -1,15 +1,8 @@
 PYTHON=python
 PACKAGE = $(shell basename `pwd`)
-ifeq ($(PYTHON), python3)
-    # for python3 we fully support only basic library + CLI
-    PYFILES = __init__.py util.py plugin.py xmlrpcplus.py
-    PYSCRIPTS =
-    SUBDIRS =
-else
-    PYFILES = $(wildcard *.py)
-    PYSCRIPTS = context.py
-    SUBDIRS =
-endif
+PYFILES = $(wildcard *.py)
+PYSCRIPTS =
+SUBDIRS =
 PYVER := $(shell $(PYTHON) -c 'import sys; print("%.3s" % (sys.version))')
 PYSYSDIR := $(shell $(PYTHON) -c 'import sys; print(sys.prefix)')
 PYLIBDIR = $(PYSYSDIR)/lib/python$(PYVER)
