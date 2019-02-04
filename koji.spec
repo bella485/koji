@@ -320,7 +320,6 @@ rm -rf $RPM_BUILD_ROOT
 %files hub
 %defattr(-,root,root)
 %{_datadir}/koji-hub
-%dir %{_libexecdir}/koji-hub
 %config(noreplace) /etc/httpd/conf.d/kojihub.conf
 %dir /etc/koji-hub
 %config(noreplace) /etc/koji-hub/hub.conf
