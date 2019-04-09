@@ -10886,6 +10886,9 @@ class RootExports(object):
     def addHost(self, hostname, arches, krb_principal=None):
         """Add a host to the database"""
         context.session.assertPerm('admin')
+        # validate arches
+        arches = " ".join(arches)
+        arches = koji.parse_arches(arches, strict=True)
         if get_host(hostname):
             raise koji.GenericError('host already exists: %s' % hostname)
         q = """SELECT id FROM channels WHERE name = 'default'"""
@@ -10903,7 +10906,7 @@ class RootExports(object):
         _dml(insert, dslice(locals(), ('hostID', 'userID', 'hostname')))
 
         insert = InsertProcessor('host_config')
-        insert.set(host_id=hostID, arches=" ".join(arches))
+        insert.set(host_id=hostID, arches=arches)
         insert.make_create()
         insert.execute()
 
