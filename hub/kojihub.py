@@ -2262,9 +2262,9 @@ def maven_tag_archives(tag_id, event_id=None, inherit=True):
     of a given groupId:artifactId, not just the most-recently-tagged.
     """
     packages = readPackageList(tagID=tag_id, event=event_id, inherit=True)
-    taglist = [tag_id]
+    taglist = set([tag_id])
     if inherit:
-        taglist.extend([link['parent_id'] for link in readFullInheritance(tag_id, event_id)])
+        taglist |= set([link['parent_id'] for link in readFullInheritance(tag_id, event_id)])
     fields = [('tag.id', 'tag_id'), ('tag.name', 'tag_name'),
               ('build.pkg_id', 'pkg_id'), ('build.id', 'build_id'),
               ('package.name', 'build_name'), ('build.version', 'build_version'),
