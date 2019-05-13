@@ -278,7 +278,7 @@ def display_task_results(tasks):
             print('%s has not completed' % task_label)
 
 
-def watch_tasks(session, tasklist, quiet=False, poll_interval=60, ki_handler=None):
+def watch_tasks(session, tasklist, quiet=False, poll_interval=60, ki_handler=None, custom_progname=None):
     if not tasklist:
         return
     if not quiet:
@@ -329,7 +329,7 @@ Running Tasks:
             time.sleep(poll_interval)
     except KeyboardInterrupt:
         if tasks:
-            progname = os.path.basename(sys.argv[0]) or 'koji'
+            progname = custom_progname or os.path.basename(sys.argv[0]) or 'koji'
             ki_handler(progname, tasks, quiet)
         raise
     return rv
