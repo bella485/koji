@@ -272,6 +272,8 @@ class BuildRoot(object):
         opts['target_arch'] = self.target_arch
         if 'mock.package_manager' in self.config['extra']:
             opts['package_manager'] = self.config['extra']['mock.package_manager']
+        if 'mock.dynamic_buildrequires' in self.config['extra']:
+            opts['dynamic_buildrequires'] = self.config['extra']['mock.dynamic_buildrequires']
         if self.internal_dev_setup is not None:
             opts['internal_dev_setup'] = bool(self.internal_dev_setup)
         output = koji.genMockConfig(self.name, self.br_arch, managed=True, **opts)

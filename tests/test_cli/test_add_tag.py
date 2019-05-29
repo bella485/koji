@@ -56,7 +56,8 @@ class TestAddTag(utils.CliTestCase):
                      '--maven-support', '--include-all']
         # extra fields,
         arguments += ['--extra', 'mock.package_manager=dnf',
-                      '--extra', 'mock.new_chroot=0']
+                      '--extra', 'mock.new_chroot=0',
+                      '--extra', 'mock.dynamic_buildrequires=1']
 
         opts = {
             'parent': 'parent',
@@ -67,6 +68,7 @@ class TestAddTag(utils.CliTestCase):
             {
                 'mock.package_manager': 'dnf',
                 'mock.new_chroot': 0,
+                'mock.dynamic_buildrequires': 1,
             }
         }
 

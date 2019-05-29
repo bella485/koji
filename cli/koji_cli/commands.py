@@ -999,6 +999,8 @@ def anon_handle_mock_config(goptions, session, args):
     buildcfg = session.getBuildConfig(opts['tag_name'], event=event)
     if 'mock.package_manager' in buildcfg['extra']:
         opts['package_manager'] = buildcfg['extra']['mock.package_manager']
+    if 'mock.dynamic_buildrequires' in buildcfg['extra']:
+        opts['dynamic_buildrequires'] = buildcfg['extra']['mock.dynamic_buildrequires']
 
     output = koji.genMockConfig(name, arch, **opts)
     if options.ofile:

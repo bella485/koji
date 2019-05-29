@@ -455,6 +455,8 @@ environment follows:
 * `mock.new_chroot` - 0/1 value. If it is set, `--new-chroot` or
   `--old-chroot` option is appended to any mock call. If it is not set,
   mock's default behavior is used.
+* `mock.dynamic_buildrequires` - 0/1 value. If this is set, it will override
+  mock's default setting of `dynamic_buildrequires`.
 
 Using Koji to control tasks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
