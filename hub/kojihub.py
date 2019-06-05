@@ -6167,8 +6167,7 @@ def merge_scratch(task_id):
     return build['id']
 
 def get_archive_types():
-    """Return a list of all supported archive types.
-    """
+    """Return a list of all supported archive types."""
     select = """SELECT id, name, description, extensions FROM archivetypes
     ORDER BY id"""
     return _multiRow(select, {}, ('id', 'name', 'description', 'extensions'))
