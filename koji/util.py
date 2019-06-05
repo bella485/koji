@@ -45,13 +45,32 @@ from six.moves import zip
 
 # imported from kojiweb and kojihub
 try:
-    from hashlib import md5 as md5_constructor
+    from hashlib import md5 as _md5_constructor
 except ImportError:  # pragma: no cover
-    from md5 import new as md5_constructor
+    from md5 import new as _md5_constructor
 try:
-    from hashlib import sha1 as sha1_constructor
+    from hashlib import sha1 as _sha1_constructor
 except ImportError:  # pragma: no cover
-    from sha import new as sha1_constructor
+    from sha import new as _sha1_constructor
+
+
+def md5_constructor(*args):
+    """Construct MD5 hash object"""
+    if six.PY3:
+        args = _to_bytes_list(args)
+    return _md5_constructor(*args)
+
+
+def sha1_constructor(*args):
+    """Construct SHA1 hash object"""
+    if six.PY3:
+        args = _to_bytes_list(args)
+    return _sha1_constructor(*args)
+
+
+def _to_bytes_list(str_list):
+    """Translate string list to bytes list"""
+    return [bytes(s, 'utf-8') if isinstance(s, str) else s for s in str_list]
 
 
 def deprecated(message):
