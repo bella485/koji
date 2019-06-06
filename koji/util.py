@@ -54,18 +54,36 @@ except ImportError:  # pragma: no cover
     from sha import new as _sha1_constructor
 
 
-def md5_constructor(*args):
-    """Construct MD5 hash object"""
-    if six.PY3:
-        args = _to_bytes_list(args)
-    return _md5_constructor(*args)
+class md5_constructor(object):
+    """wrapper of md5 constructor for python3 bytes/str support"""
+    def __init__(self, *args):
+        if six.PY3:
+            args = _to_bytes_list(args)
+        self.constr = _md5_constructor(*args)
+
+    def __getattr__(self, attr):
+        return self.constr.__getattribute__(attr)
+
+    def update(self, arg):
+        if six.PY3 and isinstance(arg, str):
+            arg = bytes(arg, 'utf-8')
+        return self.constr.update(arg)
 
 
-def sha1_constructor(*args):
-    """Construct SHA1 hash object"""
-    if six.PY3:
-        args = _to_bytes_list(args)
-    return _sha1_constructor(*args)
+class sha1_constructor(object):
+    """wrapper of sha1 constructor for python3 bytes/str support"""
+    def __init__(self, *args):
+        if six.PY3:
+            args = _to_bytes_list(args)
+        self.constr = _sha1_constructor(*args)
+
+    def __getattr__(self, attr):
+        return self.constr.__getattribute__(attr)
+
+    def update(self, arg):
+        if six.PY3 and isinstance(arg, str):
+            arg = bytes(arg, 'utf-8')
+        return self.constr.update(arg)
 
 
 def _to_bytes_list(str_list):
