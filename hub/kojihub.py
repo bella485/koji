@@ -9653,6 +9653,10 @@ class RootExports(object):
             context.session.assertPerm('image-import')
         else:
             raise koji.GenericError('unsupported archive type: %s' % type)
+        btypes = to_list(get_build_type(buildinfo).keys())
+        if type not in btypes:
+            raise koji.GenericError('mixing build types, build: %s, archive: %s' % (sorted(btypes), type))
+
         buildinfo = get_build(buildinfo, strict=True)
         fullpath = '%s/%s' % (koji.pathinfo.work(), filepath)
         import_archive(fullpath, buildinfo, type, typeInfo)
