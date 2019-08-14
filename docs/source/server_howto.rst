@@ -41,7 +41,7 @@ On the builder (koji-builder)
 * mock
 * setarch (for some archs you'll require a patched version)
 * rpm-build
-* createrepo
+* createrepo_c
 
 A note on filesystem space
 ==========================
@@ -1272,7 +1272,7 @@ operating a koji server.
 
 .. _dnf: https://fedoraproject.org/wiki/Dnf
 .. _yum: https://fedoraproject.org/wiki/Yum
-.. _createrepo: http://createrepo.baseurl.org/
+.. _createrepo_c: https://rpm-software-management.github.io/createrepo_c/
 .. _mock: https://fedoraproject.org/wiki/Mock
 .. _Apache mod_ssl documentation:
     https://httpd.apache.org/docs/trunk/mod/mod_ssl.html#ssloptions 

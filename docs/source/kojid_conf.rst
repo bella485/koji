@@ -147,12 +147,6 @@ Building
       Install timeout in seconds for image build. Default value is 0, which
       means using the number in ``/etc/oz/oz.cfg``. Supported since oz-0.16.0.
 
-   use_createrepo_c=False
-      Use ``createrepo_c`` rather than ``createrepo`` command. There is
-      generally no reason to not use createrepo_c in modern depolyments. It
-      is disabled by default only to be backward-compatible. This default
-      would change in future.
-
    task_avail_delay=300
       [Added in 1.17.0]
 

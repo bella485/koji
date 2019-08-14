@@ -801,7 +801,7 @@ class BuildRoot(object):
                 nvra = "%(name)s-%(version)s-%(release)s.%(arch)s" %  koji.parse_NVRA(parts[0])
                 origin_idx[nvra] = parts[1]
             fo2.close()
-        # mergerepo starts from a local repo in the task workdir, so internal
+        # mergerepo_c starts from a local repo in the task workdir, so internal
         # rpms have an odd-looking origin that we need to look for
         localtail = '/repo_%s_premerge/' % self.repo_info['id']
         for rpm_info in rpmlist:
@@ -5240,11 +5240,7 @@ class CreaterepoTask(BaseTaskHandler):
 
     def create_local_repo(self, rinfo, arch, pkglist, groupdata, oldrepo):
         koji.ensuredir(self.outdir)
-        if self.options.use_createrepo_c:
-            cmd = ['/usr/bin/createrepo_c']
-        else:
-            cmd = ['/usr/bin/createrepo']
-        cmd.extend(['-vd', '-o', self.outdir])
+        cmd = ['/usr/bin/createrepo_c', '-vd', '-o', self.outdir]
         if pkglist is not None:
             cmd.extend(['-i', pkglist])
         if os.path.isfile(groupdata):
@@ -5310,21 +5306,14 @@ class CreaterepoTask(BaseTaskHandler):
             repos.append(ext_url)
 
         # construct command
+        cmd = ['/usr/bin/mergerepo_c']
         if merge_mode == 'simple':
-            # currently only supported by our own mergerepos script
-            # (we need it to write pkgorigins)
-            cmd = ['/usr/libexec/kojid/mergerepos',
-                   '--mode', 'simple',
-                   '--tempdir', self.workdir]
+            cmd += ['--mode', 'simple']
         elif merge_mode == 'bare':
             # "bare" merge mode for repos with modular metadata
-            # forces use of mergerepo_c
-            cmd = ['/usr/bin/mergerepo_c', '--pkgorigins', '--all']
-        elif self.options.use_createrepo_c:
-            cmd = ['/usr/bin/mergerepo_c', '--koji']
+            cmd += ['--pkgorigins', '--all']
         else:
-            cmd = ['/usr/libexec/kojid/mergerepos']
-            cmd.extend(['--tempdir', self.workdir])
+            cmd += ['--koji']
         if merge_mode != 'bare':
             blocklist = self.repodir + '/blocklist'
             cmd.extend(['-b', blocklist])
@@ -5530,11 +5519,7 @@ class createDistRepoTask(BaseTaskHandler):
         our requirements here
         """
         koji.ensuredir(repodir)
-        if self.options.use_createrepo_c:
-            cmd = ['/usr/bin/createrepo_c']
-        else:
-            cmd = ['/usr/bin/createrepo']
-        cmd.extend(['-vd', '-i', pkglist])
+        cmd = ['/usr/bin/createrepo_c', '-vd', '-i', pkglist]
         if groupdata and os.path.isfile(groupdata):
             cmd.extend(['-g', groupdata])
         # TODO: can we recycle data (with --update) as in create_local_repo?
@@ -6149,7 +6134,11 @@ def get_options():
                 'serverca': None}
     if config.has_section('kojid'):
         for name, value in config.items('kojid'):
-            if name in ['sleeptime', 'maxjobs', 'minspace', 'retry_interval',
+            if name == 'use_createrepo_c':
+                logger.warning("use_createrepo_c is deprecated (createrepo_c"
+                               " is always used) and option will be removed"
+                               " in koji 1.21)")
+            elif name in ['sleeptime', 'maxjobs', 'minspace', 'retry_interval',
                         'max_retries', 'offline_retry_interval', 'failed_buildroot_lifetime',
                         'timeout', 'rpmbuild_timeout', 'oz_install_timeout',
                         'task_avail_delay']:
@@ -6157,9 +6146,9 @@ def get_options():
                     defaults[name] = int(value)
                 except ValueError:
                     quit("value for %s option must be a valid integer" % name)
-            elif name in ['offline_retry', 'use_createrepo_c',  'createrepo_skip_stat',
-                          'createrepo_update', 'use_fast_upload', 'support_rpm_source_layout',
-                          'krb_rdns', 'krb_canon_host', 'build_arch_can_fail', 'no_ssl_verify',
+            elif name in ['offline_retry', 'createrepo_skip_stat', 'createrepo_update',
+                          'use_fast_upload', 'support_rpm_source_layout', 'krb_rdns',
+                          'krb_canon_host', 'build_arch_can_fail', 'no_ssl_verify',
                           'log_timestamps']:
                 defaults[name] = config.getboolean('kojid', name)
             elif name in ['plugin', 'plugins']:

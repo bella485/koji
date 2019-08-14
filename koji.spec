@@ -282,8 +282,7 @@ Plugins for the koji build daemon
 %package builder
 Summary: Koji RPM builder daemon
 Group: Applications/System
-License: LGPLv2 and GPLv2+
-#mergerepos (from createrepo) is GPLv2+
+License: LGPLv2
 Requires: mock >= 0.9.14
 Requires(pre): /usr/sbin/useradd
 Requires: squashfs-tools
@@ -300,7 +299,7 @@ Requires(preun): /sbin/service
 Requires: /usr/bin/cvs
 Requires: /usr/bin/svn
 Requires: /usr/bin/git
-Requires: createrepo >= 0.9.2
+Requires: createrepo_c >= 0.14
 %if 0%{py3_support} > 1
 Requires: python%{python3_pkgversion}-%{name} = %{version}-%{release}
 Requires: python%{python3_pkgversion}-librepo
@@ -615,8 +614,6 @@ rm -rf $RPM_BUILD_ROOT
 %files builder
 %defattr(-,root,root)
 %{_sbindir}/kojid
-%dir %{_libexecdir}/kojid
-%{_libexecdir}/kojid/mergerepos
 %if %{use_systemd}
 %{_unitdir}/kojid.service
 %else
