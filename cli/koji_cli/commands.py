@@ -440,6 +440,12 @@ def handle_build(options, session, args):
                       help=_("Do not attempt to tag package"))
     parser.add_option("--scratch", action="store_true",
                       help=_("Perform a scratch build"))
+    parser.add_option("--wait-for-repo", action="store_true", dest="wait_target",
+                      help=_("Wait for the actual buildroot repo of given target"))
+    parser.add_option("--wait-for-build", metavar="NVR", action="append", dest="wait_builds",
+                      default=[], help=_("Wait for the given nvr to appear in buildroot repo"))
+    parser.add_option("--wait-timeout", type="int", default=120,
+                      help=_("Amount of time to wait (in minutes) before giving up waiting on repo (default: 120)"))
     parser.add_option("--wait", action="store_true",
                       help=_("Wait on the build, even if running in the background"))
     parser.add_option("--nowait", action="store_false", dest="wait",
@@ -474,6 +480,11 @@ def handle_build(options, session, args):
             parser.error(_("Unknown destination tag: %s" % build_target['dest_tag_name']))
         if dest_tag['locked'] and not build_opts.scratch:
             parser.error(_("Destination tag %s is locked" % dest_tag['name']))
+
+    if build_opts.wait_builds or build_opts.wait_target:
+        _wait_repo(session, parser, target=target, builds=build_opts.wait_builds,
+                   timeout=build_opts.wait_timeout, poll_interval=options.poll_interval)
+
     source = args[1]
     opts = {}
     if build_opts.arch_override:
@@ -6984,32 +6995,15 @@ def anon_handle_download_task(options, session, args):
         download_file(url, new_filename, suboptions.quiet, suboptions.noprogress, len(downloads), number)
 
 
-def anon_handle_wait_repo(options, session, args):
-    "[monitor] Wait for a repo to be regenerated"
-    usage = _("usage: %prog wait-repo [options] <tag>")
-    usage += _("\n(Specify the --help global option for a list of other help options)")
-    parser = OptionParser(usage=usage)
-    parser.add_option("--build", metavar="NVR", dest="builds", action="append", default=[],
-                      help=_("Check that the given build is in the newly-generated repo (may be used multiple times)"))
-    parser.add_option("--target", action="store_true", help=_("Interpret the argument as a build target name"))
-    parser.add_option("--timeout", type="int", help=_("Amount of time to wait (in minutes) before giving up (default: 120)"), default=120)
-    parser.add_option("--quiet", action="store_true", help=_("Suppress output, success or failure will be indicated by the return value only"), default=options.quiet)
-    (suboptions, args) = parser.parse_args(args)
-
+def _wait_repo(session, parser, tag=None, target=None, builds=None, timeout=120, quiet=False, poll_interval=6):
     start = time.time()
 
-    builds = [koji.parse_NVR(build) for build in suboptions.builds]
-    if len(args) < 1:
-        parser.error(_("Please specify a tag name"))
-    elif len(args) > 1:
-        parser.error(_("Only one tag may be specified"))
-
-    tag = args[0]
-
-    if suboptions.target:
-        target_info = session.getBuildTarget(tag)
+    nvrs = sorted(builds)
+    builds = [koji.parse_NVR(build) for build in builds]
+    if target:
+        target_info = session.getBuildTarget(target)
         if not target_info:
-            parser.error("Invalid build target: %s" % tag)
+            parser.error("Invalid build target: %s" % target)
         tag = target_info['build_tag_name']
         tag_id = target_info['build_tag']
     else:
@@ -7039,31 +7033,58 @@ def anon_handle_wait_repo(options, session, args):
 
     last_repo = None
     repo = session.getRepo(tag_id)
-
     while True:
         if builds and repo and repo != last_repo:
             if koji.util.checkForBuilds(session, tag_id, builds, repo['create_event'], latest=True):
-                if not suboptions.quiet:
-                    print("Successfully waited %s for %s to appear in the %s repo" % (koji.util.duration(start), koji.util.printList(suboptions.builds), tag))
+                if not quiet:
+                    print("Successfully waited %s for %s to appear in the %s repo" % (koji.util.duration(start), koji.util.printList(nvrs), tag))
                 return
 
-        if (time.time() - start) >= (suboptions.timeout * 60.0):
-            if not suboptions.quiet:
+        if (time.time() - start) >= (timeout * 60.0):
+            if not quiet:
                 if builds:
-                    print("Unsuccessfully waited %s for %s to appear in the %s repo" % (koji.util.duration(start), koji.util.printList(suboptions.builds), tag))
+                    print("Unsuccessfully waited %s for %s to appear in the %s repo" % (koji.util.duration(start), koji.util.printList(nvrs), tag))
                 else:
                     print("Unsuccessfully waited %s for a new %s repo" % (koji.util.duration(start), tag))
             return 1
 
-        time.sleep(options.poll_interval)
+        time.sleep(poll_interval)
         last_repo = repo
         repo = session.getRepo(tag_id)
 
         if not builds:
             if repo != last_repo:
-                if not suboptions.quiet:
+                if not quiet:
                     print("Successfully waited %s for a new %s repo" % (koji.util.duration(start), tag))
                 return
+
+def anon_handle_wait_repo(options, session, args):
+    "[monitor] Wait for a repo to be regenerated"
+    usage = _("usage: %prog wait-repo [options] <tag>")
+    usage += _("\n(Specify the --help global option for a list of other help options)")
+    parser = OptionParser(usage=usage)
+    parser.add_option("--build", metavar="NVR", dest="builds", action="append", default=[],
+                      help=_("Check that the given build is in the newly-generated repo (may be used multiple times)"))
+    parser.add_option("--target", action="store_true", help=_("Interpret the argument as a build target name"))
+    parser.add_option("--timeout", type="int", help=_("Amount of time to wait (in minutes) before giving up (default: 120)"), default=120)
+    parser.add_option("--quiet", action="store_true", help=_("Suppress output, success or failure will be indicated by the return value only"), default=options.quiet)
+    (suboptions, args) = parser.parse_args(args)
+
+    if len(args) < 1:
+        parser.error(_("Please specify a tag name"))
+    elif len(args) > 1:
+        parser.error(_("Only one tag may be specified"))
+
+    tag = None
+    target = None
+    if suboptions.target:
+        target = args[0]
+    else:
+        tag = args[0]
+    return _wait_repo(session, parser, tag=tag, target=target, builds=suboptions.builds,
+                      timeout=suboptions.timeout, quiet=suboptions.quiet,
+                      poll_interval=options.poll_interval)
+
 
 
 def handle_regen_repo(options, session, args):

@@ -199,6 +199,11 @@ Options:
   -h, --help            show this help message and exit
   --skip-tag            Do not attempt to tag package
   --scratch             Perform a scratch build
+  --wait-for-repo       Wait for the actual buildroot repo of given target
+  --wait-for-build=NVR  Wait for the given nvr to appear in buildroot repo
+  --wait-timeout=WAIT_TIMEOUT
+                        Amount of time to wait (in minutes) before giving up
+                        waiting on repo (default: 120)
   --wait                Wait on the build, even if running in the background
   --nowait              Don't wait on build
   --quiet               Do not print the task information
