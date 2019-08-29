@@ -13422,7 +13422,7 @@ def get_upload_path(reldir, name, create=False, volume=None):
     if d or name.startswith('.'):
         raise koji.GenericError("Invalid upload filename: %s" % orig_name)
     reldir = os.path.normpath(reldir)
-    if not reldir or reldir.startswith('..'):
+    if not reldir or reldir.startswith('..') or os.path.isabs(reldir):
         raise koji.GenericError("Invalid upload directory: %s" % orig_reldir)
     if volume is not None:
         # make sure the volume is valid

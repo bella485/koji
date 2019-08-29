@@ -38,6 +38,10 @@ class TestGetUploadPath(unittest.TestCase):
         with self.assertRaises(GenericError):
             kojihub.get_upload_path(reldir='tasks/1/should_be_number', name='error', create=True)
 
+    def test_get_upload_path_invalid_upload_dir_4(self):
+        with self.assertRaises(GenericError):
+            kojihub.get_upload_path(reldir='/absdir', name='error')
+
     @mock.patch('kojihub.context')
     @mock.patch('kojihub.Host')
     def test_get_upload_path_invalid_upload_dir_owner(self, host, context):
