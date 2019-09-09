@@ -9092,7 +9092,7 @@ def importImageInternal(task_id, build_id, imgdata):
             raise koji.GenericError("Error importing build log. %s already exists." % final_path)
         if os.path.islink(logsrc) or not os.path.isfile(logsrc):
             raise koji.GenericError("Error importing build log. %s is not a regular file." % logsrc)
-        move_and_symlink(logsrc, final_path, create_dir=True)
+        move_and_symlink(logsrc, final_path, relative=False, create_dir=True)
 
     # record all of the RPMs installed in the image(s)
     # verify they were built in Koji or in an external repo
@@ -12563,7 +12563,7 @@ class HostExports(object):
                 src = os.path.join(workdir, img)
                 dest = os.path.join(destdir, img)
                 logger.debug('renaming %s to %s' % (src, dest))
-                move_and_symlink(src, dest, create_dir=True)
+                move_and_symlink(src, dest, relative=False, create_dir=True)
             if 'rpmresults' in sub_results:
                 rpm_results = sub_results['rpmresults']
                 for relpath in [rpm_results['srpm']] + rpm_results['rpms'] + \
@@ -12571,7 +12571,7 @@ class HostExports(object):
                     src = os.path.join(koji.pathinfo.task(
                         rpm_results['task_id']), relpath)
                     dest = os.path.join(destdir, 'rpms', relpath)
-                    move_and_symlink(src, dest, create_dir=True)
+                    move_and_symlink(src, dest, relative=False, create_dir=True)
 
     def initBuild(self, data):
         """Create a stub (rpm) build entry.
