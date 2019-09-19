@@ -13234,8 +13234,8 @@ class HostExports(object):
         if not rpminfo['sourcepackage'] and rpminfo['arch'] != 'noarch':
             arch = koji.canonArch(rpminfo['arch'])
             dir = "%s/%s/RPMS" % (repodir, arch)
-            if os.path.isdir(dir):
-                dirs.append(dir)
+            koji.ensuredir(dir)
+            dirs.append(dir)
         else:
             #noarch and srpms linked for all arches
             for fn in os.listdir(repodir):
@@ -13245,8 +13245,8 @@ class HostExports(object):
                     dir = "%s/%s/SRPMS" % (repodir, fn)
                 else:
                     dir = "%s/%s/RPMS" % (repodir, fn)
-                if os.path.isdir(dir):
-                    dirs.append(dir)
+                koji.ensuredir(dir)
+                dirs.append(dir)
         for dir in dirs:
             fn = os.path.basename(filepath)
             dst = "%s/%s" % (dir, fn)
