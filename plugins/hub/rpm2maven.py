@@ -8,6 +8,7 @@
 import koji
 from koji.context import context
 from koji.plugin import callback
+from koji.util import joinpath
 import ConfigParser
 import fnmatch
 import os
@@ -39,7 +40,7 @@ def maven_import(cbtype, *args, **kws):
     else:
         return
 
-    tmpdir = os.path.join(koji.pathinfo.work(), 'rpm2maven', koji.buildLabel(buildinfo))
+    tmpdir = joinpath(koji.pathinfo.work(), 'rpm2maven', koji.buildLabel(buildinfo))
     try:
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
@@ -84,10 +85,10 @@ def scan_and_import(buildinfo, rpminfo, tmpdir):
         if len(poms) != 1:
             continue
 
-        pom_info = koji.parse_pom(os.path.join(dirpath, poms[0]))
+        pom_info = koji.parse_pom(joinpath(dirpath, poms[0]))
         maven_info = koji.pom_to_maven_info(pom_info)
         maven_archives.append({'maven_info': maven_info,
-                               'files': [os.path.join(dirpath, f) for f in filenames]})
+                               'files': [joinpath(dirpath, f) for f in filenames]})
 
     if not maven_archives:
         return
