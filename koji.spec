@@ -81,7 +81,7 @@
 %define release %{baserelease}
 %endif
 Name: koji
-Version: 1.17.0
+Version: 1.17.1
 Release: %{release}%{?dist}
 License: LGPLv2 and GPLv2+
 # the included arch lib from yum's rpmUtils is GPLv2+
@@ -713,6 +713,9 @@ fi
 %endif
 
 %changelog
+* Thu Sep 26 2019 Tomas Kopecek <tkopecek at redhat.com> - 1.17.1-1
+- CVE XXXX fix
+
 * Wed Mar  6 2019 Mike McLean <mikem at redhat.com> - 1.17.0-1
 - PR#1320: also remove nonprintable changelog chars in py3
 - PR#1293: fix dict encoding in py3
