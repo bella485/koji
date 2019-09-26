@@ -31,7 +31,7 @@
 %define release %{baserelease}
 %endif
 Name: koji
-Version: 1.14.2
+Version: 1.14.3
 Release: %{release}%{?dist}
 License: LGPLv2 and GPLv2+
 # koji.ssl libs (from plague) are GPLv2+
@@ -480,6 +480,9 @@ fi
 %endif
 
 %changelog
+* Thu Sep 26 2019 Tomas Kopecek <tkopecek at redhat.com> - 1.14.3-1
+- CVE XXXX fix
+
 * Thu Feb 21 2019 Mike McLean <mikem at redhat.com> - 1.14.2-1
 - Fix CVE-2018-1002161: SQL injection in multiple remote calls
 
