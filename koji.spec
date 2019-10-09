@@ -718,7 +718,7 @@ fi
 
 %changelog
 * Thu Sep 26 2019 Tomas Kopecek <tkopecek at redhat.com> - 1.17.1-1
-- CVE XXXX fix
+- CVE-2019-17109 fix
 
 * Wed Mar  6 2019 Mike McLean <mikem at redhat.com> - 1.17.0-1
 - PR#1320: also remove nonprintable changelog chars in py3
