@@ -468,7 +468,7 @@ fi
 
 %changelog
 * Thu Sep 26 2019 Tomas Kopecek <tkopecek at redhat.com> - 1.16.3-1
-- CVE XXXX fix
+- CVE-2019-17109 fix
 
 * Thu Feb 21 2019 Mike McLean <mikem at redhat.com> - 1.16.2-1
 - Fix CVE-2018-1002161: SQL injection in multiple remote calls
