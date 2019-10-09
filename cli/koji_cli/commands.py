@@ -2310,6 +2310,9 @@ def anon_handle_latest_build(goptions, session, args):
                 help=_("Do not print the header information"))
     parser.add_option("--paths", action="store_true", help=_("Show the file paths"))
     parser.add_option("--type", help=_("Show builds of the given type only.  Currently supported types: maven"))
+    parser.add_option("--disable-buildroot-check", action="store_true",
+                      default=False,
+                      help=_("Do not check that the tag has a buildroot"))
     (options, args) = parser.parse_args(args)
     if len(args) == 0:
         parser.error(_("A tag name must be specified"))
@@ -2326,6 +2329,19 @@ def anon_handle_latest_build(goptions, session, args):
             parser.error(_("A tag name and package name must be specified"))
             assert False  # pragma: no cover
     pathinfo = koji.PathInfo()
+
+    if not options.disable_buildroot_check:
+        targets = session.getBuildTargets(args[0])
+        build_tag_names = [target["build_tag_name"] for target in targets]
+        if targets and args[0] not in build_tag_names:
+            warn(_("warning: %r is not a buildroot tag.") % args[0])
+            if len(build_tag_names) == 1:
+                warn(_("warning: Did you mean %r instead?")
+                     % build_tag_names[0])
+            else:
+                warn(_("warning: Did you mean any of %s instead?")
+                     % ", ".join([repr(suggestion)
+                                  for suggestion in build_tag_names]))
 
     for pkg in args[1:]:
         if options.arch:
