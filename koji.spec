@@ -718,7 +718,7 @@ fi
 
 %changelog
 * Thu Sep 26 2019 Tomas Kopecek <tkopecek at redhat.com> - 1.18.1-1
-- CVE XXXX fix
+- CVE-2019-17109 fix
 
 * Fri Aug  9 2019 Mike McLean <mikem at redhat.com> - 1.18.0-1
 - PR#1606: pull owner from correct place
