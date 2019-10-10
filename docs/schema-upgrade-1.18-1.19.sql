@@ -65,4 +65,9 @@ insert into archivetypes (name, description, extensions) values ('vmdk-compresse
 -- add kernel-image and imitramfs
 insert into archivetypes (name, description, extensions) values ('kernel-image', 'Kernel BZ2 Image', 'vmlinuz vmlinuz.gz vmlinuz.xz');
 insert into archivetypes (name, description, extensions) values ('initramfs', 'Compressed Initramfs Image', 'img');
+
+-- enforce unique content generator names in database
+ALTER TABLE content_generator ADD UNIQUE (name);
+ALTER TABLE content_generator ALTER COLUMN name SET NOT NULL;
+
 COMMIT;

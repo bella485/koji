@@ -252,7 +252,7 @@ INSERT INTO volume (id, name) VALUES (0, 'DEFAULT');
 -- data for content generators
 CREATE TABLE content_generator (
 	id SERIAL PRIMARY KEY,
-	name TEXT
+	name TEXT UNIQUE NOT NULL
 ) WITHOUT OIDS;
 
 -- here we track the built packages
