@@ -58,10 +58,10 @@ class TestCloneTag(utils.CliTestCase):
             self.session,
             args,
             stderr=self.format_error_message(
-                "This action requires admin privileges"),
+                "This action requires tag or admin privileges"),
             activate_session=None)
         self.activate_session.assert_called_once()
-        self.session.hasPerm.assert_called_once_with('admin')
+        self.session.hasPerm.assert_has_calls([call('admin'), call('tag')])
 
     def test_handle_clone_tag_same_tag(self):
         args = ['src-tag', 'src-tag']
