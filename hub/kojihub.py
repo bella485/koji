@@ -11463,6 +11463,7 @@ class RootExports(object):
         repo_problem(repo_id)
 
     def debugFunction(self, name, *args, **kwargs):
+        """[DEPRECATED] This function is only for debug use"""
         # This is potentially dangerous, so it must be explicitly enabled
         allowed = context.opts.get('EnableFunctionDebug', False)
         if not allowed:
