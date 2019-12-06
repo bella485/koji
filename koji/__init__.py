@@ -94,6 +94,10 @@ def _(args):
     """Stub function for translation"""
     return args  # pragma: no cover
 
+
+DEPRECATED_METHODS = ['debugFunction']
+
+
 ## Constants ##
 
 RPM_HEADER_MAGIC = six.b('\x8e\xad\xe8')
@@ -2627,7 +2631,8 @@ class ClientSession(object):
 
     def _callMethod(self, name, args, kwargs=None, retry=True):
         """Make a call to the hub with retries and other niceties"""
-
+        if name in DEPRECATED_METHODS:
+            util.deprecated("'%s' has been deprecated" % name)
         if self.multicall:
             if kwargs is None:
                 kwargs = {}
