@@ -1,5 +1,5 @@
 #encoding UTF-8
-#import cgi
+#import html
 #import koji
 #from kojiweb import util
 #from koji_cli.lib import greetings
@@ -51,7 +51,7 @@ $localnav
               #end if
             </select>
             #try
-                #set $old_terms = cgi.escape($terms)
+                #set $old_terms = html.escape($terms)
             #except
                 #set $old_terms = ""
             #end try

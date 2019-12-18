@@ -21,9 +21,9 @@
 #       Mike McLean <mikem@redhat.com>
 from __future__ import absolute_import, division
 
-import cgi
 import datetime
 import hashlib
+import html
 import os
 import ssl
 import stat
@@ -669,7 +669,7 @@ class TaskResultFragment(object):
         else:
             text = self.text[:length]
         if self.need_escape:
-            text = cgi.escape(text)
+            text = html.escape(text)
         if self.size > 0 and text == '':
             text = self.empty_str_placeholder
         return '%s%s%s' % (self.begin_tag, text, self.end_tag)
@@ -725,7 +725,7 @@ class TaskResultLine(object):
                 size += fragment.size
 
         if self.need_escape:
-            line_text = cgi.escape(line_text)
+            line_text = html.escape(line_text)
 
         return '%s%s%s%s' % (self.begin_tag, line_text, postscript, self.end_tag)
 
