@@ -1,7 +1,6 @@
 #import koji
 #from kojiweb import util
 #from six.moves.urllib.parse import quote
-#import cgi
 #import time
 
 #def printValue($key, $value, $sep=', ')
