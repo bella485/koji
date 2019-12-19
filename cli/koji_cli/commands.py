@@ -3249,6 +3249,8 @@ def handle_clone_tag(goptions, session, args):
             help=_('Clone tag at a specific repo event'))
     parser.add_option("-v", "--verbose", action="store_true",
             help=_("show changes"))
+    parser.add_option("--notify", action="store_true", default=False,
+            help=_('Send tagging/untagging notifications'))
     parser.add_option("-f", "--force", action="store_true",
             help=_("override tag locks if necessary"))
     parser.add_option("-n", "--test", action="store_true", help=_("test mode"))
@@ -3348,7 +3350,8 @@ def handle_clone_tag(goptions, session, args):
                 if not options.test:
                     session.tagBuildBypass(newtag['name'],
                                            build,
-                                           force=options.force)
+                                           force=options.force,
+                                           notify=options.notify)
             if not options.test:
                 session.multiCall(batch=options.batch)
         if options.groups:
@@ -3523,7 +3526,8 @@ def handle_clone_tag(goptions, session, args):
                 if not options.test:
                     session.untagBuildBypass(dsttag['name'],
                                              build,
-                                             force=options.force)
+                                             force=options.force,
+                                             notify=options.notify)
         if not options.test:
             session.multiCall(batch=options.batch)
         # ADD builds.
@@ -3542,7 +3546,8 @@ def handle_clone_tag(goptions, session, args):
             if not options.test:
                 session.tagBuildBypass(dsttag['name'],
                                        build,
-                                       force=options.force)
+                                       force=options.force,
+                                       notify=options.notify)
         if not options.test:
             session.multiCall(batch=options.batch)
         # ADD groups.
@@ -3608,7 +3613,8 @@ def handle_clone_tag(goptions, session, args):
                 if not options.test:
                     session.untagBuildBypass(dsttag['name'],
                                              build,
-                                             force=options.force)
+                                             force=options.force,
+                                             notify=options.notify)
             # now safe to remove package itself since we resolved its builds.
             chgpkglist.append(('[del]',
                                pkg['package_name'],
