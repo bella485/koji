@@ -529,7 +529,7 @@ def handle_trash():
 
         #ok, go ahead add it to the list
         if binfo2 is None:
-            binfo2 = session.getBuild(binfo['id'])
+            binfo2 = session.getBuild(binfo2['id'])
         binfo2['nvr'] = nvr
         print("[%i/%i] Adding build to trash list: %s" % (i, N, nvr))
         to_trash.append(binfo2)
