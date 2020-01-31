@@ -4043,6 +4043,8 @@ def get_next_release(build_info):
 def _fix_rpm_row(row):
     if 'extra' in row:
         row['extra'] = parse_json(row['extra'], desc='rpm extra')
+    if 'sigkeys' in row:
+        row['sigkeys'] = [x for x in row['sigkeys'] if x is not None]
     return row
 
 #alias for now, may change in the future
@@ -4191,8 +4193,9 @@ def list_rpms(buildID=None, buildrootID=None, imageID=None, componentBuildrootID
               ('external_repo.name', 'external_repo_name'),
               ('rpminfo.metadata_only', 'metadata_only'),
               ('rpminfo.extra', 'extra'),
+              ('sigs_json.sigkeys', 'sigkeys'),
              ]
-    joins = ['LEFT JOIN external_repo ON rpminfo.external_repo_id = external_repo.id']
+    joins = ['LEFT JOIN external_repo ON rpminfo.external_repo_id = external_repo.id', "LEFT JOIN (select rpmsigs.rpm_id, array_agg(rpmsigs.sigkey ORDER BY rpmsigs.sigkey) as sigkeys from rpmsigs group by rpmsigs.rpm_id) as sigs_json ON rpminfo.id = sigs_json.rpm_id" ]
     clauses = []
 
     if buildID != None:

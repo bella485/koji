@@ -3167,7 +3167,12 @@ def anon_handle_buildinfo(goptions, session, args):
         if rpms:
             print("RPMs:")
             for rpm in rpms:
-                print(os.path.join(koji.pathinfo.build(info), koji.pathinfo.rpm(rpm)))
+                keys = []
+                if 'sigkeys' in rpm:
+                    for keyid in rpm['sigkeys']:
+                        if keyid:
+                            keys.append(keyid)
+                print('%s\tSignatures:%s' % (os.path.join(koji.pathinfo.build(info), koji.pathinfo.rpm(rpm)), keys))
         if options.changelog:
             changelog = session.getChangelogEntries(info['id'])
             if changelog:
