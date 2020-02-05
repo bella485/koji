@@ -1838,11 +1838,7 @@ def read_config(profile_name, user_config=None):
         }
     for name in cert_defaults:
         if result.get(name) is None:
-            fn = os.path.expanduser(cert_defaults[name])
-            if os.path.exists(fn):
-                result[name] = fn
-            else:
-                result[name] = ''
+            result[name] = os.path.expanduser(cert_defaults[name])
         else:
             result[name] = os.path.expanduser(result[name])
 
@@ -2474,11 +2470,11 @@ class ClientSession(object):
     def ssl_login(self, cert=None, ca=None, serverca=None, proxyuser=None):
         cert = cert or self.opts.get('cert')
         serverca = serverca or self.opts.get('serverca')
-        if cert is None:
+        if not cert:
             raise AuthError('No certification provided')
         if not os.access(cert, os.R_OK):
             raise AuthError("Certificate %s doesn't exist or is not accessible" % cert)
-        if serverca is not None and not os.access(serverca, os.R_OK):
+        if serverca and not os.access(serverca, os.R_OK):
             raise AuthError("Server CA %s doesn't exist or is not accessible" % serverca)
         # FIXME: ca is not useful here and therefore ignored, can be removed
         # when API is changed
