@@ -1279,7 +1279,7 @@ def readTaggedBuilds(tag, event=None, inherit=False, latest=False, package=None,
               ('events.id', 'creation_event_id'), ('events.time', 'creation_time'),
               ('volume.id', 'volume_id'), ('volume.name', 'volume_name'),
               ('package.id', 'package_id'), ('package.name', 'package_name'),
-              ('package.name', 'name'),
+              ('package.name', 'name'), ('tags_list.all_tag_ids', 'all_tag_ids'),
               ("package.name || '-' || build.version || '-' || build.release", 'nvr'),
               ('users.id', 'owner_id'), ('users.name', 'owner_name')]
     st_complete = koji.BUILD_STATES['COMPLETE']
@@ -1315,6 +1315,7 @@ def readTaggedBuilds(tag, event=None, inherit=False, latest=False, package=None,
     JOIN events ON events.id = build.create_event
     JOIN package ON package.id = build.pkg_id
     JOIN volume ON volume.id = build.volume_id
+    JOIN (select tag_listing.build_id, array_agg(tag_listing.tag_id ORDER BY tag_listing.tag_id) as all_tag_ids from tag_listing group by tag_listing.build_id) as tags_list ON tag_listing.build_id = tags_list.build_id
     WHERE %s AND tag_id=%%(tagid)s
         AND build.state=%%(st_complete)i
     """ % (', '.join([pair[0] for pair in fields]), type_join, eventCondition(event, 'tag_listing'))
