@@ -10855,7 +10855,8 @@ class RootExports(object):
         if not isinstance(tag, six.integer_types):
             #lookup tag id
             tag = get_tag_id(tag, strict=True)
-        return readTaggedBuilds(tag, event, inherit=True, latest=True, package=package, type=type)
+        latest = False if package is not None else True
+        return readTaggedBuilds(tag, event, inherit=True, latest=latest, package=package, type=type)
 
     def getLatestRPMS(self, tag, package=None, arch=None, event=None, rpmsigs=False, type=None):
         """List latest RPMS for tag (inheritance enabled)"""
