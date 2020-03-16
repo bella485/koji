@@ -1547,7 +1547,7 @@ def handle_write_signed_rpm(goptions, session, args):
         session.writeSignedRPM(rpminfo['id'], key)
 
 
-def handle_prune_signed_copies(options, session, args):
+def handle_prune_signed_copies(goptions, session, args):
     "[admin] Prune signed copies"
     usage = _("usage: %prog prune-sigs [options]")
     parser = OptionParser(usage=get_usage_str(usage))
@@ -1565,7 +1565,9 @@ def handle_prune_signed_copies(options, session, args):
     parser.add_option("--protect-tag-file",
                       help=_("File to read tag protect patterns from"))
     parser.add_option("--trashcan-tag", default="trashcan", help=_("Specify trashcan tag"))
-    parser.add_option("--debug", action="store_true", help=_("Show debugging output"))
+    # Don't use local debug option, this one stays here for backward compatibility
+    # https://pagure.io/koji/issue/2084
+    parser.add_option("--debug", action="store_true", default=goptions.debug, help=SUPPRESS_HELP)
     (options, args) = parser.parse_args(args)
     # different ideas/modes
     #  1) remove all signed copies of builds that are not latest for some tag
@@ -2056,7 +2058,9 @@ def handle_list_signed(goptions, session, args):
     "[admin] List signed copies of rpms"
     usage = _("usage: %prog list-signed [options]")
     parser = OptionParser(usage=get_usage_str(usage))
-    parser.add_option("--debug", action="store_true")
+    # Don't use local debug option, this one stays here for backward compatibility
+    # https://pagure.io/koji/issue/2084
+    parser.add_option("--debug", action="store_true", default=goptions.debug, help=SUPPRESS_HELP)
     parser.add_option("--key", help=_("Only list RPMs signed with this key"))
     parser.add_option("--build", help=_("Only list RPMs from this build"))
     parser.add_option("--rpm", help=_("Only list signed copies for this RPM"))
@@ -2135,7 +2139,7 @@ def handle_list_signed(goptions, session, args):
         builddir = koji.pathinfo.build(binfo)
         signedpath = "%s/%s" % (builddir, koji.pathinfo.signed(rinfo, sigkey))
         if not os.path.exists(signedpath):
-            if options.debug:
+            if goptions.debug:
                 print("No copy: %s" % signedpath)
             continue
         print(signedpath)
@@ -4132,7 +4136,9 @@ def anon_handle_list_tag_history(goptions, session, args):
     "[info] Print a history of tag operations"
     usage = _("usage: %prog list-tag-history [options]")
     parser = OptionParser(usage=get_usage_str(usage))
-    parser.add_option("--debug", action="store_true")
+    # Don't use local debug option, this one stays here for backward compatibility
+    # https://pagure.io/koji/issue/2084
+    parser.add_option("--debug", action="store_true", default=goptions.debug, help=SUPPRESS_HELP)
     parser.add_option("--build", help=_("Only show data for a specific build"))
     parser.add_option("--package", help=_("Only show data for a specific package"))
     parser.add_option("--tag", help=_("Only show data for a specific tag"))
@@ -4431,7 +4437,9 @@ def anon_handle_list_history(goptions, session, args):
     "[info] Display historical data"
     usage = _("usage: %prog list-history [options]")
     parser = OptionParser(usage=get_usage_str(usage))
-    parser.add_option("--debug", action="store_true")
+    # Don't use local debug option, this one stays here for backward compatibility
+    # https://pagure.io/koji/issue/2084
+    parser.add_option("--debug", action="store_true", default=goptions.debug, help=SUPPRESS_HELP)
     parser.add_option("--build", help=_("Only show data for a specific build"))
     parser.add_option("--package", help=_("Only show data for a specific package"))
     parser.add_option("--tag", help=_("Only show data for a specific tag"))
