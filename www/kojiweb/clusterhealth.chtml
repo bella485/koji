@@ -17,6 +17,11 @@
     padding: 0px;
     text-overflow: ellipsis;
   }
+  
+  #loginInfo {
+    height: auto;
+  }
+
   .graph {
       height: 15px;
   }
