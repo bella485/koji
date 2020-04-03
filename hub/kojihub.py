@@ -3643,7 +3643,12 @@ def edit_external_repo(info, name=None, url=None):
 
 
 def delete_external_repo(info):
-    """Delete an external repo"""
+    """
+    Remove an external repository for any tags and delete it.
+
+    :param info: external repository name or ID number
+    :raises: GenericError if the repository does not exist.
+    """
 
     context.session.assertPerm('admin')
 
