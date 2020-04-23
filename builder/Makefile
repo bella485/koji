@@ -1,5 +1,4 @@
 BINFILES = kojid
-LIBEXECFILES = mergerepos
 SYSTEMDSYSTEMUNITDIR = $(shell pkg-config systemd --variable=systemdsystemunitdir)
 TYPE = systemd
 
@@ -20,9 +19,6 @@ _install:
 
 	mkdir -p $(DESTDIR)/usr/sbin
 	install -p -m 755 $(BINFILES) $(DESTDIR)/usr/sbin
-
-	mkdir -p $(DESTDIR)/usr/libexec/kojid
-	install -p -m 755 $(LIBEXECFILES) $(DESTDIR)/usr/libexec/kojid
 
 	mkdir -p $(DESTDIR)/etc/mock/koji
 

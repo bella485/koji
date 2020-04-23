@@ -317,6 +317,9 @@ Requires: /usr/bin/cvs
 Requires: /usr/bin/svn
 Requires: /usr/bin/git
 Requires: createrepo >= 0.9.2
+%if 0%{?fedora} || 0%{?rhel} >= 8
+Recommends: createrepo_c >= 0.15.1
+%endif
 %if 0%{py3_support} > 1
 Requires: python%{python3_pkgversion}-%{name} = %{version}-%{release}
 Requires: python%{python3_pkgversion}-librepo
@@ -627,8 +630,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files builder
 %{_sbindir}/kojid
-%dir %{_libexecdir}/kojid
-%{_libexecdir}/kojid/mergerepos
 %if %{use_systemd}
 %{_unitdir}/kojid.service
 %else
