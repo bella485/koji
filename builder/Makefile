@@ -7,7 +7,7 @@ _default:
 	@echo "nothing to make.  try make install"
 
 clean:
-	rm -f *.o *.so *.pyc *~ kojidc
+	rm -f *.o *.so *.pyc *~ kojidc mergereposc
 	rm -rf __pycache__
 
 
