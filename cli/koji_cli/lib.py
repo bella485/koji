@@ -580,8 +580,13 @@ def download_rpm(build, rpm, topurl, sigkey=None, quiet=False, noprogress=False)
     # payload hash
     sigmd5 = koji.get_header_fields(path, ['sigmd5'])['sigmd5']
     if rpm['payloadhash'] != koji.hex_string(sigmd5):
-        os.unlink(path)
-        error("Downloaded rpm %s doesn't match db, deleting" % path)
+        # older rpms, see add_rpm_sig in hub
+        sighdr = koji.rip_rpm_sighdr(path)
+        rawhdr = koji.RawHeader(sighdr)
+        sigmd5 = rawhdr.get(koji.RPM_SIGTAG_MD5)
+        if rpm['payloadhash'] != koji.hex_string(sigmd5):
+            os.unlink(path)
+            error("Downloaded rpm %s doesn't match db SIGMD5, deleting" % path)
 
 
 def download_archive(build, archive, topurl, quiet=False, noprogress=False):
