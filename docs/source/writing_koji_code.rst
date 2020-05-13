@@ -644,10 +644,10 @@ You will need to install the following packages to actually run the tests.
  * ``findutils``
  * ``pyOpenSSL``
  * ``python-coverage``
- * ``python-krbV``
  * ``python-mock``
  * ``python-psycopg2``
  * ``python-requests``
+ * ``python-requests-kerberos``
  * ``python-requests-mock``
  * ``python-qpid-proton``
 
