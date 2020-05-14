@@ -5110,7 +5110,7 @@ def handle_lock_tag(goptions, session, args):
                 print(_("Would have set permission requirement %s for tag %s") %
                       (perm, tag['name']))
                 continue
-            session.editTag2(tag['id'], perm=perm_id)
+            session.editTag2(tag['id'], perm_id=perm_id)
 
 
 def handle_unlock_tag(goptions, session, args):
@@ -5152,7 +5152,7 @@ def handle_unlock_tag(goptions, session, args):
         if options.test:
             print("Tag %s: skipping changes: %r" % (tag['name'], opts))
         else:
-            session.editTag2(tag['id'], locked=False, perm_id=None)
+            session.editTag2(tag['id'], **opts)
 
 
 def handle_add_tag_inheritance(goptions, session, args):
