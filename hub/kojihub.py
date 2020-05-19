@@ -13972,6 +13972,8 @@ class HostExports(object):
         data['owner'] = task.getOwner()
         data['state'] = koji.BUILD_STATES['BUILDING']
         data['completion_time'] = None
+        if data.get('release') is None:
+            data['release'] = get_next_release(build_info)
         build_id = new_build(data)
         data['id'] = build_id
         new_image_build(data)
