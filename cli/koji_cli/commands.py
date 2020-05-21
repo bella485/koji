@@ -7367,7 +7367,7 @@ def handle_moshimoshi(options, session, args):
         u = {'name': 'anonymous user'}
     print("%s, %s!" % (_printable_unicode(random.choice(greetings)), u["name"]))
     print("")
-    print("You are using the hub at %s" % session.baseurl)
+    print("You are using the hub at %s" % session.original_baseurl)
     authtype = u.get('authtype', getattr(session, 'authtype', None))
     if authtype == koji.AUTHTYPE_NORMAL:
         print("Authenticated via password")

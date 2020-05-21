@@ -51,6 +51,7 @@ import xml.sax.handler
 from fnmatch import fnmatch
 
 import requests
+from requests_toolbelt.adapters import host_header_ssl
 import six
 import six.moves.configparser
 import six.moves.http_client
@@ -2341,6 +2342,7 @@ class ClientSession(object):
             opts = opts.copy()
         self._apidoc = None
         self.baseurl = baseurl
+        self.original_baseurl = baseurl
         self.opts = opts
         self.authtype = None
         self.setSession(sinfo)
@@ -2373,7 +2375,19 @@ class ClientSession(object):
         self.logger.debug("Opening new requests session")
         if self.rsession:
             self.rsession.close()
+
+        # Resolve the hub we're going to talk to
+        uri = six.moves.urllib.parse.urlsplit(self.original_baseurl)
+        for addr in socket.getaddrinfo(uri[1], uri[0], 0, socket.SOCK_STREAM, socket.SOL_TCP):
+            s = socket.socket(addr[0], addr[1], addr[2])
+            closed = s.connect_ex(addr[4])
+            s.close()
+            if not closed:
+                self.baseurl = six.moves.urllib.parse.urlunsplit(uri._replace(netloc=socket.gethostbyaddr(addr[4][0])[0]))
+                break
+
         self.rsession = requests.Session()
+        self.rsession.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
 
     def setSession(self, sinfo):
         """Set the session info
@@ -2400,7 +2414,7 @@ class ClientSession(object):
     def subsession(self):
         "Create a subsession"
         sinfo = self.callMethod('subsession')
-        return type(self)(self.baseurl, self.opts, sinfo)
+        return type(self)(self.original_baseurl, self.opts, sinfo)
 
     def krb_login(self, principal=None, keytab=None, ccache=None, proxyuser=None, ctx=None):
         """Log in using Kerberos.  If principal is not None and keytab is
@@ -2693,7 +2707,7 @@ class ClientSession(object):
             # xml declaration for encoding as UTF-8".
             request = request.encode('utf-8')
         headers = [
-            # connection class handles Host
+            ('Host', six.moves.urllib.parse.urlsplit(self.original_baseurl)[1]),
             ('User-Agent', 'koji/1'),
             ('Content-Type', 'text/xml'),
             ('Content-Length', str(len(request))),
