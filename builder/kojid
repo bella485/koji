@@ -75,10 +75,14 @@ except ImportError:  # pragma: no cover
     krbV = None
 
 try:
-    import requests_kerberos
-    Krb5Error = requests_kerberos.exceptions.RequestException
+    import requests_gssapi as reqgssapi
+    Krb5Error = reqgssapi.exceptions.RequestException
 except ImportError:  # pragma: no cover
-    requests_kerberos = None
+    try:
+        import requests_kerberos as reqgssapi
+        Krb5Error = reqgssapi.exceptions.RequestException
+    except ImportError:  # pragma: no cover
+        reqgssapi = None
 
 try:
     import librepo
@@ -6544,7 +6548,7 @@ if __name__ == "__main__":
             quit("Error: Unable to log in. Bad credentials?")
         except requests.exceptions.ConnectionError:
             quit("Error: Unable to connect to server %s" % (options.server))
-    elif krbV or requests_kerberos:
+    elif krbV or reqgssapi:
         krb_principal = options.krb_principal
         if krb_principal is None:
             krb_principal = options.host_principal_format % socket.getfqdn()
