@@ -1137,7 +1137,7 @@ if __name__ == "__main__":
     elif options.user:
         # authenticate using user/password
         session.login()
-    elif (koji.krbV or koji.requests_kerberos) and options.principal and options.keytab:
+    elif (koji.krbV or koji.reqgssapi) and options.principal and options.keytab:
         session.krb_login(options.principal, options.keytab, options.ccache)
     else:
         quit("No username/password/certificate supplied and Kerberos missing or not configured")

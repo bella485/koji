@@ -125,10 +125,14 @@ Requires: rpm-python
 %endif
 Requires: pyOpenSSL
 Requires: python-requests
+%if 0%{?fedora} >= 32
+Requires: python-requests-gssapi
+%else
 %if 0%{?fedora} || 0%{?rhel} >= 7
 Requires: python-requests-kerberos
 %else
 Requires: python-krbV >= 1.0.13
+%endif
 %endif
 Requires: python-dateutil
 Requires: python-six
@@ -149,7 +153,11 @@ Requires: rpm-python%{python3_pkgversion}
 %endif
 Requires: python%{python3_pkgversion}-pyOpenSSL
 Requires: python%{python3_pkgversion}-requests
+%if 0%{?fedora} >= 32
+Requires: python%{python3_pkgversion}-requests-gssapi
+%else
 Requires: python%{python3_pkgversion}-requests-kerberos
+%endif
 Requires: python%{python3_pkgversion}-dateutil
 Requires: python%{python3_pkgversion}-six
 

@@ -14,7 +14,7 @@ import koji
 
 class KrbVTestCase(unittest.TestCase):
     @mock.patch('koji.krbV', new=None)
-    @mock.patch('koji.requests_kerberos', new=None)
+    @mock.patch('koji.reqgssapi', new=None)
     def test_krbv_disabled(self):
         """Test that when krbV and gssapi are absent, we behave rationally"""
         self.assertEquals(koji.krbV, None)
@@ -25,7 +25,7 @@ class KrbVTestCase(unittest.TestCase):
     # this case should work on python3, but skipped still
     @unittest.skipIf(six.PY3, "skipped on python3 since missing of python-krbV")
     @mock.patch('koji.krbV', create=True)
-    @mock.patch('requests_kerberos.__version__', new='0.7.0')
+    @mock.patch('reqgssapi.__version__', new='0.7.0')
     @mock.patch('koji.ClientSession._serverPrincipal')
     def test_krbv_old_requests_kerberos(self, _serverPrincipal_mock, krbV_mock):
         self.assertIsNotNone(koji.krbV)
