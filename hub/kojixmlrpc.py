@@ -530,6 +530,7 @@ _default_policies = {
             ''',
     'package_list': '''
             has_perm admin :: allow
+            has_perm tag :: allow
             all :: deny
             ''',
     'channel': '''
