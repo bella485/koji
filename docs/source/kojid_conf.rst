@@ -37,6 +37,10 @@ General
       Turn off SSL verification for https calls. It is strongly advised to
       not turn off this verification.
 
+   session_balance=False
+      Load-balance requests to hubs by session instead of per request. This
+      allows GSSAPI authentication to work with multiple load-balanced hubs.
+
    offline_retry=True
       The hub returns a special error code when it is placed in offline
       mode or when the database is unavailable. This setting controls

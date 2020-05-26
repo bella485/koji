@@ -1838,6 +1838,7 @@ def read_config(profile_name, user_config=None):
         'ca': '',  # FIXME: remove in next major release
         'serverca': None,
         'no_ssl_verify': False,
+        'session_balance': False,
         'authtype': None,
         'debug': False,
         'debug_xmlrpc': False,
@@ -1880,7 +1881,7 @@ def read_config(profile_name, user_config=None):
             if name in result:
                 if name in ('anon_retry', 'offline_retry',
                             'use_fast_upload', 'krb_rdns', 'debug',
-                            'debug_xmlrpc', 'krb_canon_host'):
+                            'debug_xmlrpc', 'krb_canon_host', 'session_balance'):
                     result[name] = config.getboolean(profile_name, name)
                 elif name in ('max_retries', 'retry_interval',
                               'offline_retry_interval', 'poll_interval',
@@ -2316,6 +2317,7 @@ def grab_session_options(options):
         'krb_canon_host',
         'krb_server_realm',
         'no_ssl_verify',
+        'session_balance',
         'serverca',
     )
     # cert is omitted for now
@@ -2375,15 +2377,16 @@ class ClientSession(object):
         if self.rsession:
             self.rsession.close()
 
-        # Resolve the hub we're going to talk to
-        uri = six.moves.urllib.parse.urlsplit(self.original_baseurl)
-        for addr in socket.getaddrinfo(uri[1], uri[0], 0, socket.SOCK_STREAM, socket.SOL_TCP):
-            s = socket.socket(addr[0], addr[1], addr[2])
-            closed = s.connect_ex(addr[4])
-            s.close()
-            if not closed:
-                self.baseurl = six.moves.urllib.parse.urlunsplit(uri._replace(netloc=socket.gethostbyaddr(addr[4][0])[0]))
-                break
+        if self.opts['session_balance']:
+            # Resolve the hub we're going to talk to
+            uri = six.moves.urllib.parse.urlsplit(self.original_baseurl)
+            for addr in socket.getaddrinfo(uri[1], uri[0], 0, socket.SOCK_STREAM, socket.SOL_TCP):
+                s = socket.socket(addr[0], addr[1], addr[2])
+                closed = s.connect_ex(addr[4])
+                s.close()
+                if not closed:
+                    self.baseurl = six.moves.urllib.parse.urlunsplit(uri._replace(netloc=socket.gethostbyaddr(addr[4][0])[0]))
+                    break
 
         self.rsession = requests.Session()
         self.rsession.mount('https://', util.HostHeaderSSLAdapter())
