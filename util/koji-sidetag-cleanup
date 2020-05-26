@@ -99,6 +99,7 @@ def get_options():
             ['serverca', None, 'string'],
             ['server', None, 'string'],
             ['no_ssl_verify', None, 'boolean'],
+            ['session_balance', None, 'boolean'],
         ]
         for name, alias, type in cfgmap:
             if alias is None:

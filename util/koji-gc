@@ -149,6 +149,7 @@ def get_options():
         ['grace_period', None, 'string'],
         ['trashcan_tag', None, 'string'],
         ['no_ssl_verify', None, 'boolean'],
+        ['session_balance', None, 'boolean'],
         ['timeout', None, 'integer'],
         ['lock_file', None, 'string'],
         ['exit_on_lock', None, 'boolean'],

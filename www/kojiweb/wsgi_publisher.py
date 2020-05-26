@@ -84,6 +84,7 @@ class Dispatcher(object):
 
         ['WebCert', 'string', None],
         ['KojiHubCA', 'string', '/etc/kojiweb/kojihubca.crt'],
+        ['session_balance', 'boolean', False],
 
         ['PythonDebug', 'boolean', False],
 
