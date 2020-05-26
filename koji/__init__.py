@@ -51,7 +51,6 @@ import xml.sax.handler
 from fnmatch import fnmatch
 
 import requests
-from requests_toolbelt.adapters import host_header_ssl
 import six
 import six.moves.configparser
 import six.moves.http_client
@@ -2387,7 +2386,7 @@ class ClientSession(object):
                 break
 
         self.rsession = requests.Session()
-        self.rsession.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
+        self.rsession.mount('https://', util.HostHeaderSSLAdapter())
 
     def setSession(self, sinfo):
         """Set the session info

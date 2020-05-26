@@ -130,7 +130,6 @@ Requires: python-requests-kerberos
 %else
 Requires: python-krbV >= 1.0.13
 %endif
-Requires: python-requests-toolbelt
 Requires: python-dateutil
 Requires: python-six
 
@@ -151,7 +150,6 @@ Requires: rpm-python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pyOpenSSL
 Requires: python%{python3_pkgversion}-requests
 Requires: python%{python3_pkgversion}-requests-kerberos
-Requires: python%{python3_pkgversion}-requests-toolbelt
 Requires: python%{python3_pkgversion}-dateutil
 Requires: python%{python3_pkgversion}-six
 
