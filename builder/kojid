@@ -3579,6 +3579,8 @@ class LiveMediaTask(ImageTask):
 
         if arch == 'x86_64':
             cmd.append('--macboot')
+        else:
+            cmd.append('--nomacboot')
 
         if b_append:
             cmd.extend(['--extra-boot-args',
