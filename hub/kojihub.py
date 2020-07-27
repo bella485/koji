@@ -8022,6 +8022,9 @@ def build_references(build_id, limit=None, lazy=False):
     # find timestamp of most recent use in a buildroot
     event_id = 0
     if build_rpm_ids:
+        # psql planner gots confused if buildroot table is large (>trillion)
+        # and len(rpm_ids) > ~500. In such case it switched to looped sequential scans
+        _dml("SET enable_hashjoin=off", {})
         q = """SELECT MAX(create_event)
                FROM standard_buildroot
                WHERE buildroot_id IN (
@@ -8030,7 +8033,9 @@ def build_references(build_id, limit=None, lazy=False):
                  WHERE rpm_id IN %(rpm_ids)s
                )"""
         event_id = (_fetchSingle(q, {'rpm_ids': build_rpm_ids}) or (0,))[0] or 0
+        _dml("SET enable_hashjoin=on", {})
     if build_archive_ids:
+        _dml("SET enable_hashjoin=off", {})
         q = """SELECT MAX(create_event)
                FROM standard_buildroot
                WHERE buildroot_id IN (
@@ -8039,6 +8044,7 @@ def build_references(build_id, limit=None, lazy=False):
                  WHERE archive_id IN %(archive_ids)s
                )"""
         event_id2 = (_fetchSingle(q, {'archive_ids': build_archive_ids}) or (0,))[0] or 0
+        _dml("SET enable_hashjoin=on", {})
         event_id = max(event_id, event_id2)
     if event_id:
         q = """SELECT EXTRACT(EPOCH FROM get_event_time(%(event_id)i))"""
