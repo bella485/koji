@@ -14022,30 +14022,137 @@ class Host(object):
                     task['alert'] = True
         return tasks
 
-    def updateHost(self, task_load, ready):
+    def updateHost(self, task_load, ready, free_resources):
         host_data = get_host(self.id)
         task_load = float(task_load)
         if task_load != host_data['task_load'] or ready != host_data['ready']:
             update = UpdateProcessor('host', clauses=['id=%(id)i'], values={'id': self.id},
                                      data={'task_load': task_load, 'ready': ready})
             update.execute()
+            free_mem = free_resources.get('memory')
+            q = """UPDATE host SET
+                task_load = %(task_load)f,
+                ready = %(ready)s,
+                free_space=%(free_space)s,
+                free_mem = %(free_mem)s
+              WHERE id=%(id)s"""
             context.commit_pending = True
 
-    def getLoadData(self):
-        """Get load balancing data
+    def checkAvailDelay(self, task, bin_avail, our_avail):
+        """Check to see if we should still delay taking a task
 
-        This data is relatively small and the necessary load analysis is
-        relatively complex, so we let the host machines crunch it."""
+        Returns True if we are still in the delay period and should skip the
+        task. Otherwise False (delay has expired).
+        """
+
+        logger.debug("checkAvailDelay: host: %s, task: %s, bin_avail: %s, our_avail: %s" % (
+                     self.id, task['id'], bin_avail, our_avail))
+        q = "SELECT seen FROM skipped_tasks WHERE task_id=%(task_id)s AND host_id=%(host_id)s"
+        values = {'task_id': task['id'], 'host_id': self.id}
+        if not _fetchSingle(q, values):
+            q = 'INSERT INTO skipped_tasks (host_id, task_id) VALUES (%(host_id)s, %(task_id)s)'
+            _dml(q, values)
+
+        # determine our normalized bin rank
+        for pos, cap in enumerate(bin_avail):
+            if our_avail >= cap:
+                break
+        if len(bin_avail) > 1:
+            rank = float(pos) / (len(bin_avail) - 1)
+        else:
+            rank = 0.0
+        # so, 0.0 for highest available capacity, 1.0 for lowest
+
+        delay = context.opts['task_avail_delay']
+        delay *= rank
+
+        q = """SELECT NOW() - seen FROM skipped_tasks
+               WHERE
+                 task_id=%(task_id)s AND
+                 host_id=%(host_id)s AND
+                 seen >= NOW() - '%(delay)s seconds'::interval"""
+        values['delay'] = delay
+        x = _fetchSingle(q, values)
+        if x:
+            logger.debug("skipping task %i, age=%s, rank=%s" % (task['id'], x[0], rank))
+            return True
+        else:
+            q = "DELETE FROM skipped_tasks WHERE host_id = %(host_id)s AND task_id = %(task_id)s"
+            _dml(q, values)
+            return False
+
+
+    def getLoadData(self):
+        """Get load balancing data"""
+        c = context.cnx.cursor()
+        q = "SELECT count(*) FROM task WHERE state = %(st_free)s"
+        c.execute(q, {'st_free': koji.TASK_STATES['FREE']})
+        if c.fetchone()[0] == 0:
+            return None
+        tasks = get_active_tasks()
+
+        bin_hosts = {}  # hosts indexed by bin
+        bins = {}  # bins for this host
+        our_avail = None
         hosts = get_ready_hosts()
         for host in hosts:
+            host['bins'] = []
             if host['id'] == self.id:
-                break
-        else:
-            # this host not in ready list
-            return [[], []]
-        # host is the host making the call
-        tasks = get_active_tasks(host)
-        return [hosts, tasks]
+                # note: task_load reported by server might differ from what we
+                # sent due to precision variation
+                our_avail = host['capacity'] - host['task_load']
+            for chan in host['channels']:
+                for arch in host['arches'].split() + ['noarch']:
+                    bin = "%s:%s" % (chan, arch)
+                    bin_hosts.setdefault(bin, []).append(host)
+                    if host['id'] == self.id:
+                        bins[bin] = 1
+        if our_avail is None:
+            logger.info("Server did not report this host. Are we disabled?")
+            return None
+        elif not bins:
+            logger.info("No bins for this host. Missing channel/arch config?")
+            # Note: we may still take an assigned task below
+
+        # sort available capacities for each of our bins
+        avail = {}
+        for bin in bins:
+            avail[bin] = [host['capacity'] - host['task_load'] for host in bin_hosts[bin]]
+            avail[bin].sort(reverse=True)
+
+        q = """DELETE FROM skipped_tasks
+               WHERE
+                 host_id = %(host_id)s AND
+                 seen < NOW() - 10 * '%(delay)s seconds'::interval"""
+        _dml(q, {
+            'host_id': host['id'],
+            'delay': context.opts['task_avail_delay']
+        })
+
+        for task in tasks:
+            # note: tasks are in priority order
+            logger.debug("task: %r" % task)
+            if task['state'] == koji.TASK_STATES['ASSIGNED']:
+                logger.debug("task is assigned")
+                if self.id == task['host_id']:
+                    return task
+            elif task['state'] == koji.TASK_STATES['FREE']:
+                bin = "%(channel_id)s:%(arch)s" % task
+                logger.debug("task is free, bin=%r" % bin)
+                if bin not in bins:
+                    continue
+                # see where our available capacity is compared to other hosts for this bin
+                # (note: the hosts in this bin are exactly those that could
+                # accept this task)
+                bin_avail = avail.get(bin, [0])
+                if self.checkAvailDelay(task, bin_avail, our_avail):
+                    # decline for now and give the upper half a chance
+                    continue
+                return task
+            else:
+                # should not happen
+                logger.error("Invalid task state (task: %d, state: %d)" % task['id'], task['state'])
+        return None
 
     def getTask(self):
         """Open next available task and return it"""
@@ -14107,10 +14214,10 @@ class HostExports(object):
         host.verify()
         return host.id
 
-    def updateHost(self, task_load, ready):
+    def updateHost(self, task_load, ready, free_resources):
         host = Host()
         host.verify()
-        host.updateHost(task_load, ready)
+        host.updateHost(task_load, ready, free_resources)
 
     def getLoadData(self):
         host = Host()

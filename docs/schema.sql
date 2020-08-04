@@ -199,7 +199,6 @@ CREATE TABLE host_channels (
 	UNIQUE (host_id, channel_id, active)
 ) WITHOUT OIDS;
 
-
 -- tasks are pretty general and may refer to all sorts of jobs, not
 -- just package builds.
 -- tasks may spawn subtasks (hence the parent field)
@@ -242,6 +241,14 @@ CREATE INDEX task_by_state ON task (state);
 -- CREATE INDEX task_by_parent ON task (parent);   (unique condition creates similar index)
 CREATE INDEX task_by_host ON task (host_id);
 CREATE INDEX task_by_no_parent_state_method ON task(parent, state, method) WHERE parent IS NULL;
+
+
+-- helper table for scheduler, see getLoadData
+CREATE TABLE skipped_tasks (
+        host_id INTEGER NOT NULL REFERENCES host (id),
+        task_id INTEGER NOT NULL REFERENCES task (id),
+	seen TIMESTAMPTZ NOT NULL DEFAULT NOW()
+) WITHOUT OIDS;
 
 
 -- by package, we mean srpm
