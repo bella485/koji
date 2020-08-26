@@ -75,19 +75,8 @@ clean:
 git-clean:
 	@git clean -d -q -x
 
-test: test2 test3
-	@echo "All tests are finished for python 2&3"
-
-test2:
-	coverage2 erase
-	PYTHONPATH=.:plugins/builder/.:plugins/cli/.:cli/.:www/lib coverage2 run \
-	    --source . -m nose tests/test_builder tests/test_cli tests/test_lib \
-	    tests/test_plugins/test*builder.py tests/test_plugins/test*cli.py
-	coverage2 report
-	coverage2 html
-	@echo Full coverage report at file://${CURDIR}/htmlcov/py2/index.html
-
-test3:
+test:
+	@echo "All tests are finished for python 3"
 	coverage3 erase --rcfile .coveragerc3
 	PYTHONPATH=hub/.:plugins/hub/.:plugins/builder/.:plugins/cli/.:cli/.:www/lib coverage3 run \
 	    --rcfile .coveragerc3 --source . -m nose
