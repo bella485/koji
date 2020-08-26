@@ -76,7 +76,6 @@ git-clean:
 	@git clean -d -q -x
 
 test:
-	@echo "All tests are finished for python 3"
 	coverage3 erase --rcfile .coveragerc3
 	PYTHONPATH=hub/.:plugins/hub/.:plugins/builder/.:plugins/cli/.:cli/.:www/lib coverage3 run \
 	    --rcfile .coveragerc3 --source . -m nose
