@@ -19,15 +19,11 @@
 #       Mike McLean <mikem@redhat.com>
 #       Mike Bonnet <mikeb@redhat.com>
 
-from __future__ import absolute_import
-
 import random
 import re
 import socket
 import string
-
-import six
-from six.moves import range, urllib, zip
+import urllib
 
 import koji
 from .context import context
@@ -613,7 +609,7 @@ class Session(object):
         if krb_princ_check:
             self.checkKrbPrincipal(krb_principal)
         select = """SELECT id FROM users WHERE %s"""
-        if isinstance(name, six.integer_types):
+        if isinstance(name, int):
             user_condition = 'id = %(name)i'
         else:
             user_condition = 'name = %(name)s'
@@ -638,7 +634,7 @@ class Session(object):
                     ON users.id = user_krb_principals.user_id
                     WHERE %s
                     AND krb_principal = %%(krb_principal)s"""
-        if isinstance(name, six.integer_types):
+        if isinstance(name, int):
             user_condition = 'id = %(name)i'
         else:
             user_condition = 'name = %(name)s'

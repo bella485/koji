@@ -1,12 +1,7 @@
-from __future__ import absolute_import
-from __future__ import print_function
 import copy
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_regen_repo
 from . import utils
@@ -77,7 +72,7 @@ class TestRegenRepo(utils.CliTestCase):
         expected += "Regenerating repo for tag: %s" % self.tag_name + "\n"
         expected += "Created task: %d" % self.task_id + "\n"
         expected += "Task info: %s/taskinfo?taskID=%s" % (self.options.weburl, self.task_id) + "\n"
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_regen_repo(self.options, self.session, arguments)
             self.assertEqual(rv, return_value)
         self.assert_console_message(stdout, expected)

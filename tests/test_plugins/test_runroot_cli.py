@@ -1,11 +1,6 @@
-from __future__ import absolute_import
 import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 from . import load_plugin
@@ -19,19 +14,13 @@ class ParserError(Exception):
 
 def mock_stdout():
     def get_mock():
-        if six.PY2:
-            return six.StringIO()
-        else:
-            return io.TextIOWrapper(six.BytesIO())
+        return io.TextIOWrapper(io.BytesIO())
     return mock.patch('sys.stdout', new_callable=get_mock)
 
 
 def get_stdout_value(stdout):
-    if six.PY2:
-        return stdout.getvalue()
-    else:
-        # we have to force the TextIOWrapper to stop buffering
-        return stdout.detach().getvalue()
+    # we have to force the TextIOWrapper to stop buffering
+    return stdout.detach().getvalue()
 
 
 class TestListCommands(unittest.TestCase):
@@ -78,7 +67,7 @@ class TestListCommands(unittest.TestCase):
     def test_handle_runroot(self, stdout, sleep):
         # Mock out the xmlrpc server
         self.session.getTaskInfo.return_value = {'state': 1}
-        self.session.downloadTaskOutput.return_value = six.b('task output')
+        self.session.downloadTaskOutput.return_value = b'task output'
         self.session.listTaskOutput.return_value = {'runroot.log': ['DEFAULT']}
         self.session.runroot.return_value = 1
         self.session.taskFinished.side_effect = [False, True]

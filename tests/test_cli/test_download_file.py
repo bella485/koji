@@ -1,24 +1,13 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
+import os
+import requests
+import requests_mock
 import shutil
 import tempfile
-import os
-import requests_mock
-import requests
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.lib import download_file, _download_progress
-
-def mock_open():
-    """Return the right patch decorator for open"""
-    if six.PY2:
-        return mock.patch('__builtin__.open')
-    else:
-        return mock.patch('builtins.open')
 
 
 class TestDownloadFile(unittest.TestCase):
@@ -35,8 +24,8 @@ class TestDownloadFile(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
         self.filename = self.tempdir + "/filename"
-        self.stdout = mock.patch('sys.stdout', new_callable=six.StringIO).start()
-        self.stderr = mock.patch('sys.stderr', new_callable=six.StringIO).start()
+        self.stdout = mock.patch('sys.stdout', new_callable=io.StringIO).start()
+        self.stderr = mock.patch('sys.stderr', new_callable=io.StringIO).start()
         self.requests_get = mock.patch('requests.get', create=True, name='requests.get').start()
         # will work when contextlib.closing will be removed in future
         #self.requests_get = self.requests_get.return_value.__enter__
@@ -57,7 +46,7 @@ class TestDownloadFile(unittest.TestCase):
         else:
             self.assertEqual(cm.exception.args, (21, 'Is a directory'))
 
-    @mock_open()
+    @mock.patch('builtins.open')
     def test_handle_download_file(self, m_open):
         self.reset_mock()
         response = mock.MagicMock()
@@ -77,7 +66,7 @@ class TestDownloadFile(unittest.TestCase):
         response.iter_content.assert_called_once()
         self.assertIsNone(rv)
 
-    @mock_open()
+    @mock.patch('builtins.open')
     def test_handle_download_file_undefined_length(self, m_open):
         self.reset_mock()
         response = mock.MagicMock()
@@ -135,7 +124,7 @@ class TestDownloadProgress(unittest.TestCase):
     maxDiff = None
 
     def setUp(self):
-        self.stdout = mock.patch('sys.stdout', new_callable=six.StringIO).start()
+        self.stdout = mock.patch('sys.stdout', new_callable=io.StringIO).start()
 
     def tearDown(self):
         mock.patch.stopall()

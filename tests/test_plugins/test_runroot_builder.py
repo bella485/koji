@@ -1,12 +1,8 @@
-from __future__ import absolute_import
+import configparser
 import copy
 import mock
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-import six.moves.configparser
 
 # inject builder data
 from tests.test_builder.loadkojid import kojid
@@ -15,19 +11,6 @@ __main__.BuildRoot = kojid.BuildRoot
 
 import koji
 import runroot
-
-def mock_open():
-    """Return the right patch decorator for open"""
-    if six.PY2:
-        return mock.patch('__builtin__.open')
-    else:
-        return mock.patch('builtins.open')
-
-
-if six.PY2:
-    CONFIG_PARSER = 'six.moves.configparser.SafeConfigParser'
-else:
-    CONFIG_PARSER = 'six.moves.configparser.ConfigParser'
 
 
 CONFIG1 = {
@@ -98,11 +81,11 @@ class FakeConfigParser(object):
         try:
             return self.CONFIG[section][key]
         except KeyError:
-            raise six.moves.configparser.NoOptionError(section, key)
+            raise configparser.NoOptionError(section, key)
 
 
 class TestRunrootConfig(unittest.TestCase):
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def test_bad_config_paths0(self, config_parser):
         cp = FakeConfigParser()
         del cp.CONFIG['path0']['mountpoint']
@@ -115,7 +98,7 @@ class TestRunrootConfig(unittest.TestCase):
         self.assertEqual(cm.exception.args[0],
             "bad config: missing options in path0 section")
 
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def test_bad_config_absolute_path(self, config_parser):
         cp = FakeConfigParser()
         cp.CONFIG['paths']['default_mounts'] = ''
@@ -128,7 +111,7 @@ class TestRunrootConfig(unittest.TestCase):
         self.assertEqual(cm.exception.args[0],
             "bad config: all paths (default_mounts, safe_roots, path_subs) needs to be absolute: ")
 
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def test_valid_config(self, config_parser):
         config_parser.return_value = FakeConfigParser()
         session = mock.MagicMock()
@@ -136,7 +119,7 @@ class TestRunrootConfig(unittest.TestCase):
         options.workdir = '/tmp/nonexistentdirectory'
         runroot.RunRootTask(123, 'runroot', {}, session, options)
 
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def test_valid_config_alt(self, config_parser):
         config_parser.return_value = FakeConfigParser(CONFIG2)
         session = mock.MagicMock()
@@ -144,7 +127,7 @@ class TestRunrootConfig(unittest.TestCase):
         options.workdir = '/tmp/nonexistentdirectory'
         runroot.RunRootTask(123, 'runroot', {}, session, options)
 
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def test_pathnum_gaps(self, config_parser):
         session = mock.MagicMock()
         options = mock.MagicMock()
@@ -165,7 +148,7 @@ class TestRunrootConfig(unittest.TestCase):
         paths = list([CONFIG2[k] for k in ('path0', 'path1', 'path2')])
         self.assertEqual(task2.config['paths'], paths)
 
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def test_bad_path_sub(self, config_parser):
         session = mock.MagicMock()
         options = mock.MagicMock()
@@ -178,7 +161,7 @@ class TestRunrootConfig(unittest.TestCase):
 
 
 class TestMounts(unittest.TestCase):
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def setUp(self, config_parser):
         config_parser.return_value = FakeConfigParser()
         self.session = mock.MagicMock()
@@ -195,7 +178,7 @@ class TestMounts(unittest.TestCase):
         self.assertEqual(self.t._get_path_params('/mnt/archive', 'rw'),
             ('archive.org:/vol/archive/', '/mnt/archive', 'nfs', 'rw,hard,intr,nosuid,nodev,noatime,tcp'))
 
-    @mock_open()
+    @mock.patch('builtins.open')
     @mock.patch('os.path.isdir')
     @mock.patch('runroot.log_output')
     def test_do_mounts(self, log_output, is_dir, open_mock):
@@ -296,7 +279,7 @@ class TestMounts(unittest.TestCase):
         self.t.do_mounts.assert_not_called()
 
 
-    @mock_open()
+    @mock.patch('builtins.open')
     @mock.patch('runroot.scan_mounts')
     @mock.patch('os.unlink')
     @mock.patch('subprocess.Popen')
@@ -330,7 +313,7 @@ class TestMounts(unittest.TestCase):
         os_unlink.assert_not_called()
 
 class TestHandler(unittest.TestCase):
-    @mock.patch(CONFIG_PARSER)
+    @mock.patch('configparser.ConfigParser')
     def setUp(self, config_parser):
         self.session = mock.MagicMock()
         self.br = mock.MagicMock()

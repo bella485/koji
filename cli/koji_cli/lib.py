@@ -1,6 +1,4 @@
 # coding=utf-8
-from __future__ import absolute_import, division
-
 import hashlib
 import optparse
 import os
@@ -9,11 +7,10 @@ import socket
 import string
 import sys
 import time
+import xmlrpc.client
 from contextlib import closing
 
 import requests
-import six
-from six.moves import range
 
 import koji
 # import parse_arches to current namespace for backward compatibility
@@ -165,7 +162,7 @@ class TaskWatcher(object):
         error = None
         try:
             self.session.getTaskResult(self.id)
-        except (six.moves.xmlrpc_client.Fault, koji.GenericError) as e:
+        except (xmlrpc.client.Fault, koji.GenericError) as e:
             error = e
         if error is None:
             # print("%s: complete" % self.str())
@@ -324,11 +321,8 @@ def watch_tasks(session, tasklist, quiet=False, poll_interval=60, ki_handler=Non
 
 def bytes_to_stdout(contents):
     """Helper function for writing bytes to stdout"""
-    if six.PY2:
-        sys.stdout.write(contents)
-    else:
-        sys.stdout.buffer.write(contents)
-        sys.stdout.buffer.flush()
+    sys.stdout.buffer.write(contents)
+    sys.stdout.buffer.flush()
 
 
 def watch_logs(session, tasklist, opts, poll_interval):
@@ -355,7 +349,7 @@ def watch_logs(session, tasklist, opts, poll_interval):
             output = list_task_output_all_volumes(session, task_id)
             # convert to list of (file, volume)
             files = []
-            for filename, volumes in six.iteritems(output):
+            for filename, volumes in output.items():
                 files += [(filename, volume) for volume in volumes]
 
             if opts.log:

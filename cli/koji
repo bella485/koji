@@ -24,17 +24,11 @@
 #       Mike Bonnet <mikeb@redhat.com>
 #       Cristian Balint <cbalint@redhat.com>
 
-from __future__ import absolute_import, division
-
 import logging
 import os
 import re
 import sys
 from optparse import SUPPRESS_HELP, OptionParser
-
-import six
-import six.moves.configparser
-import six.moves.xmlrpc_client
 
 import koji
 import koji.plugin
@@ -48,8 +42,8 @@ def register_plugin(plugin):
 
     Handlers are functions marked with one of the decorators defined in koji.plugin
     """
-    for v in six.itervalues(vars(plugin)):
-        if isinstance(v, six.class_types):
+    for v in vars(plugin).values():
+        if isinstance(v, type):
             # skip classes
             continue
         if callable(v):
@@ -160,7 +154,7 @@ def get_options():
         assert False  # pragma: no cover
 
     # update options according to local config
-    for name, value in six.iteritems(result):
+    for name, value in result.items():
         if getattr(options, name, None) is None:
             setattr(options, name, value)
 

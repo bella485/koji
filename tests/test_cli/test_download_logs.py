@@ -1,7 +1,7 @@
-from __future__ import absolute_import
+import builtins
+import io
 import mock
 from mock import call
-import six
 
 from . import utils
 from koji_cli.commands import anon_handle_download_logs
@@ -23,15 +23,11 @@ class TestDownloadLogs(utils.CliTestCase):
         self.ensuredir = mock.patch('koji.ensuredir').start()
         self.download_file = mock.patch('koji_cli.commands.download_file').start()
         self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
-        self.stdout = mock.patch('sys.stdout', new_callable=six.StringIO).start()
-        self.stderr = mock.patch('sys.stderr', new_callable=six.StringIO).start()
+        self.stdout = mock.patch('sys.stdout', new_callable=io.StringIO).start()
+        self.stderr = mock.patch('sys.stderr', new_callable=io.StringIO).start()
 
         self.builtin_open = None
-        if six.PY2:
-            self.builtin_open = __builtins__['open']
-        else:
-            import builtins
-            self.builtin_open = builtins.open
+        self.builtin_open = builtins.open
         self.custom_open = {}
 
     def tearDown(self):
@@ -85,14 +81,10 @@ class TestDownloadLogs(utils.CliTestCase):
             'file2_not_log': ['volume2'],
         }
         self.session.downloadTaskOutput.side_effect = ['abcde', '']
-        out_file = six.StringIO()
+        out_file = io.StringIO()
         self.custom_open['kojilogs/x86_64-123456/volume1/file1.log'] = out_file
 
-        if six.PY2:
-            target = '__builtin__.open'
-        else:
-            target = 'builtins.open'
-        with mock.patch(target, new=self.mock_builtin_open):
+        with mock.patch('builtins.open', new=self.mock_builtin_open):
             anon_handle_download_logs(self.options, self.session, [str(task_id)])
 
         self.session.getTaskInfo.assert_called_once_with(task_id)

@@ -20,8 +20,6 @@
 #       Mike McLean <mikem@redhat.com>
 #       Mike Bonnet <mikeb@redhat.com>
 
-from __future__ import absolute_import, division
-
 import errno
 import hashlib
 import logging
@@ -31,10 +29,8 @@ import subprocess
 import sys
 import time
 import traceback
+import urllib
 from fnmatch import fnmatch
-
-import six
-from six.moves import range, urllib
 
 import koji
 import koji.tasks
@@ -132,9 +128,7 @@ def log_output(session, path, args, outfile, uploadpath, cwd=None, logerror=0, a
             if logerror:
                 os.dup2(fd, 2)
             # echo the command we're running into the logfile
-            msg = '$ %s\n' % ' '.join(args)
-            if six.PY3:
-                msg = msg.encode('utf-8')
+            msg = '$ %s\n' % ' '.join(args).encode('utf-8')
             os.write(fd, msg)
             environ = os.environ.copy()
             if env:
@@ -144,10 +138,7 @@ def log_output(session, path, args, outfile, uploadpath, cwd=None, logerror=0, a
             msg = ''.join(traceback.format_exception(*sys.exc_info()))
             if fd:
                 try:
-                    if six.PY3:
-                        os.write(fd, msg.encode('utf-8'))
-                    else:
-                        os.write(fd, msg)
+                    os.write(fd, msg.encode('utf-8'))
                     os.close(fd)
                 except Exception:
                     pass
@@ -566,9 +557,7 @@ class SCM(object):
             status = proc.wait()
             if status != 0:
                 raise koji.GenericError('Error getting commit hash for git')
-            fragment = out.strip()
-            if six.PY3:
-                fragment = fragment.decode()
+            fragment = out.strip().decode()
             scheme = self.scheme[:-3]
             netloc = self.host
             path = self.repository

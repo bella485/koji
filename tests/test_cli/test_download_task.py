@@ -1,8 +1,7 @@
-from __future__ import absolute_import
+import io
 import mock
 from mock import call
 import os
-import six
 import sys
 
 from koji_cli.commands import anon_handle_download_task
@@ -18,7 +17,7 @@ class TestDownloadTask(utils.CliTestCase):
     def gen_calls(self, task_output, pattern, blacklist=[], arch=None):
 
         params = [(k, v) for k, vl in
-                  six.iteritems(task_output)
+                  task_output.items()
                   if k not in blacklist
                   for v in vl]
         total = len(params)
@@ -48,8 +47,8 @@ class TestDownloadTask(utils.CliTestCase):
         self.ensuredir = mock.patch('koji.ensuredir').start()
         self.download_file = mock.patch('koji_cli.commands.download_file').start()
         self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
-        self.stdout = mock.patch('sys.stdout', new_callable=six.StringIO).start()
-        self.stderr = mock.patch('sys.stderr', new_callable=six.StringIO).start()
+        self.stdout = mock.patch('sys.stdout', new_callable=io.StringIO).start()
+        self.stderr = mock.patch('sys.stderr', new_callable=io.StringIO).start()
 
     def tearDown(self):
         mock.patch.stopall()

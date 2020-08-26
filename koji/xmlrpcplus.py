@@ -2,23 +2,19 @@
 Custom xmlrpc handling for Koji
 """
 
-from __future__ import absolute_import
-
 import types
-
-import six
-import six.moves.xmlrpc_client as xmlrpc_client
+import xmlrpc.client
 
 # duplicate a few values that we need
-getparser = xmlrpc_client.getparser
-loads = xmlrpc_client.loads
-Fault = xmlrpc_client.Fault
-DateTime = xmlrpc_client.DateTime
+getparser = xmlrpc.client.getparser
+loads = xmlrpc.client.loads
+Fault = xmlrpc.client.Fault
+DateTime = xmlrpc.client.DateTime
 
 
-class ExtendedMarshaller(xmlrpc_client.Marshaller):
+class ExtendedMarshaller(xmlrpc.client.Marshaller):
 
-    dispatch = xmlrpc_client.Marshaller.dispatch.copy()
+    dispatch = xmlrpc.client.Marshaller.dispatch.copy()
 
     def _dump(self, value, write):
         # Parent class is unfriendly to subclasses :-/
@@ -41,13 +37,13 @@ class ExtendedMarshaller(xmlrpc_client.Marshaller):
         # but can unmarshall it correctly.
         if (value > self.MAXI8 or value < self.MINI8):
             raise OverflowError("long int exceeds XML-RPC limits")
-        elif (value > xmlrpc_client.MAXINT or
-                value < xmlrpc_client.MININT):
+        elif (value > xmlrpc.client.MAXINT or
+                value < xmlrpc.client.MININT):
             write("<value><i8>")
             write(str(int(value)))
             write("</i8></value>\n")
         else:
-            return xmlrpc_client.Marshaller.dump_int(self, value, write)
+            return xmlrpc.client.Marshaller.dump_int(self, value, write)
     dispatch[int] = dump_int
 
 
@@ -86,9 +82,6 @@ def dumps(params, methodname=None, methodresponse=None, encoding=None,
     # standard XML-RPC wrappings
     if methodname:
         # a method call
-        if six.PY2 and isinstance(methodname, six.text_type):
-            # Do we need this?
-            methodname = methodname.encode(encoding, 'xmlcharrefreplace')
         parts = (
             xmlheader,
             "<methodCall>\n"

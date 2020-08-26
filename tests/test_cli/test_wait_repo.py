@@ -1,12 +1,7 @@
-from __future__ import absolute_import
-from __future__ import print_function
 import copy
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import anon_handle_wait_repo
 from . import utils
@@ -60,8 +55,8 @@ class TestWaitRepo(utils.CliTestCase):
         mock.patch.stopall()
 
     @mock.patch('time.time')
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def __test_wait_repo(self, args, expected, stderr, stdout, time_mock, ret_code=0):
         self.options.quiet = False
         time_mock.side_effect = [0, 1, 2, 3]
@@ -78,8 +73,8 @@ class TestWaitRepo(utils.CliTestCase):
             self.assertIn(rv, [0, None])
 
     @mock.patch('time.time')
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def __test_wait_repo_timeout(self, args, expected, stderr, stdout, time_mock, ret_code=0):
         self.options.quiet = False
         time_mock.side_effect = [0, 61, 62]
@@ -192,7 +187,7 @@ class TestWaitRepo(utils.CliTestCase):
                 activate_session=None)
         self.activate_session.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_anon_handle_wait_repo_target_not_found(self, stderr):
         """Test anon_handle_wait_repo function on target not found cases"""
 

@@ -19,14 +19,10 @@
 #       Mike McLean <mikem@redhat.com>
 #       Mike Bonnet <mikeb@redhat.com>
 
-from __future__ import absolute_import
-
 import imp
 import logging
 import sys
 import traceback
-
-import six
 
 import koji
 from koji.util import encode_datetime_recurse
@@ -98,7 +94,7 @@ class PluginTracker(object):
         return self.plugins.get(name)
 
     def pathlist(self, path):
-        if isinstance(path, six.string_types):
+        if isinstance(path, str):
             return [path]
         else:
             return path

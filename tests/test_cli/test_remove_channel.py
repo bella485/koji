@@ -1,12 +1,8 @@
-from __future__ import absolute_import
+import io
 import mock
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_remove_channel
 from . import utils
@@ -17,7 +13,7 @@ class TestRemoveChannel(utils.CliTestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_channel(self, activate_session_mock, stdout):
         channel = 'channel'
@@ -42,7 +38,7 @@ class TestRemoveChannel(utils.CliTestCase):
         session.removeChannel.assert_called_once_with(channel, force=None)
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_channel_force(self, activate_session_mock, stdout):
         channel = 'channel'
@@ -68,7 +64,7 @@ class TestRemoveChannel(utils.CliTestCase):
         session.removeChannel.assert_called_once_with(channel, force=True)
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_channel_no_channel(
             self, activate_session_mock, stderr):
@@ -95,8 +91,8 @@ class TestRemoveChannel(utils.CliTestCase):
         session.getChannel.assert_called_once_with(channel)
         session.removeChannel.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_channel_help(
             self, activate_session_mock, stderr, stdout):

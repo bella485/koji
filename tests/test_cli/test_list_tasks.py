@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 from koji_cli.lib import _list_tasks
@@ -169,7 +165,7 @@ class TestCliListTasks(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands._list_tasks')
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_list_tasks(

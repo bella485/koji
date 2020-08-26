@@ -20,9 +20,6 @@
 # Authors:
 #       Mike McLean <mikem@redhat.com>
 #       Mike Bonnet <mikeb@redhat.com>
-
-from __future__ import absolute_import, division
-
 import copy
 import glob
 import grp
@@ -42,6 +39,7 @@ import sys
 import time
 import traceback
 import xml.dom.minidom
+import xmlrpc.client
 import zipfile
 from fnmatch import fnmatch
 from gzip import GzipFile
@@ -50,8 +48,6 @@ from optparse import SUPPRESS_HELP, OptionParser
 import Cheetah.Template
 import requests
 import rpm
-import six
-import six.moves.xmlrpc_client
 from multilib import multilib
 
 import koji
@@ -340,7 +336,7 @@ class BuildRoot(object):
         id_suffix = 'repo'
         name_prefix = 'Repository for Koji'
         for dep in self.deps:
-            if isinstance(dep, six.integer_types):
+            if isinstance(dep, int):
                 # dep is a task ID, the url points to the task output directory
                 repo_type = 'task'
                 dep_url = pi.task(dep)
@@ -847,8 +843,7 @@ class BuildRoot(object):
             origin_idx = {}
             # don't use 'with GzipFile' as it is not supported on py2.6
             fo2 = GzipFile(fileobj=fo, mode='r')
-            if six.PY3:
-                fo2 = io.TextIOWrapper(fo2, encoding='utf-8')
+            fo2 = io.TextIOWrapper(fo2, encoding='utf-8')
             for line in fo2:
                 parts = line.split(None, 2)
                 if len(parts) < 2:
@@ -1290,7 +1285,7 @@ class BuildTask(BaseTaskHandler):
         brmap = {}
         logs = {}
         built_srpm = None
-        for (arch, task_id) in six.iteritems(subtasks):
+        for (arch, task_id) in subtasks.items():
             result = results[task_id]
             self.logger.debug("DEBUG: %r : %r " % (arch, result,))
             brootid = result['brootid']
@@ -1823,7 +1818,7 @@ class BuildMavenTask(BaseBuildTask):
         for filepath in logs:
             self.uploadFile(os.path.join(outputdir, filepath),
                             relPath=os.path.dirname(filepath))
-        for relpath, files in six.iteritems(output_files):
+        for relpath, files in output_files.items():
             for filename in files:
                 self.uploadFile(os.path.join(outputdir, relpath, filename),
                                 relPath=relpath)
@@ -2287,7 +2282,7 @@ class ChainMavenTask(MultiPlatformTask):
                     pkg_to_wrap = params['buildrequires'][0]
                     to_wrap = self.done[pkg_to_wrap]
 
-                    if isinstance(to_wrap, six.integer_types):
+                    if isinstance(to_wrap, int):
                         task_to_wrap = self.session.getTaskInfo(to_wrap, request=True)
                         build_to_wrap = None
                     else:
@@ -2307,7 +2302,7 @@ class ChainMavenTask(MultiPlatformTask):
                 del todo[package]
             try:
                 results = self.wait(to_list(running.keys()))
-            except (six.moves.xmlrpc_client.Fault, koji.GenericError):
+            except (xmlrpc.client.Fault, koji.GenericError):
                 # One task has failed, wait for the rest to complete before the
                 # chainmaven task fails.  self.wait(all=True) should thrown an exception.
                 self.wait(all=True)
@@ -3061,7 +3056,7 @@ class ImageTask(BaseTaskHandler):
         self.ks.handler.repo.repoList = []  # delete whatever the ks file told us
         if opts.get('repo'):
             user_repos = opts['repo']
-            if isinstance(user_repos, six.string_types):
+            if isinstance(user_repos, str):
                 user_repos = user_repos.split(',')
             index = 0
             for user_repo in user_repos:
@@ -5434,7 +5429,7 @@ class NewRepoTask(BaseTaskHandler):
         data = {}
         if subtasks:
             results = self.wait(to_list(subtasks.values()), all=True, failany=True)
-            for (arch, task_id) in six.iteritems(subtasks):
+            for (arch, task_id) in subtasks.items():
                 data[arch] = results[task_id]
                 self.logger.debug("DEBUG: %r : %r " % (arch, data[arch],))
 
@@ -5578,9 +5573,7 @@ class CreaterepoTask(BaseTaskHandler):
             ext_url = ext_url.replace('$arch', arch)
             repos.append(ext_url)
 
-        mergerepo_c_version = None
-        if self.options.use_createrepo_c or six.PY3:
-            mergerepo_c_version = self._get_mergerepo_c_version()
+        mergerepo_c_version = self._get_mergerepo_c_version()
 
         # construct command
         if merge_mode == 'simple':
@@ -5660,7 +5653,7 @@ class NewDistRepoTask(BaseTaskHandler):
                     parent=self.id, arch='noarch')
         # wait for 64-bit subtasks to finish
         self.wait(to_list(subtasks.values()), all=True, failany=True)
-        for (arch, task_id) in six.iteritems(subtasks):
+        for (arch, task_id) in subtasks.items():
             if task_opts['multilib'] and arch in arch32s:
                 # already moved above
                 continue
@@ -6311,9 +6304,9 @@ class WaitrepoTask(BaseTaskHandler):
         if not targets:
             raise koji.GenericError("No build target for tag: %s" % taginfo['name'])
 
-        if isinstance(newer_than, six.string_types) and newer_than.lower() == "now":
+        if isinstance(newer_than, str) and newer_than.lower() == "now":
             newer_than = start
-        if not isinstance(newer_than, tuple(to_list(six.integer_types) + [type(None), float])):
+        if not isinstance(newer_than, (str, float, type(None))):
             raise koji.GenericError("Invalid value for newer_than: %s" % newer_than)
 
         if newer_than and nvrs:

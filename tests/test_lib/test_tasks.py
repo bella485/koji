@@ -1,12 +1,7 @@
-from __future__ import absolute_import
+import io
 import random
 import shutil
-import six
-from six.moves import range
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from os import path, makedirs
 from tempfile import gettempdir
@@ -22,7 +17,7 @@ from koji.tasks import BaseTaskHandler, FakeTask, ForkTask, SleepTask, \
 def get_fake_mounts_file():
     """ Returns contents of /prc/mounts in a file-like object
     """
-    return six.StringIO(six.text_type((
+    return io.StringIO(str((
         'sysfs /sys sysfs rw,seclabel,nosuid,nodev,noexec,relatime 0 0\n'
         'proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0\n'
         'devtmpfs /dev devtmpfs rw,seclabel,nosuid,size=238836k,nr_inodes=59709,mode=755 0 0\n'

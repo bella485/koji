@@ -1,16 +1,11 @@
-from __future__ import absolute_import
+import io
 import json
 import mock
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from mock import call
-from six.moves import range
 
 from koji_cli.lib import watch_tasks
 from .fakeclient import FakeClientSession, RecordingClientSession
@@ -45,7 +40,7 @@ class TestWatchTasks(unittest.TestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_watch_tasks_no_tasklist(self, stdout):
         returned = watch_tasks(self.session, [], poll_interval=0)
         actual = stdout.getvalue()
@@ -53,7 +48,7 @@ class TestWatchTasks(unittest.TestCase):
         self.assertIsNone(returned)
         self.assertEqual(actual, expected)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_watch_tasks(self, stdout):
         # self.setup_record('foo.json')
         cfile = os.path.dirname(__file__) + '/data/calls/watchtasks1.json'
@@ -73,7 +68,7 @@ class TestWatchTasks(unittest.TestCase):
         self.assertMultiLineEqual(stdout.getvalue(), expected)
 
     @mock.patch('time.sleep')
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_watch_tasks_fail(self, stdout, sleep):
         # self.setup_record('foo.json')
         cfile = os.path.dirname(__file__) + '/data/calls/watchtasks2.json'
@@ -97,7 +92,7 @@ class TestWatchTasks(unittest.TestCase):
         self.assertMultiLineEqual(stdout.getvalue(), expected)
 
     @mock.patch('time.sleep')
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_watch_tasks_with_keyboardinterrupt(self, stdout, sleep):
         """Raise KeyboardInterrupt inner watch_tasks.
         Raising it by SIGNAL might be better"""
@@ -122,7 +117,7 @@ Running Tasks:
         self.assertMultiLineEqual(stdout.getvalue(), expected)
 
     @mock.patch('time.sleep')
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_watch_tasks_with_keyboardinterrupt_handler(self, stdout, sleep):
         """Raise KeyboardInterrupt inner watch_tasks with a ki_handler"""
         cfile = os.path.dirname(__file__) + '/data/calls/watchtasks2.json'

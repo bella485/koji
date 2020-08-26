@@ -18,21 +18,17 @@
 # This library and program is heavily based on rpmdiff from the rpmlint package
 # It was modified to be used as standalone library for the Koji project.
 
-from __future__ import absolute_import
-
 import hashlib
 import itertools
 import json
 import os
 
 import rpm
-import six
-from six.moves import zip
 
 
 class BytesJSONEncoder(json.JSONEncoder):
     def default(self, o):
-        if six.PY3 and isinstance(o, bytes):
+        if isinstance(o, bytes):
             return o.decode('utf-8')
         return json.JSONEncoder.default(self, o)
 
@@ -119,8 +115,8 @@ class Rpmdiff:
 
         old_files_dict = self.__fileIteratorToDict(old.fiFromHeader())
         new_files_dict = self.__fileIteratorToDict(new.fiFromHeader())
-        files = sorted(set(itertools.chain(six.iterkeys(old_files_dict),
-                                           six.iterkeys(new_files_dict))))
+        files = sorted(set(itertools.chain(old_files_dict.keys(),
+                                           new_files_dict.keys())))
         self.old_data['files'] = old_files_dict
         self.new_data['files'] = new_files_dict
 
@@ -238,7 +234,5 @@ class Rpmdiff:
             data = self.old_data
         if not data:
             raise ValueError("rpm header data are empty")
-        s = json.dumps(data, sort_keys=True, cls=BytesJSONEncoder)
-        if six.PY3:
-            s = s.encode('utf-8')
+        s = json.dumps(data, sort_keys=True, cls=BytesJSONEncoder).encode('utf-8')
         return hashlib.sha256(s).hexdigest()

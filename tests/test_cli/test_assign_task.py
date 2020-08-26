@@ -1,12 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import os
-import six
-import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 from koji_cli.commands import handle_assign_task
@@ -25,7 +19,7 @@ class TestAssignTask(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_assign_task(
             self, activate_session_mock, stdout):
@@ -38,14 +32,12 @@ class TestAssignTask(utils.CliTestCase):
         session = mock.MagicMock()
 
         session.getTaskInfo.return_value = None
-        with six.assertRaisesRegex(self, koji.GenericError,
-                                   "No such task: %s" % task_id):
+        with self.assertRaisesRegex(koji.GenericError, "No such task: %s" % task_id):
             handle_assign_task(options, session, arguments)
 
         session.getTaskInfo.return_value = "task_info"
         session.getHost.return_value = None
-        with six.assertRaisesRegex(self, koji.GenericError,
-                                   "No such host: %s" % hostname):
+        with self.assertRaisesRegex(koji.GenericError, "No such host: %s" % hostname):
             handle_assign_task(options, session, arguments)
 
         arguments.append("--force")
@@ -84,8 +76,8 @@ class TestAssignTask(utils.CliTestCase):
         activate_session_mock.assert_called_with(session, options)
         session.assignTask.assert_called_with(int(task_id), hostname, True)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_assign_task_help(
             self, activate_session_mock, stderr, stdout):

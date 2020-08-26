@@ -48,7 +48,6 @@ Requires: python%{python3_pkgversion}-requests-gssapi
 Requires: python%{python3_pkgversion}-requests-kerberos
 %endif
 Requires: python%{python3_pkgversion}-dateutil
-Requires: python%{python3_pkgversion}-six
 
 %description -n python%{python3_pkgversion}-%{name}
 desc

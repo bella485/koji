@@ -1,14 +1,8 @@
-from __future__ import print_function
-from __future__ import absolute_import
+import io
 import mock
 import os
-import six
 import sys
-from six.moves import map
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 
 PROGNAME = os.path.basename(sys.argv[0]) or 'koji'
@@ -74,8 +68,7 @@ class CliTestCase(unittest.TestCase):
         self.__assert_callable(callableObj)
         return lambda: callableObj(*args, **kwargs)
 
-    def assert_console_message(
-            self, device, message, wipe=True, regex=False):
+    def assert_console_message(self, device, message, wipe=True, regex=False):
 
         # don't care condition
         if message is None:
@@ -85,7 +78,7 @@ class CliTestCase(unittest.TestCase):
         if not regex:
             self.assertMultiLineEqual(output, message)
         else:
-            six.assertRegex(self, output, message)
+            self.assertRegex(output, message)
 
         if wipe:
             device.seek(0)
@@ -148,7 +141,7 @@ class CliTestCase(unittest.TestCase):
             data = kwargs.get(key, None)
             message[key] = {'message': None, 'wipe': True, 'regex': False}
 
-            if data is None or isinstance(data, six.string_types):
+            if data is None or isinstance(data, str):
                 message[key]['message'] = data
 
             elif isinstance(data, dict):
@@ -174,12 +167,12 @@ class CliTestCase(unittest.TestCase):
                            if k not in reserved)
 
         # check activate_session must be type of None or string
-        if activate and not isinstance(activate, six.string_types):
+        if activate and not isinstance(activate, str):
             raise ValueError('activate_session is not a string')
 
         session_patch = mock.patch(activate) if activate else _dummy_()
-        stdout_patch = mock.patch('sys.stdout', new_callable=six.StringIO)
-        stderr_patch = mock.patch('sys.stderr', new_callable=six.StringIO)
+        stdout_patch = mock.patch('sys.stdout', new_callable=io.StringIO)
+        stderr_patch = mock.patch('sys.stderr', new_callable=io.StringIO)
 
         with session_patch as session:
             with stdout_patch as stdout:
@@ -213,10 +206,3 @@ class CliTestCase(unittest.TestCase):
             self.assertEqual(ex.exception, code)
         else:
             self.assertEqual(ex.exception.code, code)
-
-
-def get_builtin_open():
-    if six.PY2:
-        return '__builtin__.open'
-    else:
-        return 'builtins.open'

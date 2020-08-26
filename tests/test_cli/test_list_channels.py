@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-from six.moves import StringIO
+import unittest
 
 import koji
 
@@ -18,7 +14,7 @@ class TestListChannels(unittest.TestCase):
         self.session.getAPIVersion.return_value = koji.API_VERSION
         self.args = []
 
-    @mock.patch('sys.stdout', new_callable=StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_channels(self, ensure_connection_mock, stdout):
         self.session.listChannels.return_value = [

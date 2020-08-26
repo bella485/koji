@@ -1,13 +1,11 @@
 # kojid plugin
 
-from __future__ import absolute_import
-
 import os
 import platform
 import re
 import subprocess
 
-import six.moves.configparser
+import configparser
 
 import koji
 import koji.tasks
@@ -92,7 +90,7 @@ class RunRootTask(koji.tasks.BaseTaskHandler):
                     'fstype': cp.get(section_name, 'fstype'),
                     'options': cp.get(section_name, 'options'),
                 })
-            except six.moves.configparser.NoOptionError:
+            except configparser.NoOptionError:
                 raise koji.GenericError("bad config: missing options in %s section" % section_name)
 
         for path in self.config['default_mounts'] + self.config['safe_roots'] + \

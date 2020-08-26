@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_move_build
 from . import utils
@@ -55,7 +51,7 @@ class TestMoveBuild(utils.CliTestCase):
         for i, t in enumerate(tasks):
             expected += "Created task %d, moving %s" % (t, pkgs[i]) + "\n"
 
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_move_build(self.options, self.session, arguments)
 
         # sanity checks
@@ -82,7 +78,7 @@ class TestMoveBuild(utils.CliTestCase):
 
         expected = "Created task %d, moving %s" % (task_id, pkgs[0]) + "\n"
 
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_move_build(self.options, self.session, arguments)
 
         # sanity checks
@@ -107,7 +103,7 @@ class TestMoveBuild(utils.CliTestCase):
         ]
 
         expected = 'Invalid package name %s, skipping.' % 'pkg_c-2.2-2fc26' + "\n"
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_move_build(self.options, self.session, arguments)
 
         self.assertEqual(rv, None)

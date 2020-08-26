@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import anon_handle_list_api
 from . import utils
@@ -22,7 +18,7 @@ class TestListApi(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_anon_handle_list_api(
             self,

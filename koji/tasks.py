@@ -19,17 +19,13 @@
 # Authors:
 #       Mike McLean <mikem@redhat.com>
 #       Mike Bonnet <mikeb@redhat.com>
-from __future__ import absolute_import
-
 import logging
 import os
 import pprint
 import random
 import signal
 import time
-
-import six.moves.xmlrpc_client
-from six.moves import range
+import xmlrpc.client
 
 import koji
 import koji.plugin
@@ -411,7 +407,7 @@ class BaseTaskHandler(object):
                             try:
                                 self.session.getTaskResult(task)
                                 checked.add(task)
-                            except (koji.GenericError, six.moves.xmlrpc_client.Fault):
+                            except (koji.GenericError, xmlrpc.client.Fault):
                                 self.logger.info(
                                     "task %s failed or was canceled, cancelling unfinished tasks" %
                                     task)

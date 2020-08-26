@@ -1,17 +1,11 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
+import os
+import unittest
 
 from mock import call
 from koji_cli.commands import handle_import_cg
 from . import utils
-
-import os
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
 
 class TestImportCG(utils.CliTestCase):
@@ -33,7 +27,7 @@ class TestImportCG(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands._progress_callback')
     @mock.patch('koji_cli.commands.unique_path')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
@@ -88,7 +82,7 @@ class TestImportCG(utils.CliTestCase):
         unique_path_mock.return_value = fake_srv_path
 
         # Case 1, running in fg, progress on
-        with mock.patch(utils.get_builtin_open()):
+        with mock.patch('builtins.open'):
             handle_import_cg(options, session, arguments)
 
         calls, expected = gen_value("Uploading %s\n", progress_callback_mock)
@@ -98,7 +92,7 @@ class TestImportCG(utils.CliTestCase):
         session.CGImport.assert_called_with(metadata, fake_srv_path, None)
 
         # Case 2, running in fg, progress off
-        with mock.patch(utils.get_builtin_open()):
+        with mock.patch('builtins.open'):
             handle_import_cg(options, session, arguments + ['--noprogress'])
 
         calls, expected = gen_value("Uploading %s", None)
@@ -113,7 +107,7 @@ class TestImportCG(utils.CliTestCase):
         session.CGImport.reset_mock()
 
         # Case 3, --test option
-        with mock.patch(utils.get_builtin_open()):
+        with mock.patch('builtins.open'):
             handle_import_cg(options, session, arguments + ['--test'])
 
         linked_upload_mock.assert_not_called()
@@ -124,7 +118,7 @@ class TestImportCG(utils.CliTestCase):
                  for item in metadata['output']]
 
         # Case 4, --link option
-        with mock.patch(utils.get_builtin_open()):
+        with mock.patch('builtins.open'):
             handle_import_cg(options, session, arguments + ['--link'])
 
         linked_upload_mock.assert_has_calls(calls)
@@ -178,7 +172,7 @@ class TestImportCG(utils.CliTestCase):
         # is matched return the value we expected.
         self.custom_os_path_exists['/real/path/filename'] = False
 
-        with mock.patch(utils.get_builtin_open()):
+        with mock.patch('builtins.open'):
             with mock.patch('os.path.exists', new=self.mock_os_path_exists):
                 with mock.patch('koji_cli.commands.json') as json_mock:
 

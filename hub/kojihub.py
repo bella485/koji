@@ -22,8 +22,6 @@
 #       Mike Bonnet <mikeb@redhat.com>
 #       Cristian Balint <cbalint@redhat.com>
 
-from __future__ import absolute_import
-
 import base64
 import calendar
 import datetime

@@ -1,7 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
 import os
-import six
 import sys
 
 from koji_cli.commands import handle_edit_tag
@@ -14,7 +13,7 @@ class TestEditTag(utils.CliTestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_edit_tag(self, activate_session_mock, stdout):
         tag = 'tag'
@@ -33,7 +32,7 @@ class TestEditTag(utils.CliTestCase):
         args.append('--rename=' + rename)
         args.append('--maven-support')
         args.append('--include-all')
-        for k, x in six.iteritems(extra):
+        for k, x in extra.items():
             args.append('-x')
             args.append(k + '=' + str(x))
         for r in remove_extra:
@@ -91,8 +90,8 @@ class TestEditTag(utils.CliTestCase):
         session.editTag2.assert_called_once_with(tag, **opts)
         self.assertEqual(rv, None)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_edit_tag_help(self, activate_session_mock, stderr, stdout):
         args = ['--help']
@@ -138,8 +137,8 @@ Options:
         activate_session_mock.assert_not_called()
         session.editTag2.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_edit_tag_no_arg(self, activate_session_mock, stderr, stdout):
         args = []

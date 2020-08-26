@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_maven_chain
 from . import utils
@@ -26,8 +22,8 @@ class TestMavenChain(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji.util.parse_maven_chain')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks')
@@ -141,8 +137,8 @@ class TestMavenChain(utils.CliTestCase):
             session, [self.task_id], quiet=options.quiet,
             poll_interval=options.poll_interval)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_maven_no_argument_error(
             self,

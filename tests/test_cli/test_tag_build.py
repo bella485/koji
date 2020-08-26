@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_tag_build
 from . import utils
@@ -45,7 +41,7 @@ class TestTagBuild(utils.CliTestCase):
 
         self.session.tagBuild.side_effect = tasks
         expected = ''.join(["Created task %d" % t + "\n" for t in tasks])
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_tag_build(self.options, self.session, arguments)
         self.assertEqual(rv, True)
         self.assert_console_message(stdout, expected)
@@ -66,7 +62,7 @@ class TestTagBuild(utils.CliTestCase):
 
         expected = "Created task %d" % task_id + "\n"
         self.session.tagBuild.side_effect = [task_id]
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_tag_build(self.options, self.session, arguments)
         self.assertEqual(rv, None)
         self.assert_console_message(stdout, expected)

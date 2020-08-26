@@ -1,11 +1,6 @@
-from __future__ import absolute_import
 import os
-import six
 import subprocess
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # docs version lives in docs/source/conf.py
 TOPDIR = os.path.dirname(__file__) + '/..'
@@ -27,9 +22,7 @@ class TestDocsVersion(unittest.TestCase):
         popen = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         output = popen.stdout.read()
         # rpm outputs a line for each subpackage
-        version = output.splitlines()[0]
-        if six.PY3:
-            version = version.decode()
+        version = output.splitlines()[0].decode()
         return version
 
     def test_docs_version(self):

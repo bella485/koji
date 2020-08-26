@@ -1,22 +1,16 @@
-from __future__ import absolute_import
-
 import json
 import locale
 import os
 import tempfile
 import time
+import unittest
 
 import mock
-import six
 
 import koji
 import koji.util
 from .loadkojid import kojid
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
 
 
@@ -110,7 +104,5 @@ class TestBuildNotification(unittest.TestCase):
         fn = os.path.join(os.path.dirname(__file__), 'data/calls', 'build_notif_1', 'message.txt')
         with open(fn, 'rb') as fp:
             msg_expect = fp.read()
-        if six.PY2:
-            msg_expect = msg_expect.decode()
         self.assertMultiLineEqual(message.decode(), msg_expect.decode())
         locale.resetlocale()

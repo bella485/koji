@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_wrapper_rpm
 from . import utils
@@ -27,8 +23,8 @@ class TestWrapperRpm(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands._running_in_bg')
     @mock.patch('koji_cli.commands.watch_tasks')
     @mock.patch('koji_cli.commands.activate_session')
@@ -82,8 +78,8 @@ class TestWrapperRpm(utils.CliTestCase):
             session, [self.task_id], quiet=options.quiet,
             poll_interval=options.poll_interval)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji_cli.commands._running_in_bg')
     @mock.patch('koji_cli.commands.watch_tasks')
@@ -148,6 +144,7 @@ class TestWrapperRpm(utils.CliTestCase):
             options,
             session,
             arguments,
+            stdout='',
             stderr={'message': '.*error: fake-value-error',
                     'regex': True}
         )
@@ -192,8 +189,8 @@ class TestWrapperRpm(utils.CliTestCase):
             session, [self.task_id], quiet=options.quiet,
             poll_interval=options.poll_interval)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_wrapper_rpm_argument_error(
             self, activate_session_mock, stderr, stdout):

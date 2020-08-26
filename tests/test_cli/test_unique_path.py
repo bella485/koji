@@ -1,10 +1,4 @@
-from __future__ import absolute_import
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-from six.moves import range
+import unittest
 
 from koji_cli.lib import unique_path
 

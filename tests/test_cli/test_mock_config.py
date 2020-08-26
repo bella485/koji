@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import anon_handle_mock_config
 from . import utils
@@ -58,8 +54,8 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.genMockConfig')
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_handle_mock_config_buildroot_option(
@@ -116,8 +112,8 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         gen_config_mock.assert_called_with(
             self.progname, buildroot_info['arch'], **opts)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.genMockConfig')
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_handle_mock_config_task_option(
@@ -177,8 +173,8 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         gen_config_mock.assert_called_with(
             self.progname, multi_broots[0]['arch'], **opts)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.genMockConfig')
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_handle_mock_config_tag_option(
@@ -264,8 +260,8 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         gen_config_mock.assert_called_with(
             self.progname, tag['arch'], **opts)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.genMockConfig')
     @mock.patch('koji_cli.commands.ensure_connection')
     @mock.patch('koji_cli.commands.open')
@@ -341,7 +337,7 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
         gen_config_mock.assert_called_with(
             self.progname, arch, **opts)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_handle_mock_config_errors(self, ensure_connection_mock, stderr):
         """Test anon_handle_mock_config general error messages"""

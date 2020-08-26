@@ -17,12 +17,8 @@
 # Authors:
 #       Mike McLean <mikem@redhat.com>
 
-from __future__ import absolute_import
-
 import fnmatch
 import logging
-
-import six
 
 import koji
 from koji.util import to_list
@@ -388,7 +384,7 @@ def findSimpleTests(namespace):
         namespace = (namespace,)
     ret = {}
     for ns in namespace:
-        for key, value in six.iteritems(ns):
+        for key, value in ns.items():
             if value is BaseSimpleTest:
                 # skip this abstract base class if we encounter it
                 # this module contains generic tests, so it is valid to include it

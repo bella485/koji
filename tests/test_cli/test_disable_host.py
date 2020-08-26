@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from mock import call
 from koji_cli.commands import handle_disable_host
@@ -24,8 +20,8 @@ class TestDisableHost(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_disable_host(
             self,
@@ -96,7 +92,7 @@ class TestDisableHost(utils.CliTestCase):
              call('host2', comment='disable host test')])
         self.assert_console_message(stdout, '')
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_disable_host_no_argument(self, activate_session_mock, stdout):
         """Test %s function without arguments""" % handle_disable_host.__name__

@@ -1,21 +1,13 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
 import os
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from configparser import ConfigParser
 
 import koji
 
 from koji_cli.commands import handle_image_build, _build_image_oz
 from . import utils
-
-if six.PY2:
-    ConfigParser = six.moves.configparser.SafeConfigParser
-else:
-    ConfigParser = six.moves.configparser.ConfigParser
 
 TASK_OPTIONS = {
     "background": None,
@@ -59,13 +51,6 @@ TASK_OPTIONS = {
     "specfile": "git://git.fedorahosted.org/git/spin-kickstarts.git?spec_templates/fedora26#68c40eb7",
     "wait": None,
 }
-
-def mock_open():
-    """Return the right patch decorator for open"""
-    if six.PY2:
-        return mock.patch('__builtin__.open')
-    else:
-        return mock.patch('builtins.open')
 
 
 class Options(object):
@@ -129,7 +114,7 @@ class TestBuildImageOz(utils.CliTestCase):
         self.session.getBuildTarget.return_value = self.target_info
         self.session.getTag.return_value = self.tag_info
         self.session.buildImageOz.return_value = task_id
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image_oz(
                 self.options, self.task_options, self.session, self.args)
         expected = "Created task: %d" % task_id + "\n"
@@ -149,7 +134,7 @@ class TestBuildImageOz(utils.CliTestCase):
         self.session.buildImageOz.return_value = task_id
         self.task_options.background = True
         self.running_in_bg.return_value = True
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image_oz(
                 self.options, self.task_options, self.session, self.args)
         expected = "Created task: %d" % task_id + "\n"
@@ -173,7 +158,7 @@ class TestBuildImageOz(utils.CliTestCase):
 
         self.task_options.background = True
         self.running_in_bg.return_value = True
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image_oz(
                 self.options, self.task_options, self.session, self.args)
         expected = '' + '\n'
@@ -225,7 +210,7 @@ class TestImageBuild(utils.CliTestCase):
     def setUp(self):
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
-        self.configparser = mock.patch('six.moves.configparser.ConfigParser').start()
+        self.configparser = mock.patch('configparser.ConfigParser').start()
 
         self.error_format = """Usage: %s image-build [options] <name> <version> <target> <install-tree-url> <arch> [<arch> ...]
        %s image-build --config <FILE>

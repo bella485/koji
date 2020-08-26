@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import anon_handle_search
 from . import utils
@@ -23,7 +19,7 @@ Available search types: package, build, tag, target, user, host, rpm, maven, win
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_anon_handle_search(
             self,
             stdout):

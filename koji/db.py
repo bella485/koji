@@ -21,8 +21,6 @@
 #       Mike McLean <mikem@redhat.com>
 
 
-from __future__ import absolute_import
-
 import logging
 # import psycopg2.extensions
 # # don't convert timestamp fields to DateTime objects

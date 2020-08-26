@@ -1,9 +1,8 @@
-import sys
+import io
 import os
 import time
 
 import mock
-import six
 
 from koji_cli.commands import anon_handle_list_tagged
 from . import utils
@@ -61,7 +60,7 @@ class TestCliListTagged(utils.CliTestCase):
             os.environ['TZ'] = self.original_timezone
         time.tzset()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value={'id': 1000,
                                                          'ts': 1000000.11})
     @mock.patch('koji_cli.commands.ensure_connection')
@@ -84,7 +83,7 @@ class TestCliListTagged(utils.CliTestCase):
                                     '----------------------------------------  --------------------  ----------------\n'
                                     'n-v-r                                     tag                   owner\n')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value=None)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_tagged_builds_paths(self, ensure_connection_mock,
@@ -97,7 +96,7 @@ class TestCliListTagged(utils.CliTestCase):
                                     '----------------------------------------  --------------------  ----------------\n'
                                     '/mnt/koji/packages/packagename/version/1.el6  tag                   owner\n')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value=None)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_tagged_rpms(self, ensure_connection_mock,
@@ -120,7 +119,7 @@ class TestCliListTagged(utils.CliTestCase):
                                     'sigkey rpmA-0.0.1-1.el6.noarch\n'
                                     'sigkey rpmA-0.0.1-1.el6.x86_64\n')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value=None)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_tagged_rpms_paths(self, ensure_connection_mock,
@@ -133,7 +132,7 @@ class TestCliListTagged(utils.CliTestCase):
                                     '/mnt/koji/packages/packagename/version/1.el6/noarch/rpmA-0.0.1-1.el6.noarch.rpm\n'
                                     '/mnt/koji/packages/packagename/version/1.el6/x86_64/rpmA-0.0.1-1.el6.x86_64.rpm\n')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value=None)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_tagged_sigs_paths(self, ensure_connection_mock,
@@ -144,7 +143,7 @@ class TestCliListTagged(utils.CliTestCase):
         anon_handle_list_tagged(self.options, self.session, args)
         self.assert_console_message(stdout, '')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value=None)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_tagged_type(self, ensure_connection_mock,
@@ -174,7 +173,7 @@ class TestCliListTagged(utils.CliTestCase):
                                     '----------------------------------------  --------------------  --------------------  --------------------  ----------------\n'
                                     'n-v-r                                     tag                   group                 artifact              owner\n')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.util.eventFromOpts', return_value=None)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_tagged_type_paths(self, ensure_connection_mock,

@@ -1,11 +1,6 @@
-from __future__ import absolute_import
-from __future__ import print_function
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_resubmit
 from . import utils
@@ -37,8 +32,8 @@ Log Files:
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.watch_tasks')
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_resubmit(
@@ -89,8 +84,8 @@ Log Files:
         session.resubmitTask.assert_called_once()
         self.assert_console_message(stdout, '')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_resubmit_argument_error(
             self, activate_session_mock, stderr, stdout):

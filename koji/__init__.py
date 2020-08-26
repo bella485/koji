@@ -22,12 +22,12 @@
 #       Mike Bonnet <mikeb@redhat.com>
 
 
-from __future__ import absolute_import, division
-
 import base64
+import configparser
 import datetime
 import errno
 import hashlib
+import http
 import imp
 import logging
 import logging.handlers
@@ -44,6 +44,7 @@ import sys
 import tempfile
 import time
 import traceback
+import urllib
 import warnings
 import weakref
 import xml.sax
@@ -52,15 +53,11 @@ from fnmatch import fnmatch
 
 import dateutil.parser
 import requests
-import six
-import six.moves.configparser
-import six.moves.http_client
-import six.moves.urllib
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from six.moves import range, zip
 
-from koji.xmlrpcplus import Fault, dumps, getparser, loads, xmlrpc_client
+import xmlrpc
+from koji.xmlrpcplus import Fault, dumps, getparser, loads
 from . import util
 
 SSL_Error = None
@@ -95,7 +92,7 @@ def _(args):
 ## Constants ##
 
 
-RPM_HEADER_MAGIC = six.b('\x8e\xad\xe8')
+RPM_HEADER_MAGIC = b'\x8e\xad\xe8'
 RPM_TAG_HEADERSIGNATURES = 62
 RPM_TAG_FILEDIGESTALGO = 5011
 RPM_SIGTAG_PGP = 1002
@@ -509,7 +506,7 @@ def decode_args2(args, names, strict=True):
 
 def decode_int(n):
     """If n is not an integer, attempt to convert it"""
-    if isinstance(n, six.integer_types):
+    if isinstance(n, int):
         return n
     # else
     return int(n)
@@ -611,7 +608,7 @@ def rpm_hdr_size(f, ofs=None):
     f = filename or file object
     ofs = offset of the header
     """
-    if isinstance(f, six.string_types):
+    if isinstance(f, str):
         fo = open(f, 'rb')
     else:
         fo = f
@@ -641,7 +638,7 @@ def rpm_hdr_size(f, ofs=None):
     # add eight bytes for section header
     hdrsize = hdrsize + 8
 
-    if not isinstance(f, six.string_types):
+    if not isinstance(f, str):
         fo.close()
     return hdrsize
 
@@ -694,11 +691,11 @@ class RawHeader(object):
         print("Store at offset %d (%0x)" % (store, store))
         # sort entries by offset, dtype
         # also rearrange: tag, dtype, offset, count -> offset, dtype, tag, count
-        order = sorted([(x[2], x[1], x[0], x[3]) for x in six.itervalues(self.index)])
+        order = sorted([(x[2], x[1], x[0], x[3]) for x in self.index.values()])
         next = store
         # map some rpmtag codes
         tags = {}
-        for name, code in six.iteritems(rpm.__dict__):
+        for name, code in rpm.__dict__.items():
             if name.startswith('RPMTAG_') and isinstance(code, int):
                 tags[code] = name[7:].lower()
         for entry in order:
@@ -736,7 +733,7 @@ class RawHeader(object):
                 next = pos
             elif dtype == 6:
                 # string (null terminated)
-                end = self.header.find(six.b('\0'), pos)
+                end = self.header.find(b'\0', pos)
                 print("String(%d): %r" % (end - pos, self.header[pos:end]))
                 next = end + 1
             elif dtype == 7:
@@ -745,14 +742,14 @@ class RawHeader(object):
             elif dtype == 8:
                 # string array
                 for i in range(count):
-                    end = self.header.find(six.b('\0'), pos)
+                    end = self.header.find(b'\0', pos)
                     print("String(%d): %r" % (end - pos, self.header[pos:end]))
                     pos = end + 1
                 next = pos
             elif dtype == 9:
                 # unicode string array
                 for i in range(count):
-                    end = self.header.find(six.b('\0'), pos)
+                    end = self.header.find(b'\0', pos)
                     print("i18n(%d): %r" % (end - pos, self.header[pos:end]))
                     pos = end + 1
                 next = pos
@@ -951,7 +948,7 @@ def get_rpm_header(f, ts=None):
     if ts is None:
         ts = rpm.TransactionSet()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES | rpm._RPMVSF_NODIGESTS)
-    if isinstance(f, six.string_types):
+    if isinstance(f, str):
         fo = open(f, "rb")
     else:
         fo = f
@@ -963,9 +960,7 @@ def get_rpm_header(f, ts=None):
 
 def _decode_item(item):
     """Decode rpm header byte strings to str in py3"""
-    if six.PY2:
-        return item
-    elif isinstance(item, bytes):
+    if isinstance(item, bytes):
         try:
             return item.decode()
         except UnicodeDecodeError:
@@ -997,7 +992,7 @@ def get_header_field(hdr, name, src_arch=False):
         # HACK: workaround for https://bugzilla.redhat.com/show_bug.cgi?id=991329
         if result is None:
             result = []
-        elif isinstance(result, six.integer_types):
+        elif isinstance(result, int):
             result = [result]
 
     sizetags = ('SIZE', 'ARCHIVESIZE', 'FILESIZES', 'SIGSIZE')
@@ -1125,7 +1120,7 @@ def check_NVR(nvr, strict=False):
 
 
 def _check_NVR(nvr):
-    if isinstance(nvr, six.string_types):
+    if isinstance(nvr, str):
         nvr = parse_NVR(nvr)
     if '-' in nvr['version']:
         raise GenericError('The "-" character not allowed in version field')
@@ -1154,7 +1149,7 @@ def check_NVRA(nvra, strict=False):
 
 
 def _check_NVRA(nvra):
-    if isinstance(nvra, six.string_types):
+    if isinstance(nvra, str):
         nvra = parse_NVRA(nvra)
     if '-' in nvra['version']:
         raise GenericError('The "-" character not allowed in version field')
@@ -1614,7 +1609,7 @@ def genMockConfig(name, arch, managed=False, repoid=None, tag_name=None, **opts)
     if opts.get('maven_opts'):
         mavenrc = 'export MAVEN_OPTS="%s"\n' % ' '.join(opts['maven_opts'])
     if opts.get('maven_envs'):
-        for name, val in six.iteritems(opts['maven_envs']):
+        for name, val in opts['maven_envs'].items():
             mavenrc += 'export %s="%s"\n' % (name, val)
     if mavenrc:
         files['etc/mavenrc'] = mavenrc
@@ -1712,7 +1707,7 @@ name=build
 
     if bind_opts:
         for key in bind_opts.keys():
-            for mnt_src, mnt_dest in six.iteritems(bind_opts.get(key)):
+            for mnt_src, mnt_dest in bind_opts.get(key).items():
                 parts.append(
                     "config_opts['plugin_conf']['bind_mount_opts'][%r].append((%r, %r))\n" %
                     (key, mnt_src, mnt_dest))
@@ -1842,7 +1837,7 @@ def check_rpm_file(rpmfile):
     This check is used to detect issues with RPMs before they break builds
     See: https://pagure.io/koji/issue/290
     """
-    if isinstance(rpmfile, six.string_types):
+    if isinstance(rpmfile, str):
         with open(rpmfile, 'rb') as fo:
             return _check_rpm_file(fo)
     else:
@@ -2064,12 +2059,12 @@ def read_config_files(config_files, raw=False):
              ConfigurationError: See config_files if strict is true
              OSError: Directory in config_files is not accessible
     """
-    if isinstance(config_files, six.string_types):
+    if isinstance(config_files, str):
         config_files = [(config_files, False)]
     elif isinstance(config_files, (list, tuple)):
         fcfgs = []
         for i in config_files:
-            if isinstance(i, six.string_types):
+            if isinstance(i, str):
                 fcfgs.append((i, False))
             elif isinstance(i, (list, tuple)) and 0 < len(i) <= 2:
                 fcfgs.append((i[0], i[1] if len(i) == 2 else False))
@@ -2081,11 +2076,11 @@ def read_config_files(config_files, raw=False):
         raise GenericError('invalid type: %s' % type(config_files))
 
     if raw:
-        parser = six.moves.configparser.RawConfigParser
+        parser = configparser.RawConfigParser
     else:
         # In python3, ConfigParser is "safe", and SafeConfigParser is a
         # deprecated alias
-        parser = six.moves.configparser.ConfigParser
+        parser = configparser.ConfigParser
     config = parser()
     cfgs = []
     # append dir contents
@@ -2302,7 +2297,7 @@ def is_conn_error(e):
     # these values, this is a connection error.
     if getattr(e, 'errno', None) in (errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE):
         return True
-    if isinstance(e, six.moves.http_client.BadStatusLine):
+    if isinstance(e, http.client.BadStatusLine):
         return True
     try:
         if isinstance(e, requests.exceptions.ConnectionError):
@@ -2311,7 +2306,7 @@ def is_conn_error(e):
             e2 = getattr(e, 'args', [None])[0]
             if isinstance(e2, requests.packages.urllib3.exceptions.ProtocolError):
                 e3 = getattr(e2, 'args', [None, None])[1]
-                if isinstance(e3, six.moves.http_client.BadStatusLine):
+                if isinstance(e3, http.client.BadStatusLine):
                     return True
             # same check as unwrapped socket error
             if getattr(e2, 'errno', None) in (errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE):
@@ -2387,7 +2382,7 @@ def grab_session_options(options):
     )
     # cert is omitted for now
     if isinstance(options, dict):
-        return dict((k, v) for k, v in six.iteritems(options) if k in s_opts and v is not None)
+        return dict((k, v) for k, v in options.items() if k in s_opts and v is not None)
     ret = {}
     for key in s_opts:
         if not hasattr(options, key):
@@ -2481,7 +2476,7 @@ class ClientSession(object):
             )
         # force https
         old_baseurl = self.baseurl
-        uri = six.moves.urllib.parse.urlsplit(self.baseurl)
+        uri = urllib.parse.urlsplit(self.baseurl)
         if uri[0] != 'https':
             self.baseurl = 'https://%s%s' % (uri[1], uri[2])
 
@@ -2550,7 +2545,7 @@ class ClientSession(object):
         # when API is changed
 
         # force https
-        uri = six.moves.urllib.parse.urlsplit(self.baseurl)
+        uri = urllib.parse.urlsplit(self.baseurl)
         if uri[0] != 'https':
             self.baseurl = 'https://%s%s' % (uri[1], uri[2])
 
@@ -2638,7 +2633,7 @@ class ClientSession(object):
             sinfo = self.sinfo.copy()
             sinfo['callnum'] = self.callnum
             self.callnum += 1
-            handler = "%s?%s" % (self.baseurl, six.moves.urllib.parse.urlencode(sinfo))
+            handler = "%s?%s" % (self.baseurl, urllib.parse.urlencode(sinfo))
         elif name == 'sslLogin':
             handler = self.baseurl + '/ssllogin'
         else:
@@ -2691,7 +2686,7 @@ class ClientSession(object):
             for _key in callopts:
                 _val = callopts[_key]
                 if _key == 'data':
-                    if six.PY3 and isinstance(_val, bytes):
+                    if isinstance(_val, bytes):
                         # convert to hex-string
                         _val = '0x' + _val.hex()
                     if len(_val) > 1024:
@@ -2944,17 +2939,17 @@ class ClientSession(object):
             args['volume'] = volume
         size = len(chunk)
         self.callnum += 1
-        handler = "%s?%s" % (self.baseurl, six.moves.urllib.parse.urlencode(args))
+        handler = "%s?%s" % (self.baseurl, urllib.parse.urlencode(args))
         headers = [
             ('User-Agent', 'koji/1'),
             ("Content-Type", "application/octet-stream"),
             ("Content-length", str(size)),
         ]
         request = chunk
-        if six.PY3 and isinstance(chunk, str):
+        if isinstance(chunk, str):
             request = chunk.encode('utf-8')
         else:
-            # py2 or bytes
+            # bytes
             request = chunk
         return handler, headers, request
 
@@ -3236,7 +3231,7 @@ class DBHandler(logging.Handler):
             values = []
             data = {}
             record.message = record.getMessage()
-            for key, value in six.iteritems(self.mapping):
+            for key, value in self.mapping.items():
                 value = str(value)
                 if value.find("%(asctime)") >= 0:
                     if self.formatter:
@@ -3265,7 +3260,7 @@ def formatTime(value):
     """Format a timestamp so it looks nicer"""
     if not value and not isinstance(value, (int, float)):
         return ''
-    if isinstance(value, xmlrpc_client.DateTime):
+    if isinstance(value, xmlrpc.client.DateTime):
         value = datetime.datetime.strptime(value.value, "%Y%m%dT%H:%M:%S")
     elif isinstance(value, (int, float)):
         value = datetime.datetime.fromtimestamp(value)
@@ -3286,9 +3281,9 @@ def formatTimeLong(value):
     """
     if not value and not isinstance(value, (int, float)):
         return ''
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         t = dateutil.parser.parse(value)
-    elif isinstance(value, xmlrpc_client.DateTime):
+    elif isinstance(value, xmlrpc.client.DateTime):
         t = dateutil.parser.parse(value.value)
     elif isinstance(value, (int, float)):
         t = datetime.datetime.fromtimestamp(value)
@@ -3465,16 +3460,12 @@ def _taskLabel(taskInfo):
 
 CONTROL_CHARS = [chr(i) for i in range(32)]
 NONPRINTABLE_CHARS = ''.join([c for c in CONTROL_CHARS if c not in '\r\n\t'])
-if six.PY3:
-    NONPRINTABLE_CHARS_TABLE = dict.fromkeys(map(ord, NONPRINTABLE_CHARS), None)
+NONPRINTABLE_CHARS_TABLE = dict.fromkeys(map(ord, NONPRINTABLE_CHARS), None)
 
 
 def removeNonprintable(value):
     # expects raw-encoded string, not unicode
-    if six.PY2:
-        return value.translate(None, NONPRINTABLE_CHARS)
-    else:
-        return value.translate(NONPRINTABLE_CHARS_TABLE)
+    return value.translate(NONPRINTABLE_CHARS_TABLE)
 
 
 def _fix_print(value):
@@ -3482,7 +3473,7 @@ def _fix_print(value):
 
     return unicode string
     """
-    if isinstance(value, six.binary_type):
+    if isinstance(value, bytes):
         return value.decode('utf8')
     else:
         return value
@@ -3512,8 +3503,6 @@ def fix_encoding(value, fallback='iso8859-15', remove_nonprintable=False):
 
     # remove nonprintable characters, if requested
     if remove_nonprintable and isinstance(value, str):
-        # NOTE: we test for str instead of six.text_type deliberately
-        #  - on py3, we're leaving bytes alone
         value = removeNonprintable(value)
 
     return value

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division
-
 import ast
 import fnmatch
 import itertools
@@ -14,13 +12,11 @@ import sys
 import textwrap
 import time
 import traceback
+import xmlrpc
 from collections import OrderedDict, defaultdict
 from optparse import SUPPRESS_HELP, OptionParser
 
 import dateutil.parser
-import six
-import six.moves.xmlrpc_client
-from six.moves import filter, map, range, zip
 
 import koji
 from koji.util import base64encode, md5_constructor, to_list
@@ -57,13 +53,6 @@ except ImportError:  # pragma: no cover
         import yum.comps as yumcomps
     except ImportError:
         yumcomps = None
-
-
-def _printable_unicode(s):
-    if six.PY2:
-        return s.encode('utf-8')
-    else:  # no cover: 2.x
-        return s
 
 
 def handle_add_group(goptions, session, args):
@@ -1406,9 +1395,6 @@ def _import_comps(session, filename, tag, options):
                        }
             if pkg.type == libcomps.PACKAGE_TYPE_CONDITIONAL:
                 pkgopts['requires'] = pkg.requires
-            for k in pkgopts.keys():
-                if six.PY2 and isinstance(pkgopts[k], unicode):  # noqa: F821
-                    pkgopts[k] = str(pkgopts[k])
             s_opts = ', '.join(["'%s': %r" % (k, pkgopts[k]) for k in sorted(pkgopts.keys())])
             print("  Package: %s: {%s}" % (pkg.name, s_opts))
             session.groupPackageListAdd(tag, group.id, pkg.name, force=force, **pkgopts)
@@ -1439,9 +1425,6 @@ def _import_comps_alt(session, filename, tag, options):  # no cover 3.x
                 pkgopts = {'type': ptype}
                 if ptype == 'conditional':
                     pkgopts['requires'] = pdata[pkg]
-                for k in pkgopts.keys():
-                    if six.PY2 and isinstance(pkgopts[k], unicode):  # noqa: F821
-                        pkgopts[k] = str(pkgopts[k])
                 s_opts = ', '.join(["'%s': %r" % (k, pkgopts[k]) for k in sorted(pkgopts.keys())])
                 print("  Package: %s: {%s}" % (pkg, s_opts))
                 session.groupPackageListAdd(tag, group.groupid, pkg, force=force, **pkgopts)
@@ -1832,7 +1815,7 @@ def handle_prune_signed_copies(goptions, session, args):
         build_space = 0
         if not by_sig and options.debug:
             print("(build has no signatures)")
-        for sigkey, rpms in six.iteritems(by_sig):
+        for sigkey, rpms in by_sig.items():
             mycount = 0
             archdirs = {}
             sigdirs = {}
@@ -3540,12 +3523,12 @@ def handle_clone_tag(goptions, session, args):
                 dstgroups[group['name']] = group
         # construct to-do lists.
         paddlist = []  # list containing new packages to be added from src tag
-        for (package_name, pkg) in six.iteritems(srcpkgs):
+        for (package_name, pkg) in srcpkgs.items():
             if package_name not in dstpkgs:
                 paddlist.append(pkg)
         paddlist.sort(key=lambda x: x['package_name'])
         pdellist = []  # list containing packages no more present in dst tag
-        for (package_name, pkg) in six.iteritems(dstpkgs):
+        for (package_name, pkg) in dstpkgs.items():
             if package_name not in srcpkgs:
                 pdellist.append(pkg)
         pdellist.sort(key=lambda x: x['package_name'])
@@ -3553,11 +3536,11 @@ def handle_clone_tag(goptions, session, args):
         bdellist = []  # list containing new builds to be removed from dst tag
         if options.delete:
             # remove builds for packages that are absent from src tag
-            for (pkg, dstblds) in six.iteritems(dstbldsbypkg):
+            for (pkg, dstblds) in dstbldsbypkg.items():
                 if pkg not in srcbldsbypkg:
                     bdellist.extend(dstblds.values())
         # add and/or remove builds from dst to match src contents and order
-        for (pkg, srcblds) in six.iteritems(srcbldsbypkg):
+        for (pkg, srcblds) in srcbldsbypkg.items():
             dstblds = dstbldsbypkg[pkg]
             ablds = []
             dblds = []
@@ -3567,7 +3550,7 @@ def handle_clone_tag(goptions, session, args):
             if options.delete:
                 # mark the extra builds for deletion
                 dnvrs = []
-                for (dstnvr, dstbld) in six.iteritems(dstblds):
+                for (dstnvr, dstbld) in dstblds.items():
                     if dstnvr in removed_nvrs:
                         dnvrs.append(dstnvr)
                         dblds.append(dstbld)
@@ -3579,19 +3562,19 @@ def handle_clone_tag(goptions, session, args):
                 # in the no-delete case, the extra builds should be forced
                 # to last in the tag
                 bld_order = OrderedDict()
-                for (dstnvr, dstbld) in six.iteritems(dstblds):
+                for (dstnvr, dstbld) in dstblds.items():
                     if dstnvr in removed_nvrs:
                         bld_order[dstnvr] = dstbld
-                for (nvr, srcbld) in six.iteritems(srcblds):
+                for (nvr, srcbld) in srcblds.items():
                     bld_order[nvr] = srcbld
             # secondly, add builds from src tag and adjust the order
-            for (nvr, srcbld) in six.iteritems(bld_order):
+            for (nvr, srcbld) in bld_order.items():
                 found = False
                 out_of_order = []
                 # note that dstblds is trimmed as we go, so we are only
                 # considering the tail corresponding to where we are at
                 # in the srcblds loop
-                for (dstnvr, dstbld) in six.iteritems(dstblds):
+                for (dstnvr, dstbld) in dstblds.items():
                     if nvr == dstnvr:
                         found = True
                         break
@@ -3614,15 +3597,15 @@ def handle_clone_tag(goptions, session, args):
         bdellist.sort(key=lambda x: x['package_name'])
 
         gaddlist = []  # list containing new groups to be added from src tag
-        for (grpname, group) in six.iteritems(srcgroups):
+        for (grpname, group) in srcgroups.items():
             if grpname not in dstgroups:
                 gaddlist.append(group)
         gdellist = []  # list containing groups to be removed from src tag
-        for (grpname, group) in six.iteritems(dstgroups):
+        for (grpname, group) in dstgroups.items():
             if grpname not in srcgroups:
                 gdellist.append(group)
         grpchanges = OrderedDict()  # dict of changes to make in shared groups
-        for (grpname, group) in six.iteritems(srcgroups):
+        for (grpname, group) in srcgroups.items():
             if grpname in dstgroups:
                 dstgroup = dstgroups[grpname]
                 grpchanges[grpname] = {'adds': [], 'dels': []}
@@ -4009,15 +3992,15 @@ def _printInheritance(tags, sibdepths=None, reverse=False):
         if depth < currtag['currdepth']:
             outspacing = depth - outdepth
             sys.stdout.write(' ' * (outspacing * 3 - 1))
-            sys.stdout.write(_printable_unicode(u'\u2502'))
+            sys.stdout.write('\u2502')
             outdepth = depth
 
     sys.stdout.write(' ' * ((currtag['currdepth'] - outdepth) * 3 - 1))
     if siblings:
-        sys.stdout.write(_printable_unicode(u'\u251c'))
+        sys.stdout.write('\u251c')
     else:
-        sys.stdout.write(_printable_unicode(u'\u2514'))
-    sys.stdout.write(_printable_unicode(u'\u2500'))
+        sys.stdout.write('\u2514')
+    sys.stdout.write('\u2500')
     if reverse:
         sys.stdout.write('%(name)s (%(tag_id)i)\n' % currtag)
     else:
@@ -6812,7 +6795,7 @@ def anon_handle_download_logs(options, session, args):
             # with current code, failed task results should always be faults,
             # but that could change in the future
             content = pprint.pformat(result)
-        except (six.moves.xmlrpc_client.Fault, koji.GenericError):
+        except (xmlrpc.client.Fault, koji.GenericError):
             etype, e = sys.exc_info()[:2]
             content = ''.join(traceback.format_exception_only(etype, e))
         full_filename = os.path.normpath(os.path.join(task_log_dir, FAIL_LOG))
@@ -7334,7 +7317,7 @@ def handle_moshimoshi(options, session, args):
     if not u:
         print("Not authenticated")
         u = {'name': 'anonymous user'}
-    print("%s, %s!" % (_printable_unicode(random.choice(greetings)), u["name"]))
+    print("%s, %s!" % (random.choice(greetings), u["name"]))
     print("")
     print("You are using the hub at %s" % session.baseurl)
     authtype = u.get('authtype', getattr(session, 'authtype', None))

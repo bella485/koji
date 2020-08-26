@@ -1,13 +1,9 @@
-from __future__ import absolute_import
+import io
 import json
 import mock
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 try:
     import libcomps
@@ -29,7 +25,7 @@ class TestImportComps(utils.CliTestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.libcomps')
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._import_comps')
@@ -69,7 +65,7 @@ class TestImportComps(utils.CliTestCase):
         mock_import_comps_alt.assert_not_called()
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.libcomps', new=None)
     @mock.patch('koji_cli.commands.yumcomps', create=True)
     @mock.patch('koji_cli.commands.activate_session')
@@ -110,7 +106,7 @@ class TestImportComps(utils.CliTestCase):
             session, filename, tag, local_options)
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.libcomps', new=None)
     @mock.patch('koji_cli.commands.yumcomps', new=None, create=True)
     @mock.patch('koji_cli.commands.activate_session')
@@ -148,7 +144,7 @@ class TestImportComps(utils.CliTestCase):
         mock_import_comps.assert_not_called()
         mock_import_comps_alt.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._import_comps')
     @mock.patch('koji_cli.commands._import_comps_alt')
@@ -184,8 +180,8 @@ class TestImportComps(utils.CliTestCase):
         mock_import_comps.assert_not_called()
         mock_import_comps_alt.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._import_comps')
     @mock.patch('koji_cli.commands._import_comps_alt')
@@ -223,7 +219,7 @@ class TestImportComps(utils.CliTestCase):
         session.getTagGroups.assert_not_called()
         session.groupListAdd.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_import_comps_libcomps(self, stdout):
         if libcomps is None:
             raise SkipTest('no libcomps')
@@ -239,7 +235,7 @@ class TestImportComps(utils.CliTestCase):
             calls_file,
             stdout)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_import_comps_sample_libcomps(self, stdout):
         if libcomps is None:
             raise SkipTest('no libcomps')
@@ -255,7 +251,7 @@ class TestImportComps(utils.CliTestCase):
             calls_file,
             stdout)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.libcomps', new=None)
     @mock.patch('koji_cli.commands.yumcomps', create=True, new=yumcomps)
     def test_import_comps_yumcomps(self, stdout):
@@ -273,7 +269,7 @@ class TestImportComps(utils.CliTestCase):
             calls_file,
             stdout)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.libcomps', new=None)
     @mock.patch('koji_cli.commands.yumcomps', create=True, new=yumcomps)
     def test_import_comps_sample_yumcomps(self, stdout):

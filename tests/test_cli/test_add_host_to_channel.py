@@ -1,13 +1,8 @@
-from __future__ import absolute_import
-
+import io
 import mock
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_add_host_to_channel
 from . import utils
@@ -17,7 +12,7 @@ class TestAddHostToChannel(utils.CliTestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_add_host_to_channel(self, activate_session_mock, stdout):
         host = 'host'
@@ -46,7 +41,7 @@ class TestAddHostToChannel(utils.CliTestCase):
         session.addHostToChannel.assert_called_once_with(host, channel)
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_add_host_to_channel_list(
             self, activate_session_mock, stdout):
@@ -74,7 +69,7 @@ class TestAddHostToChannel(utils.CliTestCase):
         session.addHostToChannel.assert_not_called()
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_add_host_to_channel_new(
             self, activate_session_mock, stdout):
@@ -105,7 +100,7 @@ class TestAddHostToChannel(utils.CliTestCase):
             host, channel, **kwargs)
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_add_host_to_channel_no_channel(
             self, activate_session_mock, stderr):
@@ -134,7 +129,7 @@ class TestAddHostToChannel(utils.CliTestCase):
         session.getHost.assert_not_called()
         session.addHostToChannel.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_add_host_to_channel_no_host(
             self, activate_session_mock, stderr):
@@ -165,8 +160,8 @@ class TestAddHostToChannel(utils.CliTestCase):
         session.getHost.assert_called_once_with(host)
         session.addHostToChannel.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_add_host_to_channel_help(
             self, activate_session_mock, stderr, stdout):

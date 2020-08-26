@@ -23,10 +23,7 @@
 #    - request data
 #    - auth data
 
-from __future__ import absolute_import
-
-import six
-import six.moves._thread
+import _thread
 
 
 class _data(object):
@@ -39,7 +36,7 @@ class ThreadLocal(object):
 
     # should probably be getattribute, but easier to debug this way
     def __getattr__(self, key):
-        id = six.moves._thread.get_ident()
+        id = _thread.get_ident()
         tdict = object.__getattribute__(self, '_tdict')
         if id not in tdict:
             raise AttributeError(key)
@@ -47,7 +44,7 @@ class ThreadLocal(object):
         return object.__getattribute__(data, key)
 
     def __setattr__(self, key, value):
-        id = six.moves._thread.get_ident()
+        id = _thread.get_ident()
         tdict = object.__getattribute__(self, '_tdict')
         if id not in tdict:
             tdict[id] = _data()
@@ -55,7 +52,7 @@ class ThreadLocal(object):
         return object.__setattr__(data, key, value)
 
     def __delattr__(self, key):
-        id = six.moves._thread.get_ident()
+        id = _thread.get_ident()
         tdict = object.__getattribute__(self, '_tdict')
         if id not in tdict:
             raise AttributeError(key)
@@ -66,14 +63,14 @@ class ThreadLocal(object):
         return ret
 
     def __str__(self):
-        id = six.moves._thread.get_ident()
+        id = _thread.get_ident()
         tdict = object.__getattribute__(self, '_tdict')
         return "(current thread: %s) {" % id + \
-            ", ".join(["%s : %s" % (k, v.__dict__) for (k, v) in six.iteritems(tdict)]) + \
+            ", ".join(["%s : %s" % (k, v.__dict__) for (k, v) in tdict.items()]) + \
             "}"
 
     def _threadclear(self):
-        id = six.moves._thread.get_ident()
+        id = _thread.get_ident()
         tdict = object.__getattribute__(self, '_tdict')
         if id not in tdict:
             return

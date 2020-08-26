@@ -1,18 +1,13 @@
 # coding=utf-8
-from __future__ import absolute_import
 import calendar
+import configparser
 import locale
 import mock
 import optparse
 import os
 import resource
-import six.moves.configparser
 import time
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import requests_mock
 from mock import call, patch
@@ -49,14 +44,6 @@ class EnumTestCase(unittest.TestCase):
         """ Test slice access. """
         test = koji.Enum(('one', 'two', 'three'))
         self.assertEquals(test[1:], ('two', 'three'))
-
-
-def mock_open():
-    """Return the right patch decorator for open"""
-    if six.PY2:
-        return mock.patch('__builtin__.open')
-    else:
-        return mock.patch('builtins.open')
 
 
 class MiscFunctionTestCase(unittest.TestCase):
@@ -101,7 +88,7 @@ class MiscFunctionTestCase(unittest.TestCase):
         islink.assert_called_once_with(dst)
         move.assert_not_called()
 
-    @mock_open()
+    @mock.patch('builtins.open')
     @mock.patch('tempfile.TemporaryFile')
     def test_openRemoteFile(self, m_TemporaryFile, m_open):
         """Test openRemoteFile function"""
@@ -243,16 +230,13 @@ class ConfigFileTestCase(unittest.TestCase):
         self.manager.isdir = mock.patch("os.path.isdir").start()
         self.manager.isfile = mock.patch("os.path.isfile").start()
         self.manager.access = mock.patch("os.access", return_value=True).start()
-        self.manager.cp_clz = mock.patch("six.moves.configparser.ConfigParser",
+        self.manager.cp_clz = mock.patch("configparser.ConfigParser",
                                          spec=True).start()
-        self.manager.scp_clz = mock.patch("six.moves.configparser.SafeConfigParser",
+        self.manager.scp_clz = mock.patch("configparser.SafeConfigParser",
                                          spec=True).start()
-        self.manager.rcp_clz = mock.patch("six.moves.configparser.RawConfigParser",
+        self.manager.rcp_clz = mock.patch("configparser.RawConfigParser",
                                          spec=True).start()
-        if six.PY2:
-            self.real_parser_clz = self.manager.scp_clz
-        else:
-            self.real_parser_clz = self.manager.cp_clz
+        self.real_parser_clz = self.manager.cp_clz
         self.mocks = [self.manager.isdir,
                       self.manager.isfile,
                       self.manager.access,
@@ -287,12 +271,7 @@ class ConfigFileTestCase(unittest.TestCase):
         self.manager.isdir.return_value = False
         conf = koji.read_config_files(files)
         self.manager.isdir.assert_called_once_with(files)
-        if six.PY2:
-            self.assertTrue(isinstance(conf,
-                                       six.moves.configparser.SafeConfigParser.__class__))
-        else:
-            self.assertTrue(isinstance(conf,
-                                       six.moves.configparser.ConfigParser.__class__))
+        self.assertTrue(isinstance(conf, configparser.ConfigParser.__class__))
         self.real_parser_clz.assert_called_once()
         self.real_parser_clz.return_value.read.assert_called_once_with([files])
 
@@ -313,7 +292,7 @@ class ConfigFileTestCase(unittest.TestCase):
         self.reset_mock()
         conf = koji.read_config_files(files, raw=True)
         self.assertTrue(isinstance(conf,
-                                   six.moves.configparser.RawConfigParser.__class__))
+                                   configparser.RawConfigParser.__class__))
         self.manager.cp_clz.assert_not_called()
         self.manager.scp_clz.assert_not_called()
         self.manager.rcp_clz.assert_called_once()
@@ -739,12 +718,8 @@ class MavenUtilTestCase(unittest.TestCase):
     def _read_conf(self, cfile):
         path = os.path.dirname(__file__)
         with open(path + cfile, 'r') as conf_file:
-            if six.PY2:
-                config = six.moves.configparser.SafeConfigParser()
-                config.readfp(conf_file)
-            else:
-                config = six.moves.configparser.ConfigParser()
-                config.read_file(conf_file)
+            config = configparser.ConfigParser()
+            config.read_file(conf_file)
         return config
 
     def test_formatChangelog(self):
@@ -817,8 +792,7 @@ class MavenUtilTestCase(unittest.TestCase):
 
         # invalid date test
         for args, err in time_tests.items():
-            six.assertRaisesRegex(
-                self, ValueError, err, koji.util.parseTime, args)
+            self.assertRaisesRegex(ValueError, err, koji.util.parseTime, args)
 
     def test_duration(self):
         """Test duration function"""
@@ -904,14 +878,14 @@ class MavenUtilTestCase(unittest.TestCase):
         # exception tests
         func = lambda *args, **kargs: \
             (_ for _ in ()).throw(TypeError('fake-type-error'))
-        six.assertRaisesRegex(self, TypeError, 'fake-type-error',
+        self.assertRaisesRegex(TypeError, 'fake-type-error',
                               koji.util.call_with_argcheck,
                               func, [1, 2, 3], {'para1': 1, 'para2': 2})
 
         with mock.patch('sys.exc_info') as m_info:
             m_info.side_effect = lambda: \
                 [None, None, mock.MagicMock(tb_next=None)]
-            six.assertRaisesRegex(self, koji.ParameterError, 'fake-type-error',
+            self.assertRaisesRegex(koji.ParameterError, 'fake-type-error',
                                   koji.util.call_with_argcheck,
                                   func, [1, 2, 3])
 
@@ -1050,31 +1024,31 @@ class MavenUtilTestCase(unittest.TestCase):
 
         name, release, date = 'fedora', 26, datetime.now().strftime('%Y%m%d')
         data = {'name': name, 'release': release, 'date': date}
-        six.assertCountEqual(self, list(data.items()), list(ldict.items()))
-        six.assertCountEqual(self, list(data.items()), [v for v in six.iteritems(ldict)])
+        self.assertCountEqual(list(data.items()), list(ldict.items()))
+        self.assertCountEqual(list(data.items()), [v for v in ldict.items()])
 
         name, release, date = 'rhel', 7, '20171012'
-        six.assertCountEqual(self, [name, release, date], list(ldict.values()))
-        six.assertCountEqual(self, [name, release, date], [v for v in six.itervalues(ldict)])
+        self.assertCountEqual([name, release, date], list(ldict.values()))
+        self.assertCountEqual([name, release, date], [v for v in ldict.values()])
 
         data = {'name': name, 'release': release, 'date': date}
         self.assertEqual(name, ldict.pop('name'))
         data.pop('name')
-        six.assertCountEqual(self, list(data.items()), list(ldict.items()))
+        self.assertCountEqual(list(data.items()), list(ldict.items()))
 
         (key, value) = ldict.popitem()
         data.pop(key)
-        six.assertCountEqual(self, list(data.items()), list(ldict.items()))
+        self.assertCountEqual(list(data.items()), list(ldict.items()))
 
         ldict_copy = ldict.copy()
-        six.assertCountEqual(self, list(data.items()), list(ldict_copy.items()))
+        self.assertCountEqual(list(data.items()), list(ldict_copy.items()))
 
     def test_LazyRecord(self):
         """Test LazyRecord object"""
         # create a list object with lazy attribute
         lobj = koji.util.LazyRecord(list)
-        six.assertRaisesRegex(
-            self, TypeError, 'object does not support lazy attributes',
+        self.assertRaisesRegex(
+            TypeError, 'object does not support lazy attributes',
             koji.util.lazysetattr, self, 'value', lambda x: x, (100,))
 
         base, init, inc = 10, 1, 0
@@ -1133,7 +1107,7 @@ class MavenUtilTestCase(unittest.TestCase):
 
         actual = koji.util.eventFromOpts(session, opts)
         self.assertNotEqual(None, actual)
-        six.assertCountEqual(self, list(expect.items()), list(actual.items()))
+        self.assertCountEqual(list(expect.items()), list(actual.items()))
 
         # no event is matched case
         opts = mock.MagicMock(event=0, ts=0, repo=0)
@@ -1169,7 +1143,7 @@ class MavenUtilTestCase(unittest.TestCase):
         with mock.patch('resource.setrlimit') as m_set:
             with mock.patch('resource.getrlimit') as m_get:
                 m_get.side_effect = ValueError('resource.getrlimit-value-error')
-                six.assertRaisesRegex(self, ValueError, 'resource.getrlimit-value-error',
+                self.assertRaisesRegex(ValueError, 'resource.getrlimit-value-error',
                                       koji.util.setup_rlimits, options, logger)
 
                 m_get.side_effect = _getrlimit
@@ -1205,7 +1179,7 @@ class MavenUtilTestCase(unittest.TestCase):
                     'KojiDebug':      True})
 
                 koji.util.setup_rlimits(test_opt, logger)
-                six.assertCountEqual(self, results, options)
+                self.assertCountEqual(results, options)
 
     def test_adler32_constructor(self):
         """Test adler32_constructor function"""

@@ -1,20 +1,16 @@
-from __future__ import absolute_import
-import six
+import io
 import protonmsg
 import tempfile
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from mock import patch, MagicMock
 from koji.context import context
-from six.moves.configparser import ConfigParser, SafeConfigParser
+from configparser import ConfigParser
 
 class TestProtonMsg(unittest.TestCase):
     def setUp(self):
         self.conf = tempfile.NamedTemporaryFile()
-        self.conf.write(six.b("""[broker]
+        self.conf.write(b"""[broker]
 urls = amqps://broker1.example.com:5671 amqps://broker2.example.com:5671
 cert = /etc/koji-hub/plugins/client.pem
 cacert = /etc/koji-hub/plugins/ca.pem
@@ -24,7 +20,7 @@ send_timeout = 60
 
 [message]
 extra_limit = 2048
-"""))
+""")
         self.conf.flush()
         protonmsg.CONFIG_FILE = self.conf.name
         protonmsg.CONFIG = None
@@ -234,7 +230,7 @@ extra_limit = 2048
     def test_send_queued_msgs_test_mode(self, Container):
         context.protonmsg_msgs = [('test.topic', {'testheader': 1}, 'test body')]
         conf = tempfile.NamedTemporaryFile()
-        conf.write(six.b("""[broker]
+        conf.write(b"""[broker]
 urls = amqps://broker1.example.com:5671 amqps://broker2.example.com:5671
 cert = /etc/koji-hub/plugins/client.pem
 cacert = /etc/koji-hub/plugins/ca.pem
@@ -242,7 +238,7 @@ topic_prefix = koji
 connect_timeout = 10
 send_timeout = 60
 test_mode = on
-"""))
+""")
         conf.flush()
         protonmsg.CONFIG_FILE = conf.name
         protonmsg.CONFIG = None
@@ -259,7 +255,7 @@ test_mode = on
 
 class TestTimeoutHandler(unittest.TestCase):
     def setUp(self):
-        confdata = six.StringIO("""[broker]
+        confdata = io.StringIO("""[broker]
 urls = amqps://broker1.example.com:5671 amqps://broker2.example.com:5671
 cert = /etc/koji-hub/plugins/client.pem
 cacert = /etc/koji-hub/plugins/ca.pem
@@ -267,12 +263,8 @@ topic_prefix = koji
 connect_timeout = 10
 send_timeout = 60
 """)
-        if six.PY2:
-            conf = SafeConfigParser()
-            conf.readfp(confdata)
-        else:
-            conf = ConfigParser()
-            conf.read_file(confdata)
+        conf = ConfigParser()
+        conf.read_file(confdata)
         self.handler = protonmsg.TimeoutHandler('amqps://broker1.example.com:5671', [], conf)
 
     @patch('protonmsg.SSLDomain')
@@ -286,18 +278,14 @@ send_timeout = 60
 
     @patch('protonmsg.SSLDomain')
     def test_on_start_no_ssl(self, SSLDomain):
-        confdata = six.StringIO("""[broker]
+        confdata = io.StringIO("""[broker]
 urls = amqp://broker1.example.com:5672 amqp://broker2.example.com:5672
 topic_prefix = koji
 connect_timeout = 10
 send_timeout = 60
 """)
-        if six.PY2:
-            conf = SafeConfigParser()
-            conf.readfp(confdata)
-        else:
-            conf = ConfigParser()
-            conf.read_file(confdata)
+        conf = ConfigParser()
+        conf.read_file(confdata)
         handler = protonmsg.TimeoutHandler('amqp://broker1.example.com:5672', [], conf)
         event = MagicMock()
         handler.on_start(event)

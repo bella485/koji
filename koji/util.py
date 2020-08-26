@@ -18,8 +18,6 @@
 #       Mike McLean <mikem@redhat.com>
 #       Mike Bonnet <mikeb@redhat.com>
 
-from __future__ import absolute_import, division
-
 import base64
 import calendar
 import datetime
@@ -37,9 +35,6 @@ import time
 import warnings
 from fnmatch import fnmatch
 from zlib import adler32
-
-import six
-from six.moves import range, zip
 
 import koji
 from koji.xmlrpcplus import DateTime
@@ -155,9 +150,6 @@ def base64encode(s, as_bytes=False):
 
     This function returns a string unless as_bytes is True
     """
-    if six.PY2:
-        return base64.b64encode(s)
-
     if isinstance(s, str):
         s = s.encode('utf8')
     data = base64.b64encode(s)
@@ -191,7 +183,7 @@ def multi_fnmatch(s, patterns):
 
     If patterns is a string, it will be split() first
     """
-    if isinstance(patterns, six.string_types):
+    if isinstance(patterns, str):
         patterns = patterns.split()
     for pat in patterns:
         if fnmatch(s, pat):
@@ -385,11 +377,11 @@ class LazyDict(dict):
         return [(key, lazy_eval(val)) for key, val in super(LazyDict, self).items()]
 
     def itervalues(self):
-        for val in six.itervalues(super(LazyDict, self)):
+        for val in super(LazyDict, self).values():
             yield lazy_eval(val)
 
     def iteritems(self):
-        for key, val in six.iteritems(super(LazyDict, self)):
+        for key, val in super(LazyDict, self).items():
             yield key, lazy_eval(val)
 
     def pop(self, key, *args, **kwargs):
@@ -655,14 +647,14 @@ class adler32_constructor(object):
 
     # mimicing the hashlib constructors
     def __init__(self, arg=''):
-        if six.PY3 and isinstance(arg, str):
+        if isinstance(arg, str):
             arg = bytes(arg, 'utf-8')
         self._value = adler32(arg) & 0xffffffff
         # the bitwise and works around a bug in some versions of python
         # see: https://bugs.python.org/issue1202
 
     def update(self, arg):
-        if six.PY3 and isinstance(arg, str):
+        if isinstance(arg, str):
             arg = bytes(arg, 'utf-8')
         self._value = adler32(arg, self._value) & 0xffffffff
 
@@ -692,11 +684,11 @@ def tsort(parts):
     parts = parts.copy()
     result = []
     while True:
-        level = set([name for name, deps in six.iteritems(parts) if not deps])
+        level = set([name for name, deps in parts.items() if not deps])
         if not level:
             break
         result.append(level)
-        parts = dict([(name, deps - level) for name, deps in six.iteritems(parts)
+        parts = dict([(name, deps - level) for name, deps in parts.items()
                       if name not in level])
     if parts:
         raise ValueError('total ordering not possible')
@@ -855,7 +847,7 @@ def to_list(lst):
     Helper function for py2/py3 compatibility used e.g. in
     list(dict.keys())
 
-    Don't use it for structures like list(zip(x, y)), where six.moves.zip is
+    Don't use it for structures like list(zip(x, y)), where zip is
     used, so it is always an iterator.
     """
 

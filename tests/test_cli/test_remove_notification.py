@@ -1,12 +1,7 @@
-from __future__ import absolute_import
+import io
 import koji
 import mock
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-from six.moves import StringIO
+import unittest
 
 from koji_cli.commands import handle_remove_notification
 
@@ -26,7 +21,7 @@ class TestAddHost(unittest.TestCase):
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_remove_notification_bogus(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
 
@@ -37,7 +32,7 @@ class TestAddHost(unittest.TestCase):
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_remove_notifications_no_args(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
 

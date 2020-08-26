@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 
 from koji_cli.lib import _format_size, _format_secs, _progress_callback
@@ -31,7 +27,7 @@ class TestUploadProgressCallBack(unittest.TestCase):
         self.assertEqual(_format_secs(4321), '01:12:01')
         self.assertEqual(_format_secs(4321.567), '01:12:01')
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_progress_callback(self, stdout):
         _progress_callback(12300, 234000, 5670, 80, 900)
         _progress_callback(45600, 234000, 5670, 0, 900)

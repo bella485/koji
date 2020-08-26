@@ -1,11 +1,7 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
 import time
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import anon_handle_list_groups
 from . import utils
@@ -32,7 +28,7 @@ class TestListGroups(utils.CliTestCase):
     def tearDown(self):
         mock.patch.stopall()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_anon_handle_list_groups_argument_error(
@@ -187,7 +183,7 @@ class TestListGroups(utils.CliTestCase):
         args = ['fedora26-build']
         args += [query_group] if query_group != '' else []
         args += options if options else []
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             anon_handle_list_groups(self.options, self.session, args)
         self.assert_console_message(stdout, expected)
 

@@ -1,12 +1,8 @@
-from __future__ import absolute_import
+import io
 import mock
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_remove_host_from_channel
 from . import utils
@@ -16,7 +12,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_host_from_channel(
             self, activate_session_mock, stdout):
@@ -46,7 +42,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
         session.removeHostFromChannel.assert_called_once_with(host, channel)
         self.assertNotEqual(rv, 1)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_host_from_channel_no_host(
             self, activate_session_mock, stderr):
@@ -75,7 +71,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
         session.listChannels.assert_not_called()
         session.removeHostFromChannel.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_host_from_channel_not_a_member(
             self, activate_session_mock, stderr):
@@ -107,8 +103,8 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
         session.listChannels.assert_called_once_with(host_info['id'])
         session.removeHostFromChannel.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_remove_host_from_channel_help(
             self, activate_session_mock, stderr, stdout):

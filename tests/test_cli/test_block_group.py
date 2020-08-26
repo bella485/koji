@@ -1,7 +1,5 @@
-from __future__ import absolute_import
-
+import io
 import mock
-import six
 
 from koji_cli.commands import handle_block_group
 from . import utils
@@ -18,7 +16,7 @@ class TestBlockGroup(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_block_group_nonexistent_tag(self, activate_session_mock, stderr):
         tag = 'nonexistent-tag'
@@ -46,7 +44,7 @@ class TestBlockGroup(utils.CliTestCase):
         session.getTagGroups.assert_not_called()
         session.groupListBlock.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_block_group_nonexistent_group(self, activate_session_mock, stderr):
         tag = 'tag'
@@ -75,7 +73,7 @@ class TestBlockGroup(utils.CliTestCase):
         session.getTagGroups.assert_called_once_with(tag, inherit=False)
         session.groupListBlock.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_block_group(self, activate_session_mock, stdout):
         tag = 'tag'
@@ -104,7 +102,7 @@ class TestBlockGroup(utils.CliTestCase):
         session.groupListBlock.assert_called_once_with(tag, group)
         self.assertEqual(rv, None)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_block_group_error_handling(self, activate_session_mock, stdout):
         session = mock.MagicMock()

@@ -1,11 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 from koji_cli.commands import handle_spin_livecd, handle_spin_livemedia, handle_spin_appliance, _build_image
@@ -118,7 +113,7 @@ class TestBuildImage(utils.CliTestCase):
 
         args = [self.options, self.task_opts, self.session,
                 self.arguments, 'livecd']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image(*args)
         self.assert_console_message(stdout, expected)
         self.session.buildImage.assert_called_once()
@@ -135,7 +130,7 @@ class TestBuildImage(utils.CliTestCase):
 
         args = [self.options, self.task_opts, self.session,
                 self.arguments, 'appliance']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image(*args)
         self.assert_console_message(stdout, expected)
         self.session.buildImage.assert_called_once()
@@ -153,7 +148,7 @@ class TestBuildImage(utils.CliTestCase):
 
         args = [self.options, self.task_opts, self.session,
                 self.arguments, 'livemedia']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image(*args)
         self.assert_console_message(stdout, expected)
         self.session.buildImage.assert_called_once()
@@ -174,7 +169,7 @@ class TestBuildImage(utils.CliTestCase):
 
         args = [self.options, self.task_opts, self.session,
                 self.arguments, 'livemedia']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             self.assertEqual(self.task_id, _build_image(*args))
         args, kwargs = self.session.buildImage.call_args
         self.assert_console_message(stdout, expected)
@@ -197,7 +192,7 @@ class TestBuildImage(utils.CliTestCase):
 
         args = [self.options, self.task_opts, self.session,
                 self.arguments, 'livemedia']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             self.assertEqual(None, _build_image(*args))
         args, kwargs = self.session.buildImage.call_args
         self.assert_console_message(stdout, expected)
@@ -263,7 +258,7 @@ class TestSpinAppliance(utils.CliTestCase):
     def test_handle_spin_appliance(self, build_image_mock):
         """Test handle_spin_appliance function"""
         args = ['name', 'version', 'target', 'arch', 'file.ks']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             handle_spin_appliance(self.options, self.session, args)
         args, kwargs = build_image_mock.call_args
         empty_opts = dict((k, None) for k in APPLIANCE_OPTIONS)
@@ -348,7 +343,7 @@ class TestSpinLiveMedia(utils.CliTestCase):
     def test_handle_spin_livemedia(self, build_image_mock):
         """Test handle_spin_livemedia function"""
         args = ['name', 'version', 'target', 'arch', 'file.ks']
-        with mock.patch('sys.stdout', new_callable=six.StringIO):
+        with mock.patch('sys.stdout', new_callable=io.StringIO):
             handle_spin_livemedia(self.options, self.session, args)
         args, kwargs = build_image_mock.call_args
         empty_opts = dict((k, None) for k in LIVEMEDIA_OPTIONS)
@@ -447,7 +442,7 @@ class TestSpinLiveCD(utils.CliTestCase):
     def test_handle_spin_livecd(self, build_image_mock):
         """Test handle_spin_livecd function"""
         args = ['name', 'version', 'target', 'arch', 'file.ks']
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             handle_spin_livecd(self.options, self.session, args)
         args, kwargs = build_image_mock.call_args
         empty_opts = dict((k, None) for k in LIVECD_OPTIONS)

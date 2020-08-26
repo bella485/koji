@@ -1,11 +1,7 @@
-from __future__ import absolute_import
+import io
 import json
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_call
 from . import utils
@@ -23,7 +19,7 @@ class TestCall(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_call(self, activate_session_mock, stdout):
         """Test handle_call function"""
@@ -40,7 +36,7 @@ class TestCall(utils.CliTestCase):
         session.ssl_login.assert_called_with('debug', cert='/etc/pki/cert')
         self.assert_console_message(stdout, "'%s'\n" % response)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_call_python_syntax(self, activate_session_mock, stdout):
         """Test handle_call with python syntax"""
@@ -63,7 +59,7 @@ class TestCall(utils.CliTestCase):
         session.ssl_login.assert_called_with(cert='/etc/pki/cert')
         self.assert_console_message(stdout, "'%s'\n" % response[1])
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_call_json_output(self, activate_session_mock, stdout):
         """Test handle_call with json output"""
@@ -90,7 +86,7 @@ class TestCall(utils.CliTestCase):
         expect = json.dumps(response, indent=2, separators=(',', ': '))
         self.assert_console_message(stdout, '%s\n' % expect)
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_call_errors(self, activate_session_mock, stderr):
         """Test handle_call error messages"""

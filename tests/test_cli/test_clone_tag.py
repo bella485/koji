@@ -1,13 +1,8 @@
-from __future__ import absolute_import
-
+import io
 import mock
-import six
+import unittest
 from mock import call
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
 from koji_cli.commands import handle_clone_tag
 from . import utils
@@ -138,7 +133,7 @@ clone-tag will create the destination tag if it does not already exist
         self.activate_session.getTag.has_called([mock.call('src-tag'),
                                                  mock.call('dst-tag')])
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_handle_clone_tag_new_dsttag(self, stdout):
         args = ['src-tag', 'dst-tag', '--all', '-v']
         self.session.listPackages.return_value = [{'package_id': 1,
@@ -313,7 +308,7 @@ List of changes:
     [new]   bpkg                         group2                      
 """)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_handle_clone_tag_existing_dsttag(self, stdout):
         args = ['src-tag', 'dst-tag', '--all', '-v']
         self.session.multiCall.return_value = []
@@ -622,7 +617,7 @@ List of changes:
     [blk]   cpkg                         group2                      
 """)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_handle_clone_tag_existing_dsttag_nodelete(self, stdout):
         args = ['src-tag', 'dst-tag', '--all', '-v', '--no-delete']
         self.session.multiCall.return_value = []
@@ -681,7 +676,7 @@ List of changes:
     ------- ---------------------------- ----------------------------
 """)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_handle_clone_tag_existing_dsttag_nodelete_1(self, stdout):
         args = ['src-tag', 'dst-tag', '--all', '-v', '--no-delete']
         self.session.multiCall.return_value = []
@@ -757,7 +752,7 @@ List of changes:
     ------- ---------------------------- ----------------------------
 """)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_handle_clone_tag_existing_dsttag_nodelete_2(self, stdout):
         args = ['src-tag', 'dst-tag', '--all', '-v', '--no-delete']
         self.session.multiCall.return_value = []

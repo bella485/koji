@@ -1,12 +1,8 @@
-from __future__ import absolute_import
+import io
 import mock
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 
 from koji_cli.commands import handle_edit_user
@@ -19,7 +15,7 @@ class TestEditUser(utils.CliTestCase):
     # Show long diffs in error output...
     maxDiff = None
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_edit_user(self, activate_session_mock, stdout):
         user = 'user'
@@ -54,8 +50,8 @@ class TestEditUser(utils.CliTestCase):
         session.reset_mock()
         activate_session_mock.reset_mock()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_edit_user_help(self, activate_session_mock, stderr, stdout):
         args = ['--help']
@@ -89,8 +85,8 @@ Options:
         session.editUser.assert_not_called()
         self.assertEqual(cm.exception.code, 0)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_edit_user_no_arg(self, activate_session_mock, stderr, stdout):
         args = []

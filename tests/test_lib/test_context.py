@@ -1,12 +1,7 @@
-from __future__ import absolute_import
-import six
 import time
 import random
-from six.moves import range
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+import _thread
 
 from koji.context import context
 
@@ -26,7 +21,7 @@ class TestContext(unittest.TestCase):
             self.assertFalse(hasattr(context, 'foo'))
 
         for x in range(1, 10):
-            six.moves._thread.start_new_thread(test, ())
+            _thread.start_new_thread(test, ())
 
         time.sleep(0.5)
         for i in range(10):

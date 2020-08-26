@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from setuptools import setup
 
 
@@ -13,7 +11,6 @@ def get_install_requires():
         'python-dateutil',
         'requests',
         'requests-gssapi',
-        'six',
         'pyOpenSSL',
         # 'libcomps',
         # 'rpm-py-installer', # it is optional feature

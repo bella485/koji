@@ -1,13 +1,7 @@
-from __future__ import absolute_import
-from __future__ import print_function
 import copy
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
+import unittest
 
 from koji_cli.commands import handle_dist_repo
 from . import utils
@@ -84,7 +78,7 @@ via 'koji edit-tag -x distrepo.cancel_others=True'
 
     def __run_test_handle_dist_repo(self, arguments, return_value=None, expected=''):
         expected = expected + "Creating dist repo for tag " + self.tag_name + "\n"
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             rv = handle_dist_repo(self.options, self.session, arguments)
             self.assertEqual(rv, return_value)
         self.assert_console_message(stdout, expected)

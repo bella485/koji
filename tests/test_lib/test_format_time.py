@@ -1,14 +1,9 @@
-from __future__ import absolute_import
 import datetime
 import os
 import time
 import locale
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-import six.moves.xmlrpc_client as xmlrpc_client
+import unittest
+import xmlrpc.client
 
 from koji import formatTime, formatTimeLong
 
@@ -33,7 +28,7 @@ class TestFormatTime(unittest.TestCase):
         self.assertEqual(formatTime(d), desired)
 
         # DateTime
-        d1 = xmlrpc_client.DateTime(d)
+        d1 = xmlrpc.client.DateTime(d)
         self.assertEqual(formatTime(d1), desired)
 
         # str
@@ -60,7 +55,7 @@ class TestFormatTime(unittest.TestCase):
         self.assertEqual(r, desired)
 
         # DateTime
-        d1 = xmlrpc_client.DateTime(d)
+        d1 = xmlrpc.client.DateTime(d)
         r = formatTimeLong(d1)
         r = r[:r.rfind(' ')]
         self.assertEqual(r, desired)

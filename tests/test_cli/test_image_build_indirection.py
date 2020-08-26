@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 
@@ -81,7 +77,7 @@ class TestBuildImageIndirection(utils.CliTestCase):
         expected = "Created task: %d" % self.task_id + "\n"
         expected += "Task info: %s/taskinfo?taskID=%s" % (self.weburl, self.task_id) + "\n"
 
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image_indirection(
                 self.options, self.task_opts, self.session, [])
         self.assert_console_message(stdout, expected)
@@ -94,7 +90,7 @@ class TestBuildImageIndirection(utils.CliTestCase):
 
         self.task_opts.indirection_template_url = None
         self.task_opts.scratch = True
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image_indirection(
                 self.options, self.task_opts, self.session, [])
         self.assert_console_message(stdout, expected)
@@ -108,7 +104,7 @@ class TestBuildImageIndirection(utils.CliTestCase):
         self.task_opts.indirection_template_url = None
         self.task_opts.scratch = True
         self.task_opts.noprogress = True
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             _build_image_indirection(
                 self.options, self.task_opts, self.session, [])
         self.assert_console_message(stdout, expected)
@@ -150,7 +146,7 @@ class TestBuildImageIndirection(utils.CliTestCase):
             expected = "Missing the following required options: "
             expected += "--" + r.replace('_', '-') + "\n"
             with self.assertRaises(koji.GenericError) as cm:
-                with  mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+                with  mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
                     _build_image_indirection(
                         self.options, self.task_opts, self.session, [])
             self.assert_console_message(stdout, expected)

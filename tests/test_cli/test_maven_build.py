@@ -1,14 +1,9 @@
-from __future__ import absolute_import
-
+import io
 import mock
 import optparse
 import os
-import six
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji_cli.commands import handle_maven_build
 from . import utils
@@ -46,7 +41,7 @@ class TestMavenBuild(utils.CliTestCase):
         # Mock out the xmlrpc server
         self.session = mock.MagicMock()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -88,8 +83,8 @@ Task info: weburl/taskinfo?taskID=1
             poll_interval=self.options.poll_interval)
         self.assertEqual(rv, 0)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -128,8 +123,8 @@ Task info: weburl/taskinfo?taskID=1
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -168,8 +163,8 @@ Task info: weburl/taskinfo?taskID=1
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -236,7 +231,7 @@ Options:
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -277,7 +272,7 @@ Options:
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -322,7 +317,7 @@ Options:
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -367,8 +362,8 @@ Options:
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch(
         'koji.util.parse_maven_param',
@@ -501,7 +496,7 @@ Task info: weburl/taskinfo?taskID=1
         maven_opts_mock.assert_not_called()
         self.session.mavenBuild.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji.util.maven_opts')
@@ -553,7 +548,7 @@ Task info: weburl/taskinfo?taskID=1
         self.session.logout.assert_not_called()
         watch_tasks_mock.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji.util.maven_opts', return_value={})
@@ -636,7 +631,7 @@ Task info: weburl/taskinfo?taskID=1
         self.session.mavenBuild.assert_called_once_with(
             source, target, opts, priority=priority)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -681,7 +676,7 @@ Task info: weburl/taskinfo?taskID=1
             poll_interval=self.options.poll_interval)
         self.assertEqual(rv, 0)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands._running_in_bg', return_value=True)
     @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
@@ -725,7 +720,7 @@ Task info: weburl/taskinfo?taskID=1
         watch_tasks_mock.assert_not_called()
         self.assertIsNone(rv)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji.util.maven_opts', return_value={})

@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-from six.moves import StringIO
+import unittest
 
 import koji
 
@@ -17,7 +13,7 @@ class TestListNotifications(unittest.TestCase):
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
 
-    @mock.patch('sys.stdout', new_callable=StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_list_notifications(self, activate_session_mock, stdout):
         self.session.getBuildNotifications.return_value = [
@@ -51,7 +47,7 @@ No notification blocks
         self.session.getUser.assert_not_called()
         self.session.getBuildNotifications.assert_called_once_with(None)
 
-    @mock.patch('sys.stdout', new_callable=StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_list_notifications_user(self, ensure_connection_mock, stdout):
         self.session.getBuildNotifications.return_value = [
@@ -101,7 +97,7 @@ Notification blocks
         self.session.getBuildNotifications.assert_called_once_with(321)
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_list_notifications_missing_params(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
 
@@ -115,7 +111,7 @@ Notification blocks
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_list_notifications_no_args(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
 

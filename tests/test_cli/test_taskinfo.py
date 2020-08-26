@@ -1,12 +1,8 @@
-from __future__ import absolute_import, print_function
 import collections
+import io
 import mock
-import six
 import time
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 from koji_cli.commands import anon_handle_taskinfo, \
@@ -426,7 +422,7 @@ Finished: Thu Jan  1 00:50:00 1970
 
 """ % tuple('/mnt/koji/work/tasks/2/2/' + k for k in task_output.keys())
 
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             with mock.patch('time.localtime', new=time.gmtime):
                 _printTaskInfo(session, 1, '/mnt/koji')
         self.assert_console_message(stdout, expected)
@@ -566,7 +562,7 @@ Build: bash-4.4.12-5.fc26 (1)
   Host: kojibuilder
 
 """
-        with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
             with mock.patch('time.localtime', new=time.gmtime):
                 _printTaskInfo(session, 1, '/mnt/koji')
         self.assert_console_message(stdout, expected)
@@ -594,7 +590,7 @@ class TestTaskInfo(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji_cli.commands.ensure_connection')
     def test_anon_handle_taskinfo(

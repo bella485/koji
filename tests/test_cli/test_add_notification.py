@@ -1,11 +1,7 @@
-from __future__ import absolute_import
+import io
 import koji
 import mock
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-from six.moves import StringIO
+import unittest
 
 from koji_cli.commands import handle_add_notification
 
@@ -62,7 +58,7 @@ class TestAddNotification(unittest.TestCase):
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_add_notification_no_pkg_no_tag(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
 
@@ -77,7 +73,7 @@ class TestAddNotification(unittest.TestCase):
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_add_notification_user_no_admin(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
         self.session.hasPerm.return_value = False
@@ -93,7 +89,7 @@ class TestAddNotification(unittest.TestCase):
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_add_notification_user_admin(self, sys_stderr, sys_exit):
         self.session.hasPerm.return_value = True
         self.session.getPackageID.return_value = 1234
@@ -109,7 +105,7 @@ class TestAddNotification(unittest.TestCase):
 
 
     @mock.patch('sys.exit')
-    @mock.patch('sys.stderr', new_callable=StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     def test_handle_add_notification_args(self, sys_stderr, sys_exit):
         sys_exit.side_effect = SystemExit()
 

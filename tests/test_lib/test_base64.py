@@ -1,10 +1,5 @@
 # coding=utf-8
-from __future__ import absolute_import
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from koji.util import base64encode
 
@@ -22,6 +17,5 @@ class Base64EncodeTestCase(unittest.TestCase):
         for s, expected in self.DATA:
             result = base64encode(s)
             self.assertEqual(result, expected)
-            if six.PY3:
-                result = base64encode(s, as_bytes=True)
-                self.assertEqual(result, expected.encode('ascii'))
+            result = base64encode(s, as_bytes=True)
+            self.assertEqual(result, expected.encode('ascii'))

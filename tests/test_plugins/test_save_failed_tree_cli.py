@@ -1,10 +1,6 @@
-from __future__ import absolute_import
+import io
 import mock
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 
@@ -124,7 +120,7 @@ class TestSaveFailedTree(unittest.TestCase):
                                                              poll_interval=options.poll_interval,
                                                              quiet=options.quiet)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_handle_save_failed_tree_errors(self, stdout):
         # koji save-failed-tree 123 456
         arguments = [123, 456]

@@ -1,14 +1,9 @@
-from __future__ import absolute_import
 import copy
 import hashlib
+import io
 import mock
 import random
-import six
-from six.moves import range
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 from mock import call
 from koji.util import base64encode
@@ -73,7 +68,7 @@ class TestImportSIG(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.rip_rpm_sighdr')
     @mock.patch('koji.get_sigpacket_key_id')
     @mock.patch('koji.get_header_fields')

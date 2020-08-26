@@ -1,21 +1,11 @@
-from __future__ import absolute_import
+import io
 import mock
 import os
-import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 import koji
 from koji_cli.commands import handle_import
 from . import utils
-
-def md5_to_bytes(s):
-    if six.PY2:
-        return bytearray.fromhex(unicode(s))
-    else:
-        return bytearray.fromhex(s)
 
 class TestImport(utils.CliTestCase):
 
@@ -54,7 +44,7 @@ class TestImport(utils.CliTestCase):
         self.srpm_header = {
             'sourcepackage': 1,
             'name': 'bash',
-            'sigmd5': md5_to_bytes(self.md5),
+            'sigmd5': bytearray.fromhex(self.md5),
             'epoch': None,
             'version': '4.4.12',
             'release': '5.fc26',
@@ -65,7 +55,7 @@ class TestImport(utils.CliTestCase):
         self.rpm_header = {
             'sourcepackage': None,
             'name': 'bash',
-            'sigmd5': md5_to_bytes(self.md5),
+            'sigmd5': bytearray.fromhex(self.md5),
             'epoch': None,
             'version': '4.4.12',
             'release': '5.fc26',
@@ -97,7 +87,7 @@ class TestImport(utils.CliTestCase):
         with mock.patch('koji.get_header_fields') as get_header_fields_mock:
             with mock.patch('koji_cli.commands.unique_path') as unique_path_mock:
                 with mock.patch('koji_cli.commands.activate_session') as activate_session_mock:
-                    with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+                    with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
                         with upload_rpm_mock:
                             get_header_fields_mock.return_value = rpm_header
                             unique_path_mock.return_value = fake_srv_path
@@ -138,7 +128,7 @@ class TestImport(utils.CliTestCase):
 
         with mock.patch('koji.get_header_fields') as get_header_fields_mock:
             with mock.patch('koji_cli.commands.activate_session') as activate_session_mock:
-                with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+                with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
                     get_header_fields_mock.return_value = rpm_header
                     handle_import(options, session, arguments)
 
@@ -310,7 +300,7 @@ class TestImport(utils.CliTestCase):
         expected = "Build %s state is %s. Skipping import\n" % (nvr, 'FAILED')
         with mock.patch('koji.get_header_fields') as get_header_fields_mock:
             with mock.patch('koji_cli.commands.activate_session') as activate_session_mock:
-                with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
+                with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
                     get_header_fields_mock.return_value = self.srpm_header
                     handle_import(options, session, arguments)
         activate_session_mock.assert_called_with(session, options)
@@ -349,8 +339,8 @@ class TestImport(utils.CliTestCase):
                      for k in ['name', 'version', 'release', 'epoch'])
         session.createEmptyBuild.assert_called_with(**kwarg)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji.get_header_fields')
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_import_binary_rpm_import_with_no_build_exist(
@@ -396,8 +386,8 @@ class TestImport(utils.CliTestCase):
                      for k in ['name', 'version', 'release', 'epoch'])
         session.createEmptyBuild.assert_called_with(**kwarg)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_import_binary_rpm_with_exist_build(
             self,
@@ -473,7 +463,7 @@ class TestImport(utils.CliTestCase):
                      for k in ['name', 'version', 'release', 'epoch'])
         session.createEmptyBuild.assert_called_with(**kwarg)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.get_header_fields')
     @mock.patch('koji_cli.commands.unique_path')
     @mock.patch('koji_cli.commands.activate_session')
@@ -531,7 +521,7 @@ class TestImport(utils.CliTestCase):
         session.createEmptyBuild.assert_not_called()
         session.importRPM.assert_not_called()
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
     @mock.patch('koji.get_header_fields')
     @mock.patch('koji_cli.commands.unique_path')
     @mock.patch('koji_cli.commands.activate_session')
@@ -587,8 +577,8 @@ class TestImport(utils.CliTestCase):
         kwarg['epoch'] = int(epoch)
         session.createEmptyBuild.assert_called_with(**kwarg)
 
-    @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stdout', new_callable=io.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji.get_header_fields')
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_import_has_build_states_test(
@@ -642,7 +632,7 @@ class TestImport(utils.CliTestCase):
             session.getRPM.assert_not_called()
             session.importRPM.assert_not_called()
 
-    @mock.patch('sys.stderr', new_callable=six.StringIO)
+    @mock.patch('sys.stderr', new_callable=io.StringIO)
     @mock.patch('koji_cli.commands.activate_session')
     def test_handle_import_argument_error(
             self,
