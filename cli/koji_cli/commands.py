@@ -17,6 +17,7 @@ from collections import OrderedDict, defaultdict
 from optparse import SUPPRESS_HELP, OptionParser
 
 import dateutil.parser
+import libcomps
 
 import koji
 from koji.util import base64encode, md5_constructor, to_list
@@ -44,16 +45,6 @@ from koji_cli.lib import (
     watch_logs,
     watch_tasks
 )
-
-try:
-    import libcomps
-except ImportError:  # pragma: no cover
-    libcomps = None
-    try:
-        import yum.comps as yumcomps
-    except ImportError:
-        yumcomps = None
-
 
 def handle_add_group(goptions, session, args):
     "[admin] Add a group to a tag"
@@ -1356,23 +1347,16 @@ def handle_import_comps(goptions, session, args):
     if len(args) != 2:
         parser.error(_("Incorrect number of arguments"))
     activate_session(session, goptions)
+
+    filename = args[0]
     # check if the tag exists
-    dsttag = session.getTag(args[1])
-    if dsttag is None:
+    tag = session.getTag(args[1])
+    if tag is None:
         error("No such tag: %s" % args[1])
-    if libcomps is not None:
-        _import_comps(session, args[0], args[1], local_options)
-    elif yumcomps is not None:
-        _import_comps_alt(session, args[0], args[1], local_options)
-    else:
-        error("comps module not available")
 
-
-def _import_comps(session, filename, tag, options):
-    """Import comps data using libcomps module"""
     comps = libcomps.Comps()
     comps.fromxml_f(filename)
-    force = options.force
+    force = local_options.force
     ptypes = {
         libcomps.PACKAGE_TYPE_DEFAULT: 'default',
         libcomps.PACKAGE_TYPE_OPTIONAL: 'optional',
@@ -1383,7 +1367,7 @@ def _import_comps(session, filename, tag, options):
     for group in comps.groups:
         print("Group: %s (%s)" % (group.id, group.name))
         session.groupListAdd(
-            tag, group.id, force=force, display_name=group.name,
+            tag['name'], group.id, force=force, display_name=group.name,
             is_default=bool(group.default),
             uservisible=bool(group.uservisible),
             description=group.desc,
@@ -1397,39 +1381,9 @@ def _import_comps(session, filename, tag, options):
                 pkgopts['requires'] = pkg.requires
             s_opts = ', '.join(["'%s': %r" % (k, pkgopts[k]) for k in sorted(pkgopts.keys())])
             print("  Package: %s: {%s}" % (pkg.name, s_opts))
-            session.groupPackageListAdd(tag, group.id, pkg.name, force=force, **pkgopts)
+            session.groupPackageListAdd(tag['name'], group.id, pkg.name, force=force, **pkgopts)
         # libcomps does not support group dependencies
         # libcomps does not support metapkgs
-
-
-def _import_comps_alt(session, filename, tag, options):  # no cover 3.x
-    """Import comps data using yum.comps module"""
-    print('WARN: yum.comps does not support the biarchonly of group and basearchonly of package')
-    comps = yumcomps.Comps()
-    comps.add(filename)
-    force = options.force
-    for group in comps.groups:
-        print("Group: %(groupid)s (%(name)s)" % vars(group))
-        session.groupListAdd(tag, group.groupid, force=force, display_name=group.name,
-                             is_default=bool(group.default),
-                             uservisible=bool(group.user_visible),
-                             description=group.description,
-                             langonly=group.langonly)
-        # yum.comps does not support the biarchonly field
-        for ptype, pdata in [('mandatory', group.mandatory_packages),
-                             ('default', group.default_packages),
-                             ('optional', group.optional_packages),
-                             ('conditional', group.conditional_packages)]:
-            for pkg in pdata:
-                # yum.comps does not support basearchonly
-                pkgopts = {'type': ptype}
-                if ptype == 'conditional':
-                    pkgopts['requires'] = pdata[pkg]
-                s_opts = ', '.join(["'%s': %r" % (k, pkgopts[k]) for k in sorted(pkgopts.keys())])
-                print("  Package: %s: {%s}" % (pkg, s_opts))
-                session.groupPackageListAdd(tag, group.groupid, pkg, force=force, **pkgopts)
-        # yum.comps does not support group dependencies
-        # yum.comps does not support metapkgs
 
 
 def handle_import_sig(goptions, session, args):
