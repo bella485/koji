@@ -825,7 +825,7 @@ def rip_rpm_hdr(src):
 
 
 def _ord(s):
-    # in python2 it is char/str, while in py3 it is already int/bytes
+    # in py3 it is already int/bytes
     if isinstance(s, int):
         return s
     else:
@@ -2082,8 +2082,6 @@ def read_config_files(config_files, raw=False):
 
     if raw:
         parser = six.moves.configparser.RawConfigParser
-    elif six.PY2:
-        parser = six.moves.configparser.SafeConfigParser
     else:
         # In python3, ConfigParser is "safe", and SafeConfigParser is a
         # deprecated alias
@@ -2645,12 +2643,7 @@ class ClientSession(object):
             handler = self.baseurl + '/ssllogin'
         else:
             handler = self.baseurl
-        request = dumps(args, name, allow_none=1)
-        if six.PY3:
-            # For python2, dumps() without encoding specified means return a str
-            # encoded as UTF-8. For python3 it means "return a str with an appropriate
-            # xml declaration for encoding as UTF-8".
-            request = request.encode('utf-8')
+        request = dumps(args, name, allow_none=1).encode('utf-8')
         headers = [
             # connection class handles Host
             ('User-Agent', 'koji/1'),
@@ -3487,12 +3480,9 @@ def removeNonprintable(value):
 def _fix_print(value):
     """Fix a string so it is suitable to print
 
-    In python2, this means we return a utf8 encoded str
-    In python3, this means we return unicode
+    return unicode string
     """
-    if six.PY2 and isinstance(value, six.text_type):
-        return value.encode('utf8')
-    elif six.PY3 and isinstance(value, six.binary_type):
+    if isinstance(value, six.binary_type):
         return value.decode('utf8')
     else:
         return value
@@ -3514,35 +3504,16 @@ def fix_encoding(value, fallback='iso8859-15', remove_nonprintable=False):
     """
     Adjust string to work around encoding issues
 
-    In python2, unicode strings are encoded as utf8. For normal
-    strings, we attempt to fix encoding issues. The fallback option
-    is the encoding to use if the string is not valid utf8.
-
     If remove_nonprintable is True, then nonprintable characters are
     filtered out.
 
     In python3 this is mostly a no-op, but remove_nonprintable is still honored
     """
 
-    # play encoding tricks for py2 strings
-    if six.PY2:
-        if isinstance(value, unicode):  # noqa: F821
-            # just convert it to a utf8-encoded str
-            value = value.encode('utf8')
-        elif isinstance(value, str):
-            # value is a str, but may be encoded in utf8 or some
-            # other non-ascii charset.  Try to verify it's utf8, and if not,
-            # decode it using the fallback encoding.
-            try:
-                value = value.decode('utf8').encode('utf8')
-            except UnicodeDecodeError:
-                value = value.decode(fallback).encode('utf8')
-
     # remove nonprintable characters, if requested
     if remove_nonprintable and isinstance(value, str):
         # NOTE: we test for str instead of six.text_type deliberately
         #  - on py3, we're leaving bytes alone
-        #  - on py2, we've just decoded any unicode
         value = removeNonprintable(value)
 
     return value

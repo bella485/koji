@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 # koji-gc: a garbage collection tool for Koji
 # Copyright (c) 2007-2014 Red Hat, Inc.

@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 # Koji build daemon
 # Copyright (c) 2005-2014 Red Hat, Inc.
@@ -5140,10 +5140,7 @@ Status: %(status)s\r
 
         message = self.message_templ % locals()
         # ensure message is in UTF-8
-        message = koji.fixEncoding(message)
-        # binary for python3
-        if six.PY3:
-            message = message.encode('utf8')
+        message = koji.fixEncoding(message).encode('utf8')
         server = smtplib.SMTP(self.options.smtphost)
         if self.options.smtp_user is not None and self.options.smtp_pass is not None:
             server.login(self.options.smtp_user, self.options.smtp_pass)
@@ -5364,10 +5361,7 @@ Build Info: %(weburl)s/buildinfo?buildID=%(build_id)i\r
         subject = self.subject_templ % locals()
         message = self.message_templ % locals()
         # ensure message is in UTF-8
-        message = koji.fixEncoding(message)
-        # binary for python3
-        if six.PY3:
-            message = message.encode('utf8')
+        message = koji.fixEncoding(message).encode('utf8')
         server = smtplib.SMTP(self.options.smtphost)
         if self.options.smtp_user is not None and self.options.smtp_pass is not None:
             server.login(self.options.smtp_user, self.options.smtp_pass)
@@ -5592,23 +5586,16 @@ class CreaterepoTask(BaseTaskHandler):
         if merge_mode == 'simple':
             if mergerepo_c_version and mergerepo_c_version >= (0, 13, 0):
                 cmd = ['/usr/bin/mergerepo_c', '--koji', '--simple']
-            elif six.PY3:
-                # koji's mergerepos script only works on python2
+            else:
                 raise koji.GenericError("mergerepo_c is not installed or has low version: "
                                         "%s (0.13.0 needed for --simple)" %
                                         ".".join([str(d) for d in mergerepo_c_version or [None]]))
-            else:
-                cmd = ['/usr/libexec/kojid/mergerepos',
-                       '--mode', 'simple',
-                       '--tempdir', self.workdir]
         elif merge_mode == 'bare':
             # "bare" merge mode for repos with modular metadata
             # forces use of mergerepo_c
             cmd = ['/usr/bin/mergerepo_c', '--pkgorigins', '--all']
-        elif self.options.use_createrepo_c or six.PY3:
-            cmd = ['/usr/bin/mergerepo_c', '--koji']
         else:
-            cmd = ['/usr/libexec/kojid/mergerepos', '--tempdir', self.workdir]
+            cmd = ['/usr/bin/mergerepo_c', '--koji']
 
         if merge_mode != 'bare':
             blocklist = self.repodir + '/blocklist'

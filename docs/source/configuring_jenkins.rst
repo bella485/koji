@@ -98,30 +98,14 @@ Configuration
 
   # setup virtual environment
   rm -rf kojienv
-  if [ -x /usr/bin/python3 ] ; then
-      python3 -m venv --system-site-packages kojienv
-  else
-      virtualenv --system-site-packages kojienv
-  fi
+  python3 -m venv --system-site-packages kojienv
   source kojienv/bin/activate
 
   # install python requirements via pip, you can also specify exact versions here
-  if [ $NODE_NAME == "EL6" ] ; then
-      pip install "psycopg2<2.7" "urllib3<1.24" "requests<2.20" "requests-mock<1.5" \
-                  "Markdown<3.1" "mock<3.0.0" nose python-qpid-proton coverage \
-                  python-multilib Cheetah --upgrade --ignore-installed
-  else
-      pip install pip packaging --upgrade --ignore-installed
-      pip install setuptools --upgrade --ignore-installed
-      pip install psycopg2 requests-mock nose python-qpid-proton mock coverage \
-                  python-multilib flake8 --upgrade --ignore-installed
-      if [ -x /usr/bin/python3 ] ; then
-          pip install Cheetah3 nose-cover3 --upgrade --ignore-installed
-      else
-          pip install Cheetah --upgrade --ignore-installed
-      fi
-  fi
-
+  pip install pip packaging --upgrade --ignore-installed
+  pip install setuptools --upgrade --ignore-installed
+  pip install psycopg2 requests-mock nose python-qpid-proton mock coverage \
+              python-multilib flake8 Cheetah3 nose-cover3 --upgrade --ignore-installed
 
   # rehash package to be sure updated versions are used
   hash -r
@@ -146,12 +130,7 @@ Configuration
   #pylint . > pylint_report.txt
   #pep8 . > pep8_report.txt
 
-  if [ $NODE_NAME == "EL6" ] ; then
-      # fake report, flake8 is not available for old python
-      echo > flake8_report.txt
-  else
-      flake8 cli hub builder plugins koji util www vm devtools tests --output-file flake8_report.txt
-  fi
+  flake8 cli hub builder plugins koji util www vm devtools tests --output-file flake8_report.txt
 
   # kill virtual environment
   deactivate

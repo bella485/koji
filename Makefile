@@ -3,7 +3,7 @@ SPECFILE = $(firstword $(wildcard *.spec))
 SUBDIRS = hub builder koji cli util www plugins vm
 
 ifndef PYTHON
-export PYTHON=python2
+export PYTHON=python3
 endif
 
 ifdef DIST
@@ -109,13 +109,7 @@ test-rpm: tarball
 
 pypi:
 	rm -rf dist
-	python setup.py sdist
-	# py2
-	virtualenv -p /usr/bin/python2 build_py2
-	build_py2/bin/pip install --upgrade pip setuptools wheel virtualenv
-	build_py2/bin/python setup.py bdist_wheel
-	rm -rf build_py2
-	# py3
+	python3 setup.py sdist
 	python3 -m venv build_py3
 	build_py3/bin/pip install --upgrade pip setuptools wheel virtualenv
 	build_py3/bin/python setup.py bdist_wheel

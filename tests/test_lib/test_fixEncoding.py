@@ -1,16 +1,12 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # coding=utf-8
 
 """Test the __init__.py module"""
 
 from __future__ import absolute_import
 import koji
-import mock
 import six
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 
 class FixEncodingTestCase(unittest.TestCase):

@@ -267,9 +267,7 @@ Koji provides some important functions via in the client cli library
 
 Final command has to be saved in python system-wide library path - e.g. in
 ``/usr/lib/python3.4/site-packages/koji_cli_plugins``. Filename doesn't matter
-as all files in this directory are searched for ``@export_cli`` macros. Note,
-that python 3 variant of CLI is looking to different directory than python 2
-one.
+as all files in this directory are searched for ``@export_cli`` macros.
 
 CLI plugins structure will be extended (made configurable and allowing more
 than just adding commands - e.g. own authentication methods, etc.) in future.
@@ -277,10 +275,7 @@ than just adding commands - e.g. own authentication methods, etc.) in future.
 Pull requests
 -------------
 
-These plugins have to be written in python 2.6+/3.x compatible way. We are
-using `six` library to support this, so we will also prefer pull requests
-written this way. CLI (and client library) is meant to be fully compatible
-with python 3 from koji 1.13.
+These plugins have to be written in python 3.x.
 
 Tests are also recommended for PR. For example one see
 ``tests/test_plugins/test_runroot_cli.py``.

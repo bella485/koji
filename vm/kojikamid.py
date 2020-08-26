@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 # Koji daemon that runs in a Windows VM and executes commands associated
 # with a task.

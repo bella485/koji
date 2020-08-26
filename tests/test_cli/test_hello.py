@@ -22,9 +22,6 @@ class TestPrintUnicode(utils.CliTestCase):
 
     def test_printable_unicode(self):
         for s in self.greetings:
-            # make sure the type is unicode before convert in python2
-            if six.PY2:
-                self.assertEqual(type(s), type(unicode()))
             result = _printable_unicode(s)
             self.assertEqual(type(result), type(str()))
 
