@@ -46,6 +46,7 @@ from koji_cli.lib import (
     watch_tasks
 )
 
+
 def handle_add_group(goptions, session, args):
     "[admin] Add a group to a tag"
     usage = _("usage: %prog add-group <tag> <group>")
