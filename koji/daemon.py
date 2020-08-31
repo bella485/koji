@@ -789,7 +789,12 @@ class TaskManager(object):
             raise IOError("No such directory: %s" % br_path)
         fs_stat = os.statvfs(br_path)
         space = fs_stat.f_bavail * fs_stat.f_bsize
-        # space must be tuned to what different tasks requested
+
+        for task in self.tasks:
+            # can go through listBuildroots and subtract
+            # (space_reserved - space_consumed_on_disk)
+            # what about memory?
+            pass
 
         return {
             'memory': memory / 1024 ** 2,
