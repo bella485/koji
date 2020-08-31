@@ -14063,7 +14063,7 @@ class Host(object):
             rank = 0.0
         # so, 0.0 for highest available capacity, 1.0 for lowest
 
-        delay = context.opts['task_avail_delay']
+        delay = context.opts['TaskAvailDelay']
         delay *= rank
 
         q = """SELECT NOW() - seen FROM skipped_tasks
@@ -14107,6 +14107,8 @@ class Host(object):
                     bin_hosts.setdefault(bin, []).append(host)
                     if host['id'] == self.id:
                         bins[bin] = 1
+            free_mem = host['free_mem']
+            free_space = host['free_space']
         if our_avail is None:
             logger.info("Server did not report this host. Are we disabled?")
             return None
@@ -14126,7 +14128,7 @@ class Host(object):
                  seen < NOW() - 10 * '%(delay)s seconds'::interval"""
         _dml(q, {
             'host_id': host['id'],
-            'delay': context.opts['task_avail_delay']
+            'delay': context.opts['TaskAvailDelay']
         })
 
         for task in tasks:
@@ -14148,10 +14150,25 @@ class Host(object):
                 if self.checkAvailDelay(task, bin_avail, our_avail):
                     # decline for now and give the upper half a chance
                     continue
-                return task
+                policy_data = {
+                    # task data
+                    'method': task['method'],
+                    #'channel': task['channel'],
+                    # host data
+                    'free_mem': free_mem,
+                    'free_space': free_space,
+                }
+                # additional data from task
+                policy_data.update(policy_data_from_task(task['id']))
+                logger.debug("POLICY: %s", policy_data)
+                access, reason = check_policy('builder_resources', policy_data, strict=False)
+                if access:
+                    return task
+                else:
+                    logger.debug("Policy denied host %s to pick task %s", host['name'], task['id'])
             else:
                 # should not happen
-                logger.error("Invalid task state (task: %d, state: %d)" % task['id'], task['state'])
+                logger.error("Invalid task state (task: %d, state: %d)", task['id'], task['state'])
         return None
 
     def getTask(self):

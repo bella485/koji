@@ -475,6 +475,8 @@ def load_config(environ):
          '%(asctime)s [%(levelname)s] m=%(method)s u=%(user_name)s p=%(process)s r=%(remoteaddr)s '
          '%(name)s: %(message)s'],
 
+        ['TaskAvailDelay', 'int', 180],
+
         ['MissingPolicyOk', 'boolean', True],
         ['EnableMaven', 'boolean', False],
         ['EnableWin', 'boolean', False],
@@ -594,6 +596,9 @@ _default_policies = {
             ''',
     'volume': '''
             all :: DEFAULT
+            ''',
+    'builder_resources': '''
+            all :: allow
             ''',
     'priority': '''
             all :: stay
