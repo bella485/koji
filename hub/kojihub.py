@@ -9277,6 +9277,18 @@ def policy_get_cgs(data):
         cgs = [lookup_name('content_generator', cg, strict=True)
                for cg in data['cg_list']]
         return set(cgs)
+
+    if 'build' in data:
+        if isinstance(data['build'], (str, int)):
+            build = get_build(data['build'], strict=True)
+        elif isinstance(data['build'], dict):
+            build = data['build']
+        else:
+            raise koji.GenericError('Unexpected policy_data["build"] type %s' %
+                                    type(data['build']))
+        if 'cg_name' in build:
+            return set([build['cg_name']])
+
     # otherwise try buildroot data
     cgs = set()
     for br_id in policy_get_brs(data):

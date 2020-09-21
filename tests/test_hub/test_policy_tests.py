@@ -128,7 +128,14 @@ class TestPolicyGetCGs(unittest.TestCase):
         self.assertEqual(result, expect)
         self.list_rpms.assert_called_once_with(buildID=42)
         self.list_archives.assert_called_once_with(buildID=42)
-        self.get_build.assert_called_once_with('NVR', strict=True)
+        self.get_build.assert_called_with('NVR', strict=True)
+
+    def test_policy_get_cg_from_build(self):
+        self.get_build.return_value = {'id': 42, 'cg_name': 'cgname'}
+        # let's see...
+        result = kojihub.policy_get_cgs({'build': 'NVR'})
+        self.assertEqual(result, set(['cgname']))
+        self.get_build.assert_called_with('NVR', strict=True)
 
     def test_policy_get_cg_from_cgs(self):
         data = {
