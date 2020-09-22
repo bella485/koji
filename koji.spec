@@ -412,7 +412,7 @@ done
 %if 0%{py2_support}
     mkdir -p $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
     install -p -m 644 py2_egg/koji.egg-info/* $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
-%fi
+%endif
 
 
 # python3 build
