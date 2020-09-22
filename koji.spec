@@ -62,6 +62,9 @@
 %{!?python2_sitearch: %global python2_sitearch %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(1))")}
 %{!?py2_build: %global py2_build %{expand: CFLAGS="%{optflags}" %{__python2} setup.py %{?py_setup_args} build --executable="%{__python2} -s"}}
 %{!?py2_install: %global py2_install %{expand: CFLAGS="%{optflags}" %{__python2} setup.py %{?py_setup_args} install -O1 --skip-build --root %{buildroot}}}
+%{!?py2_eggversion: %global py2_eggversion %(%{__python2} -c "import sys; print('py%s%s' % (sys.version_info.major, sys.version_info.minor))")}
+%{!?py3_eggversion: %global py3_eggversion %(%{__python3} -c "import sys; print('py%s%s' % (sys.version_info.major, sys.version_info.minor))")}
+
 
 # If the definition isn't available for python3_pkgversion, define it
 %{?!python3_pkgversion:%global python3_pkgversion 3}
@@ -377,6 +380,14 @@ koji-web is a web UI to the Koji system.
 %autosetup -p1
 
 %build
+%if 0%{py2_support}
+mkdir -p py2_egg
+%{__python2} setup.py egg_info --egg-base py2_egg
+%endif
+%if 0%{with python3}
+mkdir -p py3_egg
+%{__python3} setup.py egg_info --egg-base py3_egg
+%endif
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -398,6 +409,10 @@ for d in koji cli plugins ; do
 done
 %endif
 %endif
+%if 0%{py2_support}
+    mkdir -p $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
+    install -p -m 644 py2_egg/koji.egg-info/* $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
+%fi
 
 
 # python3 build
@@ -421,6 +436,10 @@ done
 # alter python interpreter in koji CLI
 sed -i 's|#!/usr/bin/python2|#!/usr/bin/python3|' $RPM_BUILD_ROOT/usr/bin/koji
 %endif
+%endif
+%if 0%{py3_support}
+mkdir -p $RPM_BUILD_ROOT%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
+install -p -m 644 py3_egg/koji.egg-info/* $RPM_BUILD_ROOT%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
 %endif
 
 %if 0%{?fedora}
@@ -474,12 +493,14 @@ rm -rf $RPM_BUILD_ROOT
 %files -n python2-%{name}
 %{python2_sitearch}/%{name}
 %{python2_sitearch}/koji_cli
+%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
 %endif
 
 %if 0%{py3_support}
 %files -n python%{python3_pkgversion}-koji
 %{python3_sitearch}/%{name}
 %{python3_sitearch}/koji_cli
+%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
 %endif
 
 %if 0%{py2_support}
