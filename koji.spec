@@ -391,6 +391,7 @@ mkdir -p py2_egg
 mkdir -p py3_egg
 %{__python3} setup.py egg_info --egg-base py3_egg
 %endif
+%py3_build
 
 %install
 rm -rf $RPM_BUILD_ROOT
