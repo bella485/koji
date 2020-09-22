@@ -49,8 +49,6 @@
 %define py3_support 0
 %endif
 
-%define py2_support 0
-
 %if ! %{py2_support}
 # use python3
 %define __python %{__python3}
@@ -66,7 +64,6 @@
 %{!?py2_install: %global py2_install %{expand: CFLAGS="%{optflags}" %{__python2} setup.py %{?py_setup_args} install -O1 --skip-build --root %{buildroot}}}
 %{!?py2_eggversion: %global py2_eggversion %(%{__python2} -c "import sys; print('py%s%s' % (sys.version_info.major, sys.version_info.minor))")}
 %{!?py3_eggversion: %global py3_eggversion %(%{__python3} -c "import sys; print('py%s%s' % (sys.version_info.major, sys.version_info.minor))")}
-
 
 # If the definition isn't available for python3_pkgversion, define it
 %{?!python3_pkgversion:%global python3_pkgversion 3}
@@ -109,7 +106,6 @@ Requires: python-libcomps
 BuildRequires: systemd
 BuildRequires: pkgconfig
 %endif
-BuildRequires: python-setuptools
 
 %description
 Koji is a system for building and tracking RPMS.  The base package
@@ -121,8 +117,10 @@ Summary: Build system tools python library
 %{?python_provide:%python_provide python2-%{name}}
 %if 0%{?fedora} >= 30
 BuildRequires: python2-devel
+BuildRequires: python2-setuptools
 %else
 BuildRequires: python-devel
+BuildRequires: python%{python3_pkgversion}-setuptools
 %endif
 %if 0%{?fedora} || 0%{?rhel} >= 8
 Requires: python2-rpm
@@ -413,8 +411,8 @@ done
 %endif
 %endif
 %if 0%{py2_support}
-    mkdir -p $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
-    install -p -m 644 py2_egg/koji.egg-info/* $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
+mkdir -p $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
+install -p -m 644 py2_egg/koji.egg-info/* $RPM_BUILD_ROOT%{python2_sitearch}/%{name}-%{version}-%{py2_eggversion}.egg-info
 %endif
 
 
