@@ -503,7 +503,7 @@ rm -rf $RPM_BUILD_ROOT
 %files -n python%{python3_pkgversion}-koji
 %{python3_sitearch}/%{name}
 %{python3_sitearch}/koji_cli
-##%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
+%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
 %endif
 
 %if 0%{py2_support}
