@@ -391,7 +391,6 @@ mkdir -p py2_egg
 mkdir -p py3_egg
 %{__python3} setup.py egg_info --egg-base py3_egg
 %endif
-%py3_build
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -504,7 +503,7 @@ rm -rf $RPM_BUILD_ROOT
 %files -n python%{python3_pkgversion}-koji
 %{python3_sitearch}/%{name}
 %{python3_sitearch}/koji_cli
-%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
+##%{python3_sitearch}/%{name}-%{version}-%{py3_eggversion}.egg-info
 %endif
 
 %if 0%{py2_support}
