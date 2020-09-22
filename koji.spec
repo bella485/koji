@@ -49,6 +49,8 @@
 %define py3_support 0
 %endif
 
+%define py2_support 0
+
 %if ! %{py2_support}
 # use python3
 %define __python %{__python3}
@@ -107,6 +109,7 @@ Requires: python-libcomps
 BuildRequires: systemd
 BuildRequires: pkgconfig
 %endif
+BuildRequires: python-setuptools
 
 %description
 Koji is a system for building and tracking RPMS.  The base package
@@ -384,7 +387,7 @@ koji-web is a web UI to the Koji system.
 mkdir -p py2_egg
 %{__python2} setup.py egg_info --egg-base py2_egg
 %endif
-%if 0%{with python3}
+%if 0%{py3_support}
 mkdir -p py3_egg
 %{__python3} setup.py egg_info --egg-base py3_egg
 %endif
