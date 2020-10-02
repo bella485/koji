@@ -5887,7 +5887,7 @@ def _build_image_indirection(options, task_opts, session, args):
     if not options.quiet:
         print("Created task: %d" % task_id)
         print("Task info: %s/taskinfo?taskID=%s" % (options.weburl, task_id))
-    if task_opts.wait or (task_opts.wait is None and not _running_in_bg()):
+    if task_opts.wait:
         session.logout()
         return watch_tasks(session, [task_id], quiet=options.quiet)
 
