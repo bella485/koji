@@ -74,7 +74,6 @@ class TestCall(utils.CliTestCase):
             'method': 'ssl_login',
             'parameters': {
                 'cert': '/etc/pki/cert',
-                'ca': ['/etc/pki/clientca', '/etc/pki/serverca'],
             },
             'result': 'success'
         }

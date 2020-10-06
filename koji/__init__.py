@@ -1912,7 +1912,6 @@ def read_config(profile_name, user_config=None):
         'principal': None,
         'keytab': None,
         'cert': None,
-        'ca': '',  # FIXME: remove in next major release
         'serverca': None,
         'no_ssl_verify': False,
         'authtype': None,
@@ -1989,9 +1988,6 @@ def read_config(profile_name, user_config=None):
                 result[name] = ''
         else:
             result[name] = os.path.expanduser(result[name])
-
-    if result.get('ca'):
-        util.deprecated("ca option in config file is deprecated and will be removed in 1.24")
 
     return result
 
