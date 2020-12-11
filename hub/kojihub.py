@@ -1192,7 +1192,8 @@ def readPackageList(tagID=None, userID=None, pkgID=None, event=None, inherit=Fal
     return packages
 
 
-def list_tags(build=None, package=None, perms=True, queryOpts=None, pattern=None):
+def list_tags(build=None, package=None, perms=True, queryOpts=None,
+              pattern=None, extra_key=None):
     """List tags according to filters
 
     :param int|str build: If build is specified, only return tags associated with
@@ -1210,6 +1211,8 @@ def list_tags(build=None, package=None, perms=True, queryOpts=None, pattern=None
     :param bool perms: If perms is True, perm_id and perm is added to resulting maps.
     :param dict queryOpts: hash with query options for QueryProcessor
     :param pattern: If glob pattern is specified, only return tags matching that pattern.
+    :param str extra_key: If specified, only return tags that have this key
+                          configured as an "extra" setting.
 
     :returns list of dicts: Each map contains id, name, arches and locked keys and
                             additional keys as specified via package or perms options.
@@ -1258,6 +1261,10 @@ def list_tags(build=None, package=None, perms=True, queryOpts=None, pattern=None
         pattern = pattern.replace(
             '\\', '\\\\').replace('_', r'\_').replace('?', '_').replace('*', '%')
         clauses.append('tag.name ILIKE %(pattern)s')
+    if extra_key is not None:
+        joins.append('tag_extra ON tag.id = tag_extra.tag_id')
+        clauses.append('tag_extra.active = true')
+        clauses.append('tag_extra.key = %(extra_key)s')
 
     query = QueryProcessor(columns=fields, aliases=aliases, tables=tables,
                            joins=joins, clauses=clauses, values=locals(),
