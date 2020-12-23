@@ -537,7 +537,7 @@ def linked_upload(localfile, path, name=None):
 
 
 def download_file(url, relpath, quiet=False, noprogress=False, size=None,
-                  num=None, filesize=None):
+                  num=None, filesize=None, session=None):
     """Download files from remote
 
     :param str url: URL to be downloaded
@@ -549,10 +549,17 @@ def download_file(url, relpath, quiet=False, noprogress=False, size=None,
     :param int num: download index (printed in verbose mode)
     :param int filesize: expected file size, used for appending to file, no
                          other checks are performed, caller is responsible for
-                         checking, that resulting file is valid."""
+                         checking, that resulting file is valid.
+    :param session: requests.Session object to use for downloading. If None,
+                    this method uses a new session.
+    """
 
     if '/' in relpath:
         koji.ensuredir(os.path.dirname(relpath))
+
+    if not session:
+        session = requests.Session()
+
     if not quiet:
         if size and num:
             print(_("Downloading [%d/%d]: %s") % (num, size, relpath))
@@ -579,7 +586,7 @@ def download_file(url, relpath, quiet=False, noprogress=False, size=None,
 
     try:
         # closing needs to be used for requests < 2.18.0
-        with closing(requests.get(url, headers=headers, stream=True)) as response:
+        with closing(session.get(url, headers=headers, stream=True)) as response:
             if response.status_code in (200, 416):  # full content provided or reaching behind EOF
                 # rewrite in such case
                 f.close()
@@ -603,7 +610,8 @@ def download_file(url, relpath, quiet=False, noprogress=False, size=None,
         print('')
 
 
-def download_rpm(build, rpm, topurl, sigkey=None, quiet=False, noprogress=False):
+def download_rpm(build, rpm, topurl, sigkey=None, quiet=False,
+                 noprogress=False, session=None):
     "Wrapper around download_file, do additional checks for rpm files"
     pi = koji.PathInfo(topdir=topurl)
     if sigkey:
@@ -615,7 +623,8 @@ def download_rpm(build, rpm, topurl, sigkey=None, quiet=False, noprogress=False)
     url = os.path.join(pi.build(build), fname)
     path = os.path.basename(fname)
 
-    download_file(url, path, quiet=quiet, noprogress=noprogress, filesize=filesize)
+    download_file(url, path, quiet=quiet, noprogress=noprogress,
+                  filesize=filesize, session=session)
 
     # size - we have stored size only for unsigned copies
     if not sigkey:
@@ -640,7 +649,8 @@ def download_rpm(build, rpm, topurl, sigkey=None, quiet=False, noprogress=False)
         error("Downloaded rpm %s doesn't match db, deleting" % path)
 
 
-def download_archive(build, archive, topurl, quiet=False, noprogress=False):
+def download_archive(build, archive, topurl, quiet=False, noprogress=False,
+                     session=None):
     "Wrapper around download_file, do additional checks for archive files"
 
     pi = koji.PathInfo(topdir=topurl)
@@ -658,7 +668,8 @@ def download_archive(build, archive, topurl, quiet=False, noprogress=False):
         # can't happen
         assert False  # pragma: no cover
 
-    download_file(url, path, quiet=quiet, noprogress=noprogress, filesize=archive['size'])
+    download_file(url, path, quiet=quiet, noprogress=noprogress,
+                  filesize=archive['size'], session=session)
 
     # check size
     if os.path.getsize(path) != archive['size']:

@@ -6849,10 +6849,13 @@ def anon_handle_download_build(options, session, args):
     # run the download
     for rpm in rpms:
         download_rpm(info, rpm, suboptions.topurl, sigkey=suboptions.key,
-                     quiet=suboptions.quiet, noprogress=suboptions.noprogress)
+                     quiet=suboptions.quiet, noprogress=suboptions.noprogress,
+                     session=session.rsession)
     for archive in archives:
         download_archive(info, archive, suboptions.topurl,
-                         quiet=suboptions.quiet, noprogress=suboptions.noprogress)
+                         quiet=suboptions.quiet,
+                         noprogress=suboptions.noprogress,
+                         session=session.rsession)
 
 
 def anon_handle_download_logs(options, session, args):
