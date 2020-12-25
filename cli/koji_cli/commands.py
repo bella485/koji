@@ -336,13 +336,13 @@ def handle_add_pkg(goptions, session, args):
     parser.add_option("--owner", help=_("Specify owner"))
     parser.add_option("--extra-arches", help=_("Specify extra arches"))
     (options, args) = parser.parse_args(args)
+    activate_session(session, goptions)
     if len(args) < 2:
         parser.error(_("Please specify a tag and at least one package"))
     if not options.owner:
         parser.error(_("Please specify an owner for the package(s)"))
     if not session.getUser(options.owner):
         error("User %s does not exist" % options.owner)
-    activate_session(session, goptions)
     tag = args[0]
     opts = {}
     opts['force'] = options.force
