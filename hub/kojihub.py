@@ -11471,7 +11471,7 @@ class RootExports(object):
             # lookup tag id
             tag = get_tag_id(tag, strict=True)
         for mapping in [stops, jumps]:
-            for key in mapping.keys():
+            for key in list(mapping.keys()):
                 mapping[int(key)] = mapping[key]
         return readFullInheritance(tag, event, reverse, stops, jumps)
 
