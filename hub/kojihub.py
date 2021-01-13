@@ -13812,7 +13812,6 @@ class HostExports(object):
         build_info = get_build(build_id, strict=True)
 
         # check volume policy
-        vol_update = False
         policy_data = {
             'build': build_info,
             'package': build_info['name'],
@@ -13824,7 +13823,10 @@ class HostExports(object):
         if vol['id'] != build_info['volume_id']:
             build_info['volume_id'] = vol['id']
             build_info['volume_name'] = vol['name']
-            vol_update = True
+            update = UpdateProcessor('build', clauses=['id=%(build_id)i'],
+                                     values={'build_id': build_id})
+            update.set(volume_id=build_info['volume_id'])
+            update.execute()
 
         self.importImage(task_id, build_info, results)
         ensure_volume_symlink(build_info)
@@ -13838,8 +13840,6 @@ class HostExports(object):
                                  values={'build_id': build_id})
         update.set(id=build_id, state=st_complete)
         update.rawset(completion_time='now()')
-        if vol_update:
-            update.set(volume_id=build_info['volume_id'])
         update.execute()
         build_info = get_build(build_id, strict=True)
         koji.plugin.run_callbacks('postBuildStateChange',
