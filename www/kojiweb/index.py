@@ -42,6 +42,34 @@ def _sortbyname(x):
     return x['name']
 
 
+# regexps for input checking
+_VALID_SEARCH_CHARS = r"""a-zA-Z0-9"""
+_VALID_SEARCH_SYMS = r""" @.,_/\()%+-~*?|[]^$"""
+_VALID_SEARCH_RE = re.compile('^[' + _VALID_SEARCH_CHARS + re.escape(_VALID_SEARCH_SYMS) + ']+$')
+
+_VALID_ARCH_RE = re.compile(r'^[\w-]+$', re.ASCII)
+
+
+def _validate_arch(arch):
+    # archs (ASCII alnum + _ + -)
+    if not arch:
+        return None
+    elif _VALID_ARCH_RE.match(arch):
+        return arch
+    else:
+        raise koji.GenericError("Invalid arch: %r" % arch)
+
+
+def _validate_name_or_id(value):
+    # integer ID or label, it is unicode alnum + search symbols (reasonable expectation?)
+    if value.isdigit():
+        return int(value)
+    elif _VALID_SEARCH_RE.match(value):
+        return value
+    else:
+        raise koji.GenericError("Invalid int/label value: %r" % value)
+
+
 # loggers
 authlogger = logging.getLogger('koji.auth')
 
@@ -492,10 +520,12 @@ def tasks(environ, owner=None, state='active', view='tree', method='all', hostID
     values = _initValues(environ, 'Tasks', 'tasks')
     server = _getServer(environ)
 
+    if view not in ('tree', 'toplevel', 'flat'):
+        raise koji.GenericError("Invalid value for view: %r" % view)
+
     opts = {'decode': True}
     if owner:
-        if owner.isdigit():
-            owner = int(owner)
+        owner = _validate_name_or_id(owner)
         ownerObj = server.getUser(owner, strict=True)
         opts['owner'] = ownerObj['id']
         values['owner'] = ownerObj['name']
@@ -563,10 +593,7 @@ def tasks(environ, owner=None, state='active', view='tree', method='all', hostID
         values['hostID'] = None
 
     if channelID:
-        try:
-            channelID = int(channelID)
-        except ValueError:
-            pass
+        channelID = _validate_name_or_id(channelID)
         channel = server.getChannel(channelID, strict=True)
         opts['channel_id'] = channel['id']
         values['channel'] = channel
@@ -853,7 +880,10 @@ def tags(environ, start=None, order=None, childID=None):
     else:
         values['perms'] = []
 
-    values['childID'] = childID
+    if childID is None:
+        values['childID'] = None
+    else:
+        values['childID'] = int(childID)
 
     return _genHTML(environ, 'tags.chtml')
 
@@ -867,15 +897,13 @@ def packages(environ, tagID=None, userID=None, order='package_name', start=None,
     server = _getServer(environ)
     tag = None
     if tagID is not None:
-        if tagID.isdigit():
-            tagID = int(tagID)
+        tagID = _validate_name_or_id(tagID)
         tag = server.getTag(tagID, strict=True)
     values['tagID'] = tagID
     values['tag'] = tag
     user = None
     if userID is not None:
-        if userID.isdigit():
-            userID = int(userID)
+        userID = _validate_name_or_id(userID)
         user = server.getUser(userID, strict=True)
     values['userID'] = userID
     values['user'] = user
@@ -905,8 +933,7 @@ def packageinfo(environ, packageID, tagOrder='name', tagStart=None, buildOrder='
     values = _initValues(environ, 'Package Info', 'packages')
     server = _getServer(environ)
 
-    if packageID.isdigit():
-        packageID = int(packageID)
+    packageID = _validate_name_or_id(packageID)
     package = server.getPackage(packageID)
     if package is None:
         raise koji.GenericError('invalid package ID: %s' % packageID)
@@ -930,8 +957,7 @@ def taginfo(environ, tagID, all='0', packageOrder='package_name', packageStart=N
     values = _initValues(environ, 'Tag Info', 'tags')
     server = _getServer(environ)
 
-    if tagID.isdigit():
-        tagID = int(tagID)
+    tagID = _validate_name_or_id(tagID)
     tag = server.getTag(tagID, strict=True)
 
     values['title'] = tag['name'] + ' | Tag Info'
@@ -1145,8 +1171,7 @@ def externalrepoinfo(environ, extrepoID):
     values = _initValues(environ, 'External Repo Info', 'tags')
     server = _getServer(environ)
 
-    if extrepoID.isdigit():
-        extrepoID = int(extrepoID)
+    extrepoID = _validate_name_or_id(extrepoID)
     extRepo = server.getExternalRepo(extrepoID, strict=True)
     repoTags = server.getTagExternalRepos(repo_info=extRepo['id'])
 
@@ -1297,8 +1322,7 @@ def builds(environ, userID=None, tagID=None, packageID=None, state=None, order='
 
     user = None
     if userID:
-        if userID.isdigit():
-            userID = int(userID)
+        userID = _validate_name_or_id(userID)
         user = server.getUser(userID, strict=True)
     values['userID'] = userID
     values['user'] = user
@@ -1310,16 +1334,14 @@ def builds(environ, userID=None, tagID=None, packageID=None, state=None, order='
 
     tag = None
     if tagID:
-        if tagID.isdigit():
-            tagID = int(tagID)
+        tagID = _validate_name_or_id(tagID)
         tag = server.getTag(tagID, strict=True)
     values['tagID'] = tagID
     values['tag'] = tag
 
     package = None
     if packageID:
-        if packageID.isdigit():
-            packageID = int(packageID)
+        packageID = _validate_name_or_id(packageID)
         package = server.getPackage(packageID, strict=True)
     values['packageID'] = packageID
     values['package'] = package
@@ -1405,8 +1427,7 @@ def userinfo(environ, userID, packageOrder='package_name', packageStart=None,
     values = _initValues(environ, 'User Info', 'users')
     server = _getServer(environ)
 
-    if userID.isdigit():
-        userID = int(userID)
+    userID = _validate_name_or_id(userID)
     user = server.getUser(userID, strict=True)
 
     values['title'] = user['name'] + ' | User Info'
@@ -1434,7 +1455,10 @@ def rpminfo(environ, rpmID, fileOrder='name', fileStart=None, buildrootOrder='-i
     server = _getServer(environ)
 
     rpmID = int(rpmID)
-    rpm = server.getRPM(rpmID)
+    try:
+        rpm = server.getRPM(rpmID, strict=True)
+    except koji.GenericError:
+        raise koji.GenericError('invalid RPM ID: %i' % rpmID)
 
     values['title'] = '%(name)s-%%s%(version)s-%(release)s.%(arch)s.rpm' % rpm + ' | RPM Info'
     epochStr = ''
@@ -1617,8 +1641,7 @@ def hostinfo(environ, hostID=None, userID=None):
     server = _getServer(environ)
 
     if hostID:
-        if hostID.isdigit():
-            hostID = int(hostID)
+        hostID = _validate_name_or_id(hostID)
         host = server.getHost(hostID)
         if host is None:
             raise koji.GenericError('invalid host ID: %s' % hostID)
@@ -1753,8 +1776,7 @@ def channelinfo(environ, channelID):
     return _genHTML(environ, 'channelinfo.chtml')
 
 
-def buildrootinfo(environ, buildrootID, builtStart=None, builtOrder=None, componentStart=None,
-                  componentOrder=None):
+def buildrootinfo(environ, buildrootID):
     values = _initValues(environ, 'Buildroot Info', 'hosts')
     server = _getServer(environ)
 
@@ -2048,6 +2070,9 @@ def rpmsbyhost(environ, start=None, order=None, hostArch=None, rpmArch=None):
     values = _initValues(environ, 'RPMs by Host', 'reports')
     server = _getServer(environ)
 
+    hostArch = _validate_arch(hostArch)
+    rpmArch = _validate_arch(rpmArch)
+
     maxRPMs = 1
     hostArchFilter = hostArch
     if hostArchFilter == 'ix86':
@@ -2122,6 +2147,7 @@ def tasksbyhost(environ, start=None, order='-tasks', hostArch=None):
 
     maxTasks = 1
 
+    hostArch = _validate_arch(hostArch)
     hostArchFilter = hostArch
     if hostArchFilter == 'ix86':
         hostArchFilter = ['i386', 'i486', 'i586', 'i686']
@@ -2269,6 +2295,7 @@ def _filter_hosts_by_arch(hosts, arch):
 
 
 def clusterhealth(environ, arch='__all__'):
+    arch = _validate_arch(arch)
     values = _initValues(environ, 'Cluster health', 'reports')
     server = _getServer(environ)
     channels = server.listChannels()
@@ -2325,21 +2352,18 @@ def recentbuilds(environ, user=None, tag=None, package=None):
 
     tagObj = None
     if tag is not None:
-        if tag.isdigit():
-            tag = int(tag)
-        tagObj = server.getTag(tag)
+        tag = _validate_name_or_id(tag)
+        tagObj = server.getTag(tag, strict=True)
 
     userObj = None
     if user is not None:
-        if user.isdigit():
-            user = int(user)
-        userObj = server.getUser(user)
+        user = _validate_name_or_id(user)
+        userObj = server.getUser(user, strict=True)
 
     packageObj = None
     if package:
-        if package.isdigit():
-            package = int(package)
-        packageObj = server.getPackage(package)
+        package = _validate_name_or_id(package)
+        packageObj = server.getPackage(package, strict=True)
 
     if tagObj is not None:
         builds = server.listTagged(tagObj['id'], inherit=True,
@@ -2400,9 +2424,6 @@ _infoURLs = {'package': 'packageinfo?packageID=%(id)i',
              'maven': 'archiveinfo?archiveID=%(id)i',
              'win': 'archiveinfo?archiveID=%(id)i'}
 
-_VALID_SEARCH_CHARS = r"""a-zA-Z0-9"""
-_VALID_SEARCH_SYMS = r""" @.,_/\()%+-~*?|[]^$"""
-_VALID_SEARCH_RE = re.compile('^[' + _VALID_SEARCH_CHARS + re.escape(_VALID_SEARCH_SYMS) + ']+$')
 _DEFAULT_SEARCH_ORDER = {
     # For searches against large tables, use '-id' to show most recent first
     'build': '-id',
@@ -2418,6 +2439,8 @@ _DEFAULT_SEARCH_ORDER = {
 
 
 def search(environ, start=None, order=None):
+    if start is not None:
+        start = int(start)
     values = _initValues(environ, 'Search', 'search')
     server = _getServer(environ)
     values['error'] = None
@@ -2432,10 +2455,14 @@ def search(environ, start=None, order=None):
         values['type'] = type
         values['match'] = match
 
+        if match not in ('glob', 'regexp', 'exact'):
+            raise koji.GenericError("Invalid match type: %r" % match)
+
         if not _VALID_SEARCH_RE.match(terms):
             values['error'] = 'Invalid search terms<br/>' + \
                 'Search terms may contain only these characters: ' + \
                 _VALID_SEARCH_CHARS + _VALID_SEARCH_SYMS
+            values['terms'] = ''
             return _genHTML(environ, 'search.chtml')
 
         if match == 'regexp':
@@ -2443,6 +2470,7 @@ def search(environ, start=None, order=None):
                 re.compile(terms)
             except Exception:
                 values['error'] = 'Invalid regular expression'
+                values['terms'] = ''
                 return _genHTML(environ, 'search.chtml')
 
         infoURL = _infoURLs.get(type)
@@ -2488,9 +2516,9 @@ def api(environ):
 def watchlogs(environ, taskID):
     values = _initValues(environ)
     if isinstance(taskID, list):
-        values['tasks'] = ', '.join(taskID)
+        values['tasks'] = ', '.join([int(x) for x in taskID])
     else:
-        values['tasks'] = taskID
+        values['tasks'] = int(taskID)
 
     html = """
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
@@ -2514,6 +2542,7 @@ def repoinfo(environ, repoID):
     values = _initValues(environ, 'Repo Info', 'tags')
     server = _getServer(environ)
 
+    repoID = _validate_name_or_id(repoID)
     values['repo_id'] = repoID
     repo_info = server.repoInfo(repoID, strict=False)
     values['repo'] = repo_info
