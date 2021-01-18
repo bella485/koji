@@ -13,7 +13,16 @@ PR#2579: Install into /usr/lib rather than /usr/lib64/
 
 Security Fixes
 --------------
-None
+
+**web: XSS vulnerability**
+
+| PR: https://pagure.io/koji/pull-request/2652
+
+CVE-2020-15856 - Web interface can be abused by XSS attack. Attackers can supply
+subversive http links containing malicious javascript code. Such links were not
+controlled properly, so attackers can potentially force users to submit actions
+which were not intended. Some actions which can be done via web UI can be
+destructive, so updating to this version is highly recommended.
 
 System Changes
 --------------
