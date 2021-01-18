@@ -81,7 +81,7 @@
 %define release %{baserelease}
 %endif
 Name: koji
-Version: 1.22.1
+Version: 1.22.2
 Release: %{release}%{?dist}
 License: LGPLv2 and GPLv2+
 # the included arch lib from yum's rpmUtils is GPLv2+
@@ -662,6 +662,9 @@ fi
 %endif
 
 %changelog
+* Mon Jan 18 2021 Tomáš Kopeček <tkopecek at redhat.com> - 1.22.2-1
+* CVE-2020-15856 - web xss injection
+
 * Tue Jul 28 2020 Mike McLean <mikem at redhat.com> - 1.22.0-1
 - PR#2404: release bump and changelog
 - PR#2393: release notes - 1.22
