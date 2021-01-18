@@ -81,7 +81,7 @@
 %define release %{baserelease}
 %endif
 Name: koji
-Version: 1.21.1
+Version: 1.21.2
 Release: %{release}%{?dist}
 License: LGPLv2 and GPLv2+
 # the included arch lib from yum's rpmUtils is GPLv2+
@@ -724,6 +724,9 @@ fi
 %endif
 
 %changelog
+* Mon Jan 18 2021  Tomas Kopecek <tkopecek at redhat.com> - 1.21.2-1
+- CVE-2020-15856 - web XSS injection
+
 * Wed Jun 03 2020 Tomas Kopecek <tkopecek at redhat.com> - 1.21.1-1
  - PR#2279: koji-gc: fix query order
  - PR#2038: Don't use listTagged(tag, *) for untag-build
