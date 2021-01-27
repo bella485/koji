@@ -3230,6 +3230,12 @@ def anon_handle_buildinfo(goptions, session, args):
         info['arch'] = 'src'
         info['state'] = koji.BUILD_STATES[info['state']]
         print("BUILD: %(name)s-%(version)s-%(release)s [%(id)d]" % info)
+        print("Name: %(name)s" % info)
+        print("Version: %(version)s" % info)
+        print("Release: %(release)s" % info)
+        epoch = info.get('epoch')
+        if epoch is not None:
+            print("Epoch: %s" % epoch)
         print("State: %(state)s" % info)
         if info['state'] == 'BUILDING':
             print("Reserved by: %(cg_name)s" % info)
