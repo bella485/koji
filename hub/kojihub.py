@@ -675,13 +675,13 @@ def readDescendantsData(tag_id, event=None):
     return data
 
 
-def writeInheritanceData(tag_id, changes, clear=False):
+def writeInheritanceData(tag_id, changes, clear=False, force=False):
     """Add or change inheritance data for a tag"""
     context.session.assertPerm('tag')
-    _writeInheritanceData(tag_id, changes, clear)
+    _writeInheritanceData(tag_id, changes, clear, force=force)
 
 
-def _writeInheritanceData(tag_id, changes, clear=False):
+def _writeInheritanceData(tag_id, changes, clear=False, force=False):
     """Add or change inheritance data for a tag"""
     fields = ('parent_id', 'priority', 'maxdepth', 'intransitive', 'noconfig', 'pkg_filter')
     if isinstance(changes, dict):
@@ -696,7 +696,7 @@ def _writeInheritanceData(tag_id, changes, clear=False):
             if f not in link:
                 raise koji.GenericError("No value for %s" % f)
         parent_id = link['parent_id']
-        if parent_id in parent_ids:
+        if parent_id in parent_ids and not force:
             raise koji.GenericError("Changes should not contain duplicated"
                                     " parent_id(%i)" % parent_id)
         else:
@@ -11463,7 +11463,7 @@ class RootExports(object):
         tag = get_tag_id(tag, strict=True)
         return readInheritanceData(tag, event)
 
-    def setInheritanceData(self, tag, data, clear=False):
+    def setInheritanceData(self, tag, data, clear=False, force=False):
         """
         Set inheritance relationships for a tag.
 
@@ -11479,11 +11479,12 @@ class RootExports(object):
         :param bool clear: Wipe out all existing inheritance rules and only
                            apply the ones you submit here. If unspecified,
                            this defaults to False.
+        :param bool force: override inheritance relationship for tag
         """
         # verify existence of tag and/or convert name to id
         tag = get_tag_id(tag, strict=True)
         context.session.assertPerm('tag')
-        return writeInheritanceData(tag, data, clear=clear)
+        return writeInheritanceData(tag, data, clear=clear, force=force)
 
     def getFullInheritance(self, tag, event=None, reverse=False, stops=None, jumps=None):
         """

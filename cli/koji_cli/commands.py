@@ -5201,7 +5201,7 @@ def handle_add_tag_inheritance(goptions, session, args):
     new_data['pkg_filter'] = options.pkg_filter or ''
 
     inheritanceData.append(new_data)
-    session.setInheritanceData(tag['id'], inheritanceData)
+    session.setInheritanceData(tag['id'], inheritanceData, force=options.force)
 
 
 def handle_edit_tag_inheritance(goptions, session, args):
