@@ -930,7 +930,7 @@ def anon_handle_mock_config(goptions, session, args):
     parser.add_option("--yum-proxy", help=_("Specify a yum proxy"))
     parser.add_option("-o", metavar="FILE", dest="ofile", help=_("Output to a file"))
     (options, args) = parser.parse_args(args)
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     if args:
         # for historical reasons, we also accept buildroot name as first arg
         if not options.name:
@@ -2359,7 +2359,7 @@ def anon_handle_latest_build(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) == 0:
         parser.error(_("A tag name must be specified"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     if options.all:
         if len(args) > 1:
             parser.error(_("A package name may not be combined with --all"))
@@ -2427,7 +2427,7 @@ def anon_handle_list_api(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) != 0:
         parser.error(_("This command takes no arguments"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     for x in sorted(session._listapi(), key=lambda x: x['name']):
         if 'argdesc' in x:
             args = x['argdesc']
@@ -2473,7 +2473,7 @@ def anon_handle_list_tagged(goptions, session, args):
         parser.error(_("A tag name must be specified"))
     elif len(args) > 2:
         parser.error(_("Only one package name may be specified"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     pathinfo = koji.PathInfo()
     package = None
     if len(args) > 1:
@@ -2572,7 +2572,7 @@ def anon_handle_list_buildroot(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) != 1:
         parser.error(_("Incorrect number of arguments"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     buildrootID = int(args[0])
     opts = {}
     if options.built:
@@ -2599,7 +2599,7 @@ def anon_handle_list_untagged(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) > 1:
         parser.error(_("Only one package name may be specified"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     package = None
     if len(args) > 0:
         package = args[0]
@@ -2667,7 +2667,7 @@ def anon_handle_list_groups(goptions, session, args):
     opts = {}
     if options.incl_blocked:
         opts['incl_blocked'] = True
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     event = koji.util.eventFromOpts(session, options)
     if event:
         opts['event'] = event['id']
@@ -2796,7 +2796,7 @@ def anon_handle_list_channels(goptions, session, args):
     parser.add_option("--quiet", action="store_true", default=goptions.quiet,
                       help=_("Do not print header information"))
     (options, args) = parser.parse_args(args)
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     channels = session.listChannels()
     channels = sorted(channels, key=lambda x: x['name'])
     session.multicall = True
@@ -2846,7 +2846,7 @@ def anon_handle_list_hosts(goptions, session, args):
     parser.add_option("--description", action="store_true", help=_("Show descriptions"))
     (options, args) = parser.parse_args(args)
     opts = {}
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     if options.arch:
         opts['arches'] = options.arch
     if options.channel:
@@ -2947,7 +2947,7 @@ def anon_handle_list_pkgs(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) != 0:
         parser.error(_("This command takes no arguments"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     opts = {}
     if options.owner:
         user = session.getUser(options.owner)
@@ -3041,7 +3041,7 @@ def anon_handle_list_builds(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) != 0:
         parser.error(_("This command takes no arguments"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     opts = {}
     for key in ('type', 'prefix', 'pattern'):
         value = getattr(options, key)
@@ -3141,7 +3141,7 @@ def anon_handle_rpminfo(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) < 1:
         parser.error(_("Please specify an RPM"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     for rpm in args:
         info = session.getRPM(rpm)
         if info is None:
@@ -3213,7 +3213,7 @@ def anon_handle_buildinfo(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) < 1:
         parser.error(_("Please specify a build"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     for build in args:
         if build.isdigit():
             build = int(build)
@@ -3311,7 +3311,7 @@ def anon_handle_hostinfo(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) < 1:
         parser.error(_("Please specify a host"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     for host in args:
         if host.isdigit():
             host = int(host)
@@ -4025,7 +4025,7 @@ def anon_handle_list_targets(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) != 0:
         parser.error(_("This command takes no arguments"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
 
     fmt = "%(name)-30s %(build_tag_name)-30s %(dest_tag_name)-30s"
     if not options.quiet:
@@ -4107,7 +4107,7 @@ def anon_handle_list_tag_inheritance(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) != 1:
         parser.error(_("This command takes exactly one argument: a tag name or ID"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     event = koji.util.eventFromOpts(session, options)
     if event:
         event['timestr'] = time.asctime(time.localtime(event['ts']))
@@ -4160,7 +4160,7 @@ def anon_handle_list_tags(goptions, session, args):
     parser.add_option("--build", help=_("Show tags associated with a build"))
     parser.add_option("--package", help=_("Show tags associated with a package"))
     (options, args) = parser.parse_args(args)
-    ensure_connection(session)
+    ensure_connection(session, goptions)
 
     pkginfo = {}
     buildinfo = {}
@@ -4523,7 +4523,7 @@ def anon_handle_list_history(goptions, session, args):
     if not limited and not options.all:
         parser.error(_("Please specify an option to limit the query"))
 
-    ensure_connection(session)
+    ensure_connection(session, goptions)
 
     if options.watch:
         if not kwargs.get('afterEvent') and not kwargs.get('after'):
@@ -4844,7 +4844,7 @@ def anon_handle_taskinfo(goptions, session, args):
     if len(args) < 1:
         parser.error(_("You must specify at least one task ID"))
 
-    ensure_connection(session)
+    ensure_connection(session, goptions)
 
     for arg in args:
         task_id = int(arg)
@@ -4862,7 +4862,7 @@ def anon_handle_taginfo(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) < 1:
         parser.error(_("Please specify a tag"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     event = koji.util.eventFromOpts(session, options)
     event_opts = {}
     if event:
@@ -5358,7 +5358,7 @@ def anon_handle_show_groups(goptions, session, args):
         parser.error(_("Incorrect number of arguments"))
     if options.incl_blocked and (options.comps or options.spec):
         parser.error(_("--show-blocked doesn't make sense for comps/spec output"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     tag = args[0]
     callopts = {}
     if options.incl_blocked:
@@ -5393,7 +5393,7 @@ def anon_handle_list_external_repos(goptions, session, args):
     (options, args) = parser.parse_args(args)
     if len(args) > 0:
         parser.error(_("This command takes no arguments"))
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     opts = {}
     event = koji.util.eventFromOpts(session, options)
     if event:
@@ -6493,7 +6493,7 @@ def anon_handle_watch_task(goptions, session, args):
     if options.mine:
         activate_session(session, goptions)
     else:
-        ensure_connection(session)
+        ensure_connection(session, goptions)
     if selection:
         tasks = [task['id'] for task in _list_tasks(options, session)]
         if not tasks:
@@ -6534,7 +6534,7 @@ def anon_handle_watch_logs(goptions, session, args):
             print(_("You've no active tasks."))
             return
     else:
-        ensure_connection(session)
+        ensure_connection(session, goptions)
         tasks = []
         for task in args:
             try:
@@ -6776,7 +6776,7 @@ def anon_handle_download_build(options, session, args):
     elif len(args) > 1:
         parser.error(_("Only a single package N-V-R or build ID may be specified"))
 
-    ensure_connection(session)
+    ensure_connection(session, options)
     build = args[0]
 
     if build.isdigit():
@@ -7002,7 +7002,7 @@ def anon_handle_download_task(options, session, args):
     if len(suboptions.arches) > 0:
         suboptions.arches = ",".join(suboptions.arches).split(",")
 
-    ensure_connection(session)
+    ensure_connection(session, options)
 
     # get downloadable tasks
 
@@ -7434,7 +7434,7 @@ def anon_handle_list_notifications(goptions, session, args):
         parser.error(_("Use --user or --mine."))
 
     if options.user:
-        ensure_connection(session)
+        ensure_connection(session, goptions)
         user = session.getUser(options.user)
         if not user:
             error("User %s does not exist" % options.user)
@@ -7692,7 +7692,7 @@ def handle_unblock_notification(goptions, session, args):
 
 def handle_version(goptions, session, args):
     """Report client and hub versions"""
-    ensure_connection(session)
+    ensure_connection(session, goptions)
     print('Client: %s' % koji.__version__)
     try:
         version = session.getKojiVersion()
