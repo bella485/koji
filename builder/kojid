@@ -1001,7 +1001,10 @@ class BuildTask(BaseTaskHandler):
             policy_data['target'] = target_info['name']
         if not self.opts.get('skip_tag'):
             policy_data['tag'] = dest_tag  # id
+        h = None
         if not SCM.is_scm_url(src) and not opts.get('scratch'):
+            h = self.readSRPMHeader(src)
+            policy_data['package'] = koji.get_header_field(h, 'name')
             # let hub policy decide
             self.session.host.assertPolicy('build_from_srpm', policy_data)
         if opts.get('repo_id') is not None:
@@ -1012,7 +1015,10 @@ class BuildTask(BaseTaskHandler):
                                      wait=opts.get('wait_repo'))  # (subtask)
             self.event_id = self.session.getLastEvent()['id']
         srpm = self.getSRPM(src, build_tag, repo_info['id'])
-        h = self.readSRPMHeader(srpm)
+        # Reload srpm header when SRPM-rebuilding (Load when building from SCM or scratch build).
+        # Leave "h is None" here for logical coherence.
+        if srpm != src or h is None:
+            h = self.readSRPMHeader(srpm)
         data = koji.get_header_fields(h, ['name', 'version', 'release', 'epoch'])
         data['task_id'] = self.id
         if getattr(self, 'source', False):
