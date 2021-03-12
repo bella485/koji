@@ -604,6 +604,8 @@ def escapeHTML(value):
     < : &lt;
     > : &gt;
     & : &amp;
+    " : &quot;
+    ' : &#x27;
     """
     if not value:
         return value
@@ -611,7 +613,9 @@ def escapeHTML(value):
     value = koji.fixEncoding(value)
     return value.replace('&', '&amp;').\
         replace('<', '&lt;').\
-        replace('>', '&gt;')
+        replace('>', '&gt;').\
+        replace('"', '&quot;').\
+        replace("'", '&#x27;')
 
 
 def authToken(template, first=False, form=False):
