@@ -9413,16 +9413,25 @@ def policy_get_cgs(data):
 def policy_get_build_tags(data, taginfo=False):
     """If taginfo is set, return list of taginfos, else list of names only"""
     if 'build_tag' in data:
-        return [get_tag(data['build_tag'], strict=True)['name']]
+        if taginfo:
+            return [get_tag(data['build_tag'], strict=True)]
+        else:
+            return [get_tag(data['build_tag'], strict=True)['name']]
     elif 'build_tags' in data:
-        return [get_tag(t, strict=True)['name'] for t in data['build_tags']]
+        if taginfo:
+            return [get_tag(t, strict=True) for t in data['build_tags']]
+        else:
+            return [get_tag(t, strict=True)['name'] for t in data['build_tags']]
 
     # see if we have a target
     target = data.get('target')
     if target:
         target = get_build_target(target, strict=False)
         if target:
-            return [target['build_tag_name']]
+            if taginfo:
+                return [get_tag(target['build_tag_name'], strict=True)]
+            else:
+                return [target['build_tag_name']]
 
     # otherwise look at buildroots
     tags = {}
@@ -9430,13 +9439,13 @@ def policy_get_build_tags(data, taginfo=False):
         if br_id is None:
             tags[None] = None
         else:
-            tinfo = get_buildroot(br_id, strict=True)
-            tags[tinfo['tag_name']] = tinfo
+            br = get_buildroot(br_id, strict=True)
+            tags[br['tag_name']] = br['tag_id']
 
     if taginfo:
-        tags = tags.values()
+        tags = [get_tag(tag_id, strict=True) for tag_id in tags.values()]
     else:
-        tags = tags.keys()
+        tags = list(tags.keys())
     return tags
 
 
@@ -9650,7 +9659,7 @@ class BuildTagInheritsFromTest(koji.policy.BaseSimpleTest):
                 # content generator buildroots might not have tag info
                 continue
 
-            for tag in readFullInheritance(tinfo['tag_id']):
+            for tag in readFullInheritance(tinfo['id']):
                 if multi_fnmatch(tag['name'], args):
                     return True
         # otherwise...
