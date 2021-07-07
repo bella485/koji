@@ -141,6 +141,46 @@ class MatchTest(BaseSimpleTest):
         return False
 
 
+class AdvancedMatchTest(MatchTest):
+    """Matches a field in the data against glob patterns
+
+    The field could be the same as match test,
+    or a dot-spiited string which indicates key in a (nested) dict
+
+    True if any of the expressions match, else False
+    This test can be used as-is, or it can be subclassed to
+    test a specific field
+
+    Syntax:
+        adv_match field[.sub_field ...] pattern1 [pattern2 ...]
+
+    """
+    name = 'adv_match'
+    field = None
+
+    def run(self, data):
+        args = self.str.split()[1:]
+        if self.field is None:
+            field = args[0]
+            args = args[1:]
+        else:
+            # expected when we are subclassed
+            field = self.field
+        fields = field.split('.')
+        tgt = data
+        for i, f in enumerate(fields):
+            if not isinstance(tgt, dict):
+                return False
+            if f not in tgt:
+                return False
+            tgt = tgt.get(f)
+
+        for pattern in args:
+            if fnmatch.fnmatch(tgt, pattern):
+                return True
+        return False
+
+
 class TargetTest(MatchTest):
     """Matches target in the data against glob patterns
 
