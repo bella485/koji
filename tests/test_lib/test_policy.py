@@ -83,6 +83,13 @@ class TestBasicTests(unittest.TestCase):
             }
         }}))
 
+    def test_find_test(self):
+        obj = koji.policy.FindTest('not_important foo *bar*')
+        self.assertTrue(obj.run({'foo': ['barrrr', 'any']}))
+        self.assertFalse(obj.run({'foo': ['nah....']}))
+        self.assertFalse(obj.run({'foo': 'nah...'}))
+        self.assertFalse(obj.run({'bar': ['any']}))
+
     def test_target_test(self):
         obj = koji.policy.TargetTest('target valid')
         self.assertTrue(obj.run({'target': 'valid'}))
@@ -142,6 +149,7 @@ class TestDiscovery(unittest.TestCase):
             'has': koji.policy.HasTest,
             'match': koji.policy.MatchTest,
             'adv_match': koji.policy.AdvancedMatchTest,
+            'find': koji.policy.FindTest,
             'none': koji.policy.NoneTest,
             'target': koji.policy.TargetTest,
             'true': koji.policy.TrueTest,

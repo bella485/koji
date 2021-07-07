@@ -141,11 +141,11 @@ class MatchTest(BaseSimpleTest):
         return False
 
 
-class AdvancedMatchTest(MatchTest):
+class AdvancedMatchTest(BaseSimpleTest):
     """Matches a field in the data against glob patterns
 
     The field could be the same as match test,
-    or a dot-spiited string which indicates key in a (nested) dict
+    or a dot-splited string which indicates key in a (nested) dict
 
     True if any of the expressions match, else False
     This test can be used as-is, or it can be subclassed to
@@ -178,6 +178,32 @@ class AdvancedMatchTest(MatchTest):
         for pattern in args:
             if fnmatch.fnmatch(tgt, pattern):
                 return True
+        return False
+
+
+class FindTest(BaseSimpleTest):
+    """Matches any item of a list/tuple/set value in the data against glob patterns
+
+    True if any of the expressions matches any item in the list/tuple/set, else False.
+    If the field doesn't exist or isn't a list/tuple/set, the test returns False
+
+    Syntax:
+        find field pattern1 [pattern2 ...]
+
+    """
+    name = 'find'
+    field = None
+
+    def run(self, data):
+        args = self.str.split()[1:]
+        self.field = args[0]
+        args = args[1:]
+        tgt = data.get(self.field)
+        if tgt and isinstance(tgt, (list, tuple, set)):
+            for pattern in args:
+                for i in tgt:
+                    if fnmatch.fnmatch(i, pattern):
+                        return True
         return False
 
 
