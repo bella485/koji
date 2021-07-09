@@ -348,6 +348,11 @@ def handle_db_msgs(urls, CONFIG):
                                columns=('id', 'address', 'props', 'body'),
                                opts={'order': 'id', 'limit': limit})
         msgs = list(query.execute())
+        for msg in msgs:
+            try:
+                msg['props'] = json.loads(msg['props'])
+            except Exception:
+                LOG.error('Unable to load message from db: %r', msg)
         if not msgs:
             return
         if CONFIG.getboolean('broker', 'test_mode', fallback=False):
