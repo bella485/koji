@@ -540,23 +540,17 @@ class WindowsBuild(object):
 def run(cmd, chdir=None, fatal=False, log=True):
     global logfd
     output = ''
-    olddir = None
-    if chdir:
-        olddir = os.getcwd()
-        os.chdir(chdir)
     if log:
         logger = logging.getLogger('koji.vm')
         logger.info('$ %s', ' '.join(cmd))
         proc = subprocess.Popen(cmd, stdout=logfd, stderr=subprocess.STDOUT,
-                                close_fds=True, text=True)
+                                close_fds=True, text=True, cwd=chdir)
         ret = proc.wait()
     else:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                close_fds=True, text=True)
+                                close_fds=True, text=True, cwd=chdir)
         output, dummy = proc.communicate()
         ret = proc.returncode
-    if olddir:
-        os.chdir(olddir)
     if ret and fatal:
         msg = 'error running: %s, return code was %s' % (' '.join(cmd), ret)
         if log:
