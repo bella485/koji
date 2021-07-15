@@ -694,7 +694,7 @@ def stream_logs(server, handler, builds):
             contents = fd.read(65536)
             if contents:
                 size = len(contents)
-                data = base64.b64encode(contents)
+                data = base64.b64encode(contents).decode()
                 digest = hashlib.sha256(contents).hexdigest()
                 del contents
                 try:
