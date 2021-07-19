@@ -178,6 +178,7 @@ if __name__ == "__main__":
         ['DBhost', 'string', None],   # alias for backwards compatibility
         ['DBPort', 'integer', None],
         ['DBPass', 'string', None],
+        ['DBSSLMode', 'string', 'prefer'],
     ]
 
     opts = {}
@@ -199,7 +200,8 @@ if __name__ == "__main__":
                           user=opts["DBUser"],
                           password=opts.get("DBPass", None),
                           host=opts.get("DBHost", None),
-                          port=opts.get("DBPort", None))
+                          port=opts.get("DBPort", None),
+                          sslmode=opts["DBSSLMode"])
 
     conn = koji.db.connect()
     conn.set_session(autocommit=True)
