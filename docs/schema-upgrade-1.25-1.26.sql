@@ -6,4 +6,6 @@ BEGIN;
 
 ALTER TABLE channels ADD COLUMN description TEXT;
 
+ALTER TABLE proton_queue ALTER COLUMN body TYPE TEXT;
+
 COMMIT;

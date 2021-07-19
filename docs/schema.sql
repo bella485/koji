@@ -947,7 +947,7 @@ CREATE TABLE proton_queue (
         created_ts TIMESTAMPTZ DEFAULT NOW(),
         address TEXT NOT NULL,
         props JSON NOT NULL,
-        body JSON NOT NULL
+        body TEXT NOT NULL
 ) WITHOUT OIDS;
 
 
