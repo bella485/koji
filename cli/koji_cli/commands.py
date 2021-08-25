@@ -6582,6 +6582,10 @@ def handle_set_task_priority(goptions, session, args):
 
     activate_session(session, goptions)
 
+    if not session.hasPerm('admin'):
+        logged_user = session.getLoggedInUser()
+        error("admin permission required (logged in as %s)" % logged_user['name'])
+
     for task_id in tasks:
         try:
             session.setTaskPriority(task_id, options.priority, options.recurse)
