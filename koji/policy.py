@@ -46,6 +46,22 @@ class BaseSimpleTest(object):
         return self.str
 
 
+class NegatedTest(object):
+
+    def __init__(self, test):
+        self.test = test
+
+    @property
+    def name(self):
+        return "!%s" % self.test.name
+
+    def run(self, data):
+        return not self.test.run(data)
+
+    def __str__(self):
+        return "! %s" % self.test
+
+
 # The following tests are generic enough that we can place them here
 
 class TrueTest(BaseSimpleTest):
@@ -202,21 +218,53 @@ class CompareTest(BaseSimpleTest):
         return self.func(data[self.field], self.value)
 
 
+class BaseAction(object):
+    '''Abstract base class for actions'''
+
+
+class PolicyAction(BaseAction):
+    '''Normal actions from policies'''
+
+    def __init__(self, text, name):
+        self.text = text
+        self.name = name
+
+    def __str__(self):
+        return self.text
+
+
+class BreakAction(BaseAction):
+    '''A flow control action. Breaks out of nested rule sets'''
+
+    def __init__(self, depth=1):
+        self.depth = depth
+
+    def __str__(self):
+        return 'break %i' % self.depth
+
+
+class StopAction(BaseAction):
+    '''A flow control action. Stops policy execution'''
+
+    def __str__(self):
+        return 'stop'
+
+
 class SimpleRuleSet(object):
 
     def __init__(self, rules, tests):
         self.tests = tests
         self.rules = self.parse_rules(rules)
-        self.lastrule = None
-        self.lastaction = None
+        self.ruleset = self.rules  # alias for backwards compatibility
         self.logger = logging.getLogger('koji.policy')
+        self.checker = None
 
     def parse_rules(self, lines):
         """Parse rules into a ruleset data structure
 
         At the top level, the structure is a set of rules
             [rule1, rule2, ...]
-        Each rule is a pair
+        Each rule is a list
             [tests, negate, action ]
         Tests is a list of test handlers:
             [handler1, handler2, ...]
@@ -231,8 +279,7 @@ class SimpleRuleSet(object):
                [[test1, test2, test3], negate
                 [[[test1, test2], negate, "action"]]]]]]
         """
-        cursor = []
-        self.ruleset = cursor
+        rules = cursor = []
         stack = []
         for line in lines:
             rule = self.parse_line(line)
@@ -255,6 +302,7 @@ class SimpleRuleSet(object):
         if stack:
             # unclosed {
             raise koji.GenericError("nesting error in rule set")
+        return rules
 
     def parse_line(self, line):
         """Parse line as a rule
@@ -291,22 +339,62 @@ class SimpleRuleSet(object):
             if pos == -1:
                 raise Exception("bad policy line: %s" % line)
             negate = True
-        tests = line[:pos]
+        tests = self.parse_tests(line[:pos])
         action = line[pos + 2:]
-        tests = [self.get_test_handler(x) for x in tests.split('&&')]
-        action = action.strip()
+        action = self.parse_action(action.strip())
         # just return action = { for nested rules
         return tests, negate, action
 
-    def get_test_handler(self, str):
-        name = str.split(None, 1)[0]
+    def parse_tests(self, s):
+        """Given the tests portion of a policy line, return list of tests"""
+        return [self.get_test_handler(x) for x in s.split('&&')]
+
+    def parse_action(self, action):
+        if action in ['{', '}']:
+            # these are handled in parse_rules
+            return action
+        name = action.split(None, 1)[0]
+        if name == 'break':
+            args = action.split()[1:]
+            if not args:
+                return BreakAction()
+            elif len(args) > 1:
+                raise koji.GenericError('Invalid break action: %s' % action)
+            else:
+                try:
+                    depth = int(args[0])
+                except ValueError:
+                    raise koji.GenericError('Invalid break action: %s' % action)
+                return BreakAction(depth)
+        elif name == 'stop':
+            args = action.split()[1:]
+            if args:
+                raise koji.GenericError('Invalid stop action: %s' % action)
+            return StopAction()
+        else:
+            return PolicyAction(action, name)
+
+    def get_test_handler(self, test):
+        negate = False
         try:
-            return self.tests[name](str)
+            parts = test.split(None, 1)
+            name = parts[0]
+            if name == '!':
+                negate = True
+                test = parts[1]
+                name = test.split(None, 1)[0]
+        except IndexError:
+            raise koji.GenericError("missing/invalid test: %r" % test)
+        try:
+            handler = self.tests[name](test)
+            if negate:
+                handler = NegatedTest(handler)
+            return handler
         except KeyError:
             raise koji.GenericError("missing test handler: %s" % name)
 
     def all_actions(self):
-        """report a list of all actions in the ruleset
+        """report a list of all possible actions in the ruleset
 
         (only the first word of the action is considered)
         """
@@ -314,55 +402,123 @@ class SimpleRuleSet(object):
             for tests, negate, action in rules:
                 if isinstance(action, list):
                     _recurse(action, index)
-                else:
-                    name = action.split(None, 1)[0]
-                    index[name] = 1
+                elif isinstance(action, PolicyAction):
+                    index[action.name] = 1
+                # ignore other special actions like break
         index = {}
-        _recurse(self.ruleset, index)
+        _recurse(self.rules, index)
         return to_list(index.keys())
 
-    def _apply(self, rules, data, top=False):
+    def apply(self, data, multi=False):
+        self.checker = RuleChecker(self, data)
+        return self.checker.apply(multi=multi)
+
+    def last_rule(self):
+        # wrapper for backwards compatibility
+        if self.checker:
+            return self.checker.last_rule()
+        else:
+            return None
+
+
+class RuleChecker(object):
+
+    def __init__(self, ruleset, data):
+        self.ruleset = ruleset
+        self.data = data
+        self.logger = logging.getLogger('koji.policy')
+        self.lastrule = None
+        self.lastaction = None
+        self.lastrun = None
+
+    def apply(self, multi=False):
+        # backwards compatible interface
+        self.run(multi=multi)
+        if multi:
+            return [r['action'].text for r in self.lastrun['results']]
+        elif self.lastaction:
+            return self.lastaction.text
+        else:
+            return None
+
+    def run(self, multi=True):
+        self.logger.debug("policy start")
+        self.lastaction = None
+        self.lastrule = []
+        results = []
+        self.lastrun = {'multi': multi, 'results': results}
+        for action, trace in self._apply(self.ruleset.rules):
+            self.lastaction = action
+            self.lastrule = trace
+            results.append({'action': action, 'trace': trace})
+            if not multi:
+                break
+        self.logger.debug("policy done")
+        return self.lastrun
+
+    def _apply(self, rules, trace=[]):
+        """Apply rules recursively, yielding matching actions"""
         for tests, negate, action in rules:
-            if top:
-                self.lastrule = []
-            value = False
+
+            value = True
+            # the parser does not accept rules with no tests, so tests cannot be empty
             for test in tests:
-                check = test.run(data)
+                check = test.run(self.data)
                 self.logger.debug("%s -> %s", test, check)
                 if not check:
+                    value = False
                     break
-            else:
-                # all tests in current rule passed
-                value = True
+
             if negate:
                 value = not value
+
             if value:
-                self.lastrule.append([tests, negate])
+                next_trace = list(trace)
+                next_trace.append((tests, negate))
                 if isinstance(action, list):
                     self.logger.debug("matched: entering subrule")
                     # action is a list of subrules
-                    ret = self._apply(action, data)
-                    if ret is not None:
-                        return ret
-                    # if ret is None, then none of the subrules matched,
-                    # so we keep going
+                    for result in self._apply(rules=action, trace=next_trace):
+                        if isinstance(result, BreakAction):
+                            if result.depth > 1 and trace:
+                                self.logger.debug("passing break up the line")
+                                yield BreakAction(result.depth - 1)
+                            return
+                        elif isinstance(result, StopAction):
+                            if trace:
+                                yield result
+                            return
+                        else:
+                            yield result
+                elif isinstance(action, BreakAction):
+                    self.logger.debug("matched: action=%s", action)
+                    if action.depth > 1 and trace:
+                        self.logger.debug("passing break up the line")
+                        # also tell our parent to break
+                        yield BreakAction(action.depth - 1)
+                    self.logger.debug("break: skipping rest of level")
+                    return
+                elif isinstance(action, StopAction):
+                    self.logger.debug("matched: action=%s", action)
+                    if trace:
+                        yield StopAction()
+                    return
                 else:
                     self.logger.debug("matched: action=%s", action)
-                    return action
-        return None
-
-    def apply(self, data):
-        self.logger.debug("policy start")
-        self.lastrule = []
-        self.lastaction = self._apply(self.ruleset, data, top=True)
-        self.logger.debug("policy done")
-        return self.lastaction
+                    yield (action, next_trace)
 
     def last_rule(self):
-        if self.lastrule is None:
+        # backwards compatible trace
+        if not self.lastrun:
             return None
+        elif not self.lastrun['results']:
+            return "(no match)"
+        result = self.lastrun['results'][-1]
+        return self.pretty_trace(result)
+
+    def pretty_trace(self, result):
         ret = []
-        for (tests, negate) in self.lastrule:
+        for (tests, negate) in result['trace']:
             line = '&&'.join([str(t) for t in tests])
             if negate:
                 line += '!! '
@@ -370,10 +526,10 @@ class SimpleRuleSet(object):
                 line += ':: '
             ret.append(line)
         ret = '... '.join(ret)
-        if self.lastaction is None:
+        if result['action'] is None:
             ret += "(no match)"
         else:
-            ret += self.lastaction
+            ret += result['action'].text
         return ret
 
 

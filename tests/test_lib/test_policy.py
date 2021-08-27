@@ -213,6 +213,12 @@ class TestRuleHandling(unittest.TestCase):
         action = obj.apply(data)
         self.assertEqual(obj.last_rule(), rules[0])
 
+        # negate test
+        rules = ['! false :: allow']
+        obj = koji.policy.SimpleRuleSet(rules, tests)
+        action = obj.apply(data)
+        self.assertEqual(obj.last_rule(), rules[0])
+
         # nested rule
         policy = '''
 all :: {
@@ -251,6 +257,22 @@ all :: {
         with self.assertRaises(Exception):
             obj = koji.policy.SimpleRuleSet(lines, tests)
 
+    def test_no_tests(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        lines = [':: allow']
+        with self.assertRaises(koji.GenericError):
+            obj = koji.policy.SimpleRuleSet(lines, tests)
+
+    def test_blank_test(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        lines = ['true &&    && true :: allow']
+        with self.assertRaises(koji.GenericError):
+            obj = koji.policy.SimpleRuleSet(lines, tests)
+
     def test_missing_handler(self):
         tests = koji.policy.findSimpleTests(koji.policy.__dict__)
         data = {}
@@ -258,6 +280,153 @@ all :: {
         lines = ['NOSUCHHANDLER && true :: allow']
         with self.assertRaises(koji.GenericError):
             obj = koji.policy.SimpleRuleSet(lines, tests)
+
+    def test_negated_tests(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        rules = ['true && ! false && true :: allow']
+        obj = koji.policy.SimpleRuleSet(rules, tests)
+        action = obj.apply(data)
+        self.assertEqual(action, 'allow')
+
+        rules = ['! true && true && true :: allow']
+        obj = koji.policy.SimpleRuleSet(rules, tests)
+        action = obj.apply(data)
+        self.assertEqual(action, None)
+
+    def test_break(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        policy = '''
+        true :: {
+            true :: break
+            true :: ERROR
+        }
+        true :: OK
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data)
+        self.assertEqual(action, 'OK')
+
+        policy = '''
+        true :: {
+            true :: {
+                true :: break
+                true :: ERROR
+            }
+            true :: OK
+        }
+        true :: ERROR
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data)
+        self.assertEqual(action, 'OK')
+
+        policy = '''
+        true :: break
+        true :: ERROR
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data)
+        self.assertEqual(action, None)
+
+    def test_break_n(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        policy = '''
+        true :: {
+            true :: {
+                true :: {
+                    true :: {
+                        true :: break 3
+                        true :: ERROR
+                        }
+                    true :: ERROR
+                    }
+                true :: ERROR
+                }
+            true :: OK
+            }
+        true :: ERROR
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data)
+        self.assertEqual(action, 'OK')
+
+    def test_stop(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        policy = '''
+        true :: {
+            true :: {
+                true :: {
+                    true :: stop
+                    true :: ERROR
+                    }
+                true :: ERROR
+                }
+            true :: ERROR
+            }
+        true :: ERROR
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data)
+        self.assertEqual(action, None)
+        action = obj.apply(data, multi=True)
+        self.assertEqual(action, [])
+
+        policy = '''
+        true :: {
+            true :: hello
+            true :: world
+            true :: stop
+            true :: putting
+            }
+        true :: computers
+        true :: into
+        true :: everything
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data, multi=True)
+        self.assertEqual(action, ['hello', 'world'])
+
+        policy = '''
+        true :: OK
+        false :: ERROR
+        true :: stop
+        true :: ERROR
+        true :: ERROR
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data, multi=True)
+        self.assertEqual(action, ['OK'])
+
+    def test_break_invalid(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        # not a number
+        policy = '''true :: break NOTANUMBER'''
+        with self.assertRaises(koji.GenericError):
+            obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+
+        # too many args
+        policy = '''true :: break 1 2'''
+        with self.assertRaises(koji.GenericError):
+            obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+
+    def test_stop_invalid(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+
+        policy = '''true :: stop 1'''
+        with self.assertRaises(koji.GenericError):
+            obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+
+        policy = '''true :: stop that bus!'''
+        with self.assertRaises(koji.GenericError):
+            obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
 
     def test_complex_policy(self):
         tests = koji.policy.findSimpleTests(koji.policy.__dict__)
@@ -275,6 +444,9 @@ none :: ERROR
 
 true !! ERROR
 all !! ERROR
+
+! true :: ERROR
+! false !! ERROR
 
 false && true && true :: ERROR
 none && true && true :: ERROR
