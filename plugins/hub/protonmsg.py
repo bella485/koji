@@ -216,7 +216,7 @@ def prep_build_state_change(cbtype, *args, **kws):
              'name': kws['info']['name'],
              'version': kws['info']['version'],
              'release': kws['info']['release'],
-             'btypes': btypeinfo,
+             'btypes': json.dumps(btypeinfo, default=json_serialize),
              'attribute': kws['attribute'],
              'old': old,
              'new': new}

@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import json
 import tempfile
 import unittest
 
@@ -132,7 +133,7 @@ extra_limit = 2048
         assert_info = {'name': 'test-pkg',
                        'version': '1.0',
                        'release': '1',
-                       'btypes': {'image': {'build_id': 1}}}
+                       'btypes': json.dumps({'image': {'build_id': 1}})}
         self.get_build_type.return_value = {'image': {'build_id': 1}}
         protonmsg.prep_build_state_change('postBuildStateChange',
                                           info=info, attribute='volume_id',
@@ -155,7 +156,7 @@ extra_limit = 2048
         assert_info = {'name': 'test-pkg',
                        'version': '1.0',
                        'release': '1',
-                       'btypes': {}}
+                       'btypes': '{}'}
         self.get_build_type.return_value = {}
         protonmsg.prep_build_state_change('postBuildStateChange',
                                           info=info, attribute='volume_id',
