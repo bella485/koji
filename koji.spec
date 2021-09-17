@@ -409,6 +409,11 @@ done
 %else
 %if 0%{py2_support}
 make DESTDIR=$RPM_BUILD_ROOT PYTHON=%{__python2} install
+# alter python interpreter in koji bins
+scripts='%{_bindir}/koji %{_sbindir}/kojivmd'
+for fn in $scripts ; do
+    sed -i 's|#!/usr/bin/python3|#!/usr/bin/python2|' $RPM_BUILD_ROOT$fn
+done
 %endif
 %endif
 
