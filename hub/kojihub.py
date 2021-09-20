@@ -12691,6 +12691,7 @@ class RootExports(object):
 
     def taskReport(self, owner=None):
         """Return data on active or recent tasks"""
+        logger.warning("taskReport call is deprecated and will be removed in 1.29")
         fields = (
             ('task.id', 'id'),
             ('task.state', 'state'),
