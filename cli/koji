@@ -118,7 +118,8 @@ def get_options():
     parser.add_option("-p", "--profile", default=progname,
                       help=_("specify a configuration profile. default: %s" % progname))
     parser.add_option("-c", "--config", dest="configFile",
-                      help=_("load profile's settings from another file"), metavar="FILE")
+                      help=_("load profile's settings from another file. Use with --profile."),
+                      metavar="FILE")
     parser.add_option("--keytab", help=_("specify a Kerberos keytab to use"), metavar="FILE")
     parser.add_option("--principal", help=_("specify a Kerberos principal to use"))
     parser.add_option("--cert", help=_("specify a SSL cert to use"), metavar="FILE")
