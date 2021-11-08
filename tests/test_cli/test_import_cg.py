@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import mock
 import six
 
+import koji
 from mock import call
 from koji_cli.commands import handle_import_cg
 from . import utils
@@ -22,6 +23,16 @@ class TestImportCG(utils.CliTestCase):
         return self.os_path_exists(filepath)
 
     def setUp(self):
+        # Show long diffs in error output...
+        self.options = mock.MagicMock()
+        self.options.quiet = True
+        self.options.debug = False
+        self.session = mock.MagicMock()
+        self.session.getAPIVersion.return_value = koji.API_VERSION
+        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.linked_upload_mock = mock.patch('koji_cli.commands.linked_upload').start()
+        self.unique_path_mock = mock.patch('koji_cli.commands.unique_path').start()
+        self.progress_callback_mock = mock.patch('koji_cli.commands._progress_callback').start()
         self.custom_os_path_exists = {}
         self.os_path_exists = os.path.exists
         self.error_format = """Usage: %s import-cg [options] <metadata_file> <files_dir>
@@ -31,26 +42,10 @@ class TestImportCG(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._progress_callback')
-    @mock.patch('koji_cli.commands.unique_path')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.linked_upload')
-    @mock.patch('koji_cli.commands.activate_session')
     @mock.patch('koji.json')
-    def test_handle_import_cg(
-            self,
-            json_mock,
-            activate_session_mock,
-            linked_upload_mock,
-            running_in_bg_mock,
-            unique_path_mock,
-            progress_callback_mock,
-            stdout):
+    def test_handle_import_cg(self, json_mock, stdout):
         """Test handle_import_cg function"""
         arguments = ['fake-metafile', '/path/to/files/']
-        options = mock.MagicMock()
-        session = mock.MagicMock()
-        expected = ''
         fake_srv_path = '/path/to/server/cli-import'
 
         metadata = {
@@ -67,66 +62,70 @@ class TestImportCG(utils.CliTestCase):
                                           for v in metadata['output'])
 
         # setup and start os.path.exists patch
-        os_path_exists_patch = mock.patch('os.path.exists',
-                                          new=self.mock_os_path_exists)
+        os_path_exists_patch = mock.patch('os.path.exists', new=self.mock_os_path_exists)
         os_path_exists_patch.start()
 
         def gen_value(fmt, callback):
             calls, expect = [], ''
             for item in metadata['output']:
                 filepath = "%(relpath)s/%(filename)s" % item
-                calls.append(call(filepath,
-                                  item['relpath'],
-                                  callback=callback))
+                calls.append(call(filepath, item['relpath'], callback=callback))
                 expect += fmt % filepath + "\n"
             return calls, expect
 
         json_mock.load.return_value = metadata
-        unique_path_mock.return_value = fake_srv_path
+        self.unique_path_mock.return_value = fake_srv_path
 
         # Case 1, running in fg, progress on
         with mock.patch(utils.get_builtin_open()):
-            handle_import_cg(options, session, arguments)
+            handle_import_cg(self.options, self.session, arguments)
 
-        calls, expected = gen_value("Uploading %s\n", progress_callback_mock)
+        calls, expected = gen_value("Uploading %s\n", self.progress_callback_mock)
         self.assert_console_message(stdout, expected)
-        linked_upload_mock.assert_not_called()
-        session.uploadWrapper.assert_has_calls(calls)
-        session.CGImport.assert_called_with(metadata, fake_srv_path, None)
+        self.linked_upload_mock.assert_not_called()
+        self.session.uploadWrapper.assert_has_calls(calls)
+        self.session.CGImport.assert_called_with(metadata, fake_srv_path, None)
+        self.activate_session_mock.assert_called_with(self.session, self.options)
+        self.activate_session_mock.reset_mock()
 
         # Case 2, running in fg, progress off
         with mock.patch(utils.get_builtin_open()):
-            handle_import_cg(options, session, arguments + ['--noprogress'])
+            handle_import_cg(self.options, self.session, arguments + ['--noprogress'])
 
         calls, expected = gen_value("Uploading %s", None)
         self.assert_console_message(stdout, expected)
-        linked_upload_mock.assert_not_called()
-        session.uploadWrapper.assert_has_calls(calls)
-        session.CGImport.assert_called_with(metadata, fake_srv_path, None)
+        self.linked_upload_mock.assert_not_called()
+        self.session.uploadWrapper.assert_has_calls(calls)
+        self.session.CGImport.assert_called_with(metadata, fake_srv_path, None)
+        self.activate_session_mock.assert_called_with(self.session, self.options)
 
         # reset mocks
-        linked_upload_mock.reset_mock()
-        session.uploadWrapper.reset_mock()
-        session.CGImport.reset_mock()
+        self.linked_upload_mock.reset_mock()
+        self.session.uploadWrapper.reset_mock()
+        self.session.CGImport.reset_mock()
+        self.activate_session_mock.reset_mock()
 
         # Case 3, --test option
         with mock.patch(utils.get_builtin_open()):
-            handle_import_cg(options, session, arguments + ['--test'])
+            handle_import_cg(self.options, self.session, arguments + ['--test'])
 
-        linked_upload_mock.assert_not_called()
-        session.uploadWrapper.assert_not_called()
-        session.CGImport.assert_not_called()
+        self.linked_upload_mock.assert_not_called()
+        self.session.uploadWrapper.assert_not_called()
+        self.session.CGImport.assert_not_called()
+        self.activate_session_mock.assert_called_with(self.session, self.options)
+        self.activate_session_mock.reset_mock()
 
         calls = [call("%(relpath)s/%(filename)s" % item, item['relpath'])
                  for item in metadata['output']]
 
         # Case 4, --link option
         with mock.patch(utils.get_builtin_open()):
-            handle_import_cg(options, session, arguments + ['--link'])
+            handle_import_cg(self.options, self.session, arguments + ['--link'])
 
-        linked_upload_mock.assert_has_calls(calls)
-        session.uploadWrapper.assert_not_called()
-        session.CGImport.assert_called_with(metadata, fake_srv_path, None)
+        self.linked_upload_mock.assert_has_calls(calls)
+        self.session.uploadWrapper.assert_not_called()
+        self.session.CGImport.assert_called_with(metadata, fake_srv_path, None)
+        self.activate_session_mock.assert_called_with(self.session, self.options)
 
         # make sure there is no message on output
         self.assert_console_message(stdout, '')
@@ -137,20 +136,14 @@ class TestImportCG(utils.CliTestCase):
     def test_handle_import_argument_test(self):
         """Test handle_import_cg function without arguments"""
         arguments = ['fake-metafile', '/path/to/files/']
-        options = mock.MagicMock()
-        session = mock.MagicMock()
 
         # Case 1. empty argument
-        expected = self.format_error_message(
-            "Please specify metadata files directory")
-
         self.assert_system_exit(
             handle_import_cg,
-            options,
-            session,
-            [],
-            stderr=expected,
+            self.options, self.session, [],
+            stderr=self.format_error_message("Please specify metadata files directory"),
             activate_session=None)
+        self.activate_session_mock.assert_not_called()
 
         # Case 2. JSON module does not exist
         # dropped - it is now part of stdlib
@@ -173,26 +166,24 @@ class TestImportCG(utils.CliTestCase):
 
                     # Case 3. metafile doesn't have output section
                     json_mock.load.return_value = {}
-                    expected = "Metadata contains no output\n"
                     self.assert_system_exit(
                         handle_import_cg,
-                        options,
-                        session,
-                        arguments,
-                        stdout=expected,
+                        self.options, self.session, arguments,
+                        stdout='',
+                        stderr="Metadata contains no output\n",
                         exit_code=1)
+                    self.activate_session_mock.assert_not_called()
 
                     # Case 4. path not exist
                     file_path = '%(relpath)s/%(filename)s' % metadata['output'][1]
                     json_mock.load.return_value = metadata
-                    expected = self.format_error_message(
-                        "No such file: %s" % file_path)
                     self.assert_system_exit(
                         handle_import_cg,
-                        options,
-                        session,
-                        arguments,
-                        stderr=expected)
+                        self.options, self.session, arguments,
+                        stdout='',
+                        stderr=self.format_error_message("No such file: %s" % file_path),
+                        exit_code=2)
+                    self.activate_session_mock.assert_not_called()
 
     def test_handle_import_cg_help(self):
         """Test handle_import_cg help message"""
