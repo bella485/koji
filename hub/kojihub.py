@@ -3438,6 +3438,11 @@ def get_tag(tagInfo, strict=False, event=None, blocked=False):
               'tag_config.maven_support': 'maven_support',
               'tag_config.maven_include_all': 'maven_include_all',
               }
+    if isinstance(tagInfo, dict):
+        if 'id' in tagInfo:
+            tagInfo = tagInfo['id']
+        elif 'name' in tagInfo:
+            tagInfo = tagInfo['name']
     data = {'tagInfo': tagInfo}
 
     clauses = []
