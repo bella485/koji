@@ -203,12 +203,14 @@ The following fields are understood:
   before timing out
 
 The ``[message]`` section sets parameters for how messages are formed.
-Currently only one field is understood:
 
 * ``extra_limit`` -- the maximum allowed size for ``build.extra`` fields that
-  appear in messages. If the ``build.extra`` field is longer (in terms of 
+  appear in messages. If the ``build.extra`` field is longer (in terms of
   json-encoded length), then it will be omitted. The default value is ``0``
   which means no limit.
+* ``ttl`` -- the time in seconds before the broker should consider sent
+  messages to have expired.  The broker may drop messages that have not been
+  delivered before the ``ttl`` is up. The default value is ``86400`` (24 hours).
 
 The ``[queue]`` section controls how (or if) the plugin will use the database
 to queue messages when they cannot be immediately sent.

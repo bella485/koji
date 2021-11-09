@@ -75,6 +75,9 @@ class TimeoutHandler(MessagingHandler):
         self.send_msgs(event)
 
     def send_msgs(self, event):
+        ttl = 86400  # a 24 hour default for message expiry
+        if self.conf.has_option('message', 'ttl'):
+            ttl = self.conf.getint('message', 'ttl')
         prefix = self.conf.get('broker', 'topic_prefix')
         for msg in self.msgs:
             address = 'topic://' + prefix + '.' + msg['address']
@@ -86,6 +89,7 @@ class TimeoutHandler(MessagingHandler):
                 self.log.debug('created new sender for %s', address)
                 self.senders[address] = sender
             pmsg = Message(properties=msg['props'], body=msg['body'])
+            pmsg.ttl = ttl
             delivery = sender.send(pmsg)
             self.log.debug('sent message: %s', msg['props'])
             self.pending[delivery] = msg
