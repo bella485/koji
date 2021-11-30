@@ -1,5 +1,6 @@
 import glob
-# import json
+import json
+from json.decoder import JSONDecodeError
 import os
 import xml.dom.minidom
 from fnmatch import fnmatch
@@ -368,11 +369,19 @@ class KiwiCreateImageTask(BaseBuildTask):
         if rv:
             raise koji.GenericError("Kiwi failed")
 
-        # result = json.load(open(joinpath(broot.rootdir(), target_dir[1:], 'kiwi.result'), 'rb'))
-        # nosec comment - we will replace it with json ASAP
-        import pickle
-        result = pickle.load(open(joinpath(broot.rootdir(), target_dir[1:],  # nosec
-                                           'kiwi.result'), 'rb'))
+        try:
+            # new version has json format, older pickle (needs python3-kiwi installed)
+            result = json.load(
+                open(joinpath(broot.rootdir(), target_dir[1:], 'kiwi.result'), 'rb'))
+        except JSONDecodeError:
+            # try old variant
+            import pickle
+            result = pickle.load(open(joinpath(broot.rootdir(), target_dir[1:],  # nosec
+                                               'kiwi.result'), 'rb'))
+            # convert to json-like format
+            result = {
+                'result_files': result.result_files,
+            }
 
         imgdata = {
             'arch': arch,
@@ -398,7 +407,7 @@ class KiwiCreateImageTask(BaseBuildTask):
         #     self.uploadFile(os.path.join(broot.rootdir()), remoteName=img_file)
         #     imgdata['files'].append(img_file)
         for ftype in ('disk_format_image', 'installation_image'):
-            fdata = result.result_files.get(ftype)
+            fdata = result['result_files'].get(ftype)
             if not fdata:
                 continue
             fpath = os.path.join(broot.rootdir(), fdata.filename[1:])
