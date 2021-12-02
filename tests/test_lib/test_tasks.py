@@ -53,6 +53,7 @@ def get_tmp_dir_path(folder_starts_with):
 
 
 class TestTask(BaseTaskHandler):
+    __test__ = False
     Methods = ['some_method']
     _taskWeight = 5.2
 
@@ -61,6 +62,7 @@ class TestTask(BaseTaskHandler):
 
 
 class TestTaskNoWeight(BaseTaskHandler):
+    __test__ = False
     Methods = ['some_method']
 
     def handler(self, *args):

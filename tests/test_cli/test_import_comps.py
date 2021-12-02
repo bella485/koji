@@ -7,7 +7,7 @@ import json
 
 import mock
 import six
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 
 try:
     import libcomps

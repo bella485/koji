@@ -1,4 +1,5 @@
 import mock
+import unittest
 
 import koji
 import kojihub
@@ -6,10 +7,7 @@ import kojihub
 QP = kojihub.QueryProcessor
 UP = kojihub.UpdateProcessor
 
-class TestRecycleBuild():
-    # NOT a subclass of unittest.TestCase so that we can use generator
-    # methods
-
+class TestRecycleBuild(unittest.TestCase):
     def setUp(self):
         self.QueryProcessor = mock.patch('kojihub.QueryProcessor').start()
         self.UpdateProcessor = mock.patch('kojihub.UpdateProcessor',

@@ -83,7 +83,7 @@ class TestListCommands(unittest.TestCase):
         # Run it and check immediate output
         runroot.handle_runroot(self.options, self.session, self.args)
         actual = get_stdout_value(stdout)
-        actual = actual.replace(b'nosetests', b'koji')
+        actual = actual.replace(b'pytest', b'koji')
         expected = b'1\ntask output'
         self.assertEqual(actual, expected)
 

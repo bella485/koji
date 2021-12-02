@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import unittest
 
-from nose.tools import raises
+import pytest
 
 import koji.policy
 
@@ -24,10 +24,10 @@ class myvarTest(koji.policy.CompareTest):
 
 class TestBasicTests(unittest.TestCase):
 
-    @raises(NotImplementedError)
     def test_base_test(self):
-        obj = koji.policy.BaseSimpleTest('something')
-        obj.run({})
+        with pytest.raises(NotImplementedError):
+            obj = koji.policy.BaseSimpleTest('something')
+            obj.run({})
 
     def test_true_test(self):
         obj = koji.policy.TrueTest('something')
@@ -108,9 +108,9 @@ class TestBasicTests(unittest.TestCase):
         self.assertTrue(obj.run({'thing': 0}))
         self.assertFalse(obj.run({}))
 
-    @raises(koji.GenericError)
     def test_invalid_compare_test(self):
-        koji.policy.CompareTest('some thing LOL 2')
+        with pytest.raises(koji.GenericError):
+            koji.policy.CompareTest('some thing LOL 2')
 
 
 class TestDiscovery(unittest.TestCase):
