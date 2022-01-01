@@ -393,17 +393,10 @@ class KiwiCreateImageTask(BaseBuildTask):
         if os.path.exists(root_log_path):
             self.uploadFile(root_log_path, remoteName="image-root.log")
 
-        # for type in types:
-        #     img_file = '%s.%s-%s.%s' % (name, version, arch, type)
-        #     self.uploadFile(os.path.join(broot.rootdir()), remoteName=img_file)
-        #     imgdata['files'].append(img_file)
-        for ftype in ('disk_format_image', 'installation_image'):
-            fdata = result.result_files.get(ftype)
-            if not fdata:
-                continue
+        for ftype, fdata in result_files.items():
             fpath = os.path.join(broot.rootdir(), fdata.filename[1:])
             img_file = os.path.basename(fpath)
-            self.uploadFile(fpath, remoteName=os.path.basename(img_file))
+            self.uploadFile(fpath, remoteName=img_file)
             imgdata['files'].append(img_file)
 
         if not self.opts.get('scratch'):
