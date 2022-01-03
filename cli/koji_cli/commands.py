@@ -2889,6 +2889,26 @@ def handle_add_group_pkg(goptions, session, args):
         session.groupPackageListAdd(tag, group, pkg)
 
 
+def handle_remove_group_pkg(goptions, session, args):
+    "[admin] Remove a package from a group's package listing"
+    usage = "usage: %prog remove-group-pkg [options] <tag> <group> <pkg> [<pkg> ...]"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--force", action='store_true', help="Override blocks if necessary")
+    (options, args) = parser.parse_args(args)
+    if len(args) < 3:
+        parser.error("You must specify a tag name, group name, and one or more package names")
+    tag = args[0]
+    group = args[1]
+    opts = {}
+    opts['force'] = options.force
+    activate_session(session, goptions)
+    dsttag = session.getTag(tag)
+    if dsttag is None:
+        error("No such tag: %s" % tag)
+    with session.multicall() as m:
+        [m.groupPackageListRemove(tag, group, pkg, **opts) for pkg in args[2:]]
+
+
 def handle_block_group_pkg(goptions, session, args):
     "[admin] Block a package from a group's package listing"
     usage = "usage: %prog block-group-pkg [options] <tag> <group> <pkg> [<pkg> ...]"
