@@ -1974,12 +1974,7 @@ def read_config(profile_name, user_config=None):
     result = config_defaults.copy()
 
     # note: later config files override earlier ones
-
-    # /etc/koji.conf.d
-    configs = ['/etc/koji.conf.d']
-
-    # /etc/koji.conf
-    configs.append('/etc/koji.conf')
+    configs = []
 
     # User specific configuration
     if user_config:
@@ -1987,6 +1982,12 @@ def read_config(profile_name, user_config=None):
         # The existence will be checked
         configs.append((os.path.expanduser(user_config), True))
     else:
+        # /etc/koji.conf.d
+        configs.append('/etc/koji.conf.d')
+
+        # /etc/koji.conf
+        configs.append('/etc/koji.conf')
+
         # User config dir
         configs.append(os.path.expanduser("~/.koji/config.d"))
         # User config file
