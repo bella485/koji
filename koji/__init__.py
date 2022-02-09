@@ -3432,7 +3432,10 @@ def _taskLabel(taskInfo):
         else:
             module_info = os.path.basename(src)
         target = params.get('target') or params.get('build_tag')
-        extra = '%s, %s' % (target, module_info)
+        if isinstance(target, dict):
+            extra = '%s, %s' % (target['name'], module_info)
+        else:
+            extra = '%s, %s' % (target, module_info)
     elif method in ('indirectionimage',):
         module_name = params['opts']['name']
         module_version = params['opts']['version']
@@ -3459,7 +3462,10 @@ def _taskLabel(taskInfo):
     elif method == 'buildNotification':
         extra = buildLabel(params['build'])
     elif method in ('newRepo', 'distRepo'):
-        extra = str(params['tag'])
+        if isinstance(params['tag'], dict):
+            extra = str(params['tag']['name'])
+        else:
+            extra = str(params['tag'])
     elif method in ('tagBuild', 'tagNotification'):
         # There is no displayable information included in the request
         # for these methods
