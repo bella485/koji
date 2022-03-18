@@ -103,7 +103,7 @@ def load_plugins(plugin_paths):
 def get_options():
     """process options from command line and config file"""
 
-    common_commands = ['build', 'help', 'download-build',
+    common_commands = ['build', 'help', 'download-build', 'download-scratch-build',
                        'latest-build', 'search', 'list-targets']
     usage = "%%prog [global-options] command [command-options-and-arguments]\n\n" \
             "Common commands: %s" % ', '.join(sorted(common_commands))

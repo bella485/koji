@@ -7147,6 +7147,75 @@ def anon_handle_download_build(options, session, args):
                          quiet=suboptions.quiet, noprogress=suboptions.noprogress)
 
 
+def anon_handle_download_scratch_build(options, session, args):
+    # Read, filter and check arguments
+    "[download] Download a scratch built package"
+    usage = "usage: %prog download-scratch-build [options] <task-id>"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--logs", dest="logs", action="store_true", default=False,
+                      help="Also download build logs")
+    parser.add_option("--topurl", metavar="URL", default=options.topurl,
+                      help="URL under which Koji files are accessible")
+    parser.add_option("--noprogress", action="store_true",
+                      help="Do not display progress meter")
+    parser.add_option("-q", "--quiet", action="store_true",
+                      help="Suppress output", default=options.quiet)
+    (suboptions, args) = parser.parse_args(args)
+
+    if len(args) < 1:
+        parser.error("Please specify a valid task id")
+    elif len(args) > 1:
+        parser.error("Only a single task id may be specified")
+    try:
+        taskid = int(args[0])
+    except ValueError:
+        error("The argument %r cannot be a task-id number" % args[0])
+    if not suboptions.topurl:
+        error("You must specify --topurl to download files")
+
+    # Connect, check the id and download the builds
+    ensure_connection(session, options)
+
+    def check_taskid(taskid):
+        taskinfo = session.getTaskInfo(taskid)
+        taskchildren = session.getTaskChildren(taskid)
+        if not taskinfo["parent"] and taskinfo["method"] == "image" and len(taskchildren) == 1:
+            # taskid belongs to a scratch image build parent task
+            taskid_upd = taskchildren[0]['id']
+            return taskid_upd
+        else:
+            error("No such scratch image build")
+
+    taskinfo = session.getTaskInfo(taskid)
+    taskchildren = session.getTaskChildren(taskid)
+    if taskinfo["method"] == "createImage" and len(taskchildren) == 0:
+        # taskid belongs to a child image task
+        taskid_upd = check_taskid(taskinfo["parent"])
+    else:
+        taskid_upd = check_taskid(taskid)
+
+    files = list_task_output_all_volumes(session, taskid_upd)
+    if not files:
+        error("No files were found for taskid %i" %taskid_upd)
+
+    pi = koji.PathInfo(topdir=suboptions.topurl)
+    urls = []
+    for filename in files:
+        if suboptions.logs:
+            for volume in files[filename]:
+                url = os.path.join(pi.task(taskid_upd), filename)
+                urls.append(url)
+        else:
+            if not filename.endswith('.log'):
+                for volume in files[filename]:
+                    url = os.path.join(pi.task(taskid_upd), filename)
+                    urls.append(url)
+
+    for url in urls:
+        download_file(url, os.path.basename(url), quiet=suboptions.quiet,
+                      noprogress=suboptions.noprogress, filesize=None)
+
+
 def anon_handle_download_logs(options, session, args):
     "[download] Download logs for task"
 
