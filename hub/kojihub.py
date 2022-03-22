@@ -7992,12 +7992,16 @@ def query_history(tables=None, **kwargs):
         "LEFT OUTER JOIN events AS ev2 ON ev2.id = revoke_event",
         "users AS creator ON creator.id = creator_id",
         "LEFT OUTER JOIN users AS revoker ON revoker.id = revoker_id",
+        "LEFT OUTER JOIN event_labels AS ev1_labels ON ev1_labels.event_id = create_event",
+        "LEFT OUTER JOIN event_labels AS ev2_labels ON ev2_labels.event_id = revoke_event",
     ]
     common_joined_fields = {
         'creator.name': 'creator_name',
         'revoker.name': 'revoker_name',
         'EXTRACT(EPOCH FROM ev1.time) AS create_ts': 'create_ts',
         'EXTRACT(EPOCH FROM ev2.time) AS revoke_ts': 'revoke_ts',
+        'ev1_labels.label': 'create_event_label',
+        'ev2_labels.label': 'revoke_event_label',
     }
     table_fields = {
         'user_perms': ['user_id', 'perm_id'],
@@ -9007,7 +9011,7 @@ def assert_cg(cg, user=None):
         raise koji.AuthError("Content generator access required (%s)" % cg['name'])
 
 
-def get_event():
+def get_event(label=None):
     """Get an event id for this transaction
 
     We cache the result in context, so subsequent calls in the same transaction will
@@ -9020,6 +9024,11 @@ def get_event():
         return context.event_id
     event_id = _singleValue("SELECT get_event()")
     context.event_id = event_id
+    if label:
+        # there could be more than one label per event
+        insert = InsertProcessor('event_labels')
+        insert.set(event_id=event_id, label=label)
+        insert.execute()
     return event_id
 
 
@@ -9195,9 +9204,15 @@ class InsertProcessor(object):
         """Set rawdata via keyword args"""
         self.rawdata.update(kwargs)
 
-    def make_create(self, event_id=None, user_id=None):
+    def make_create(self, event_id=None, user_id=None, label=None):
         if event_id is None:
-            event_id = get_event()
+            event_id = get_event(label)
+        elif label:
+            update = UpdateProcessor('event_labels',
+                                     clauses=['id=%(event_id)'],
+                                     values={'event_id': event_id})
+            update.set(label=label)
+            update.execute()
         if user_id is None:
             context.session.assertLogin()
             user_id = context.session.user_id
@@ -9284,10 +9299,16 @@ class UpdateProcessor(object):
         """Set rawdata via keyword args"""
         self.rawdata.update(kwargs)
 
-    def make_revoke(self, event_id=None, user_id=None):
+    def make_revoke(self, event_id=None, user_id=None, label=None):
         """Add standard revoke options to the update"""
         if event_id is None:
-            event_id = get_event()
+            event_id = get_event(label=label)
+        elif label:
+            update = UpdateProcessor('event_labels',
+                                     clauses=['id=%(event_id)'],
+                                     values={'event_id': event_id})
+            update.set(label=label)
+            update.execute()
         if user_id is None:
             context.session.assertLogin()
             user_id = context.session.user_id
@@ -12437,8 +12458,19 @@ class RootExports(object):
     getUser = staticmethod(get_user)
     editUser = staticmethod(edit_user)
 
-    def grantPermission(self, userinfo, permission, create=False, description=None):
-        """Grant a permission to a user"""
+    def grantPermission(self, userinfo, permission, create=False, description=None, label=None):
+        """Grant a permission to a user
+
+        :param userInfo: a str (Kerberos principal or name) or an int (user id)
+                         or a dict:
+                             - id: User's ID
+                             - name: User's name
+                             - krb_principal: Kerberos principal
+        :param str permission: Permission name
+        :param bool create: Create permission if it doesn't exist
+        :param str description: In case of creating new permission, description can be specified
+        :param str label: Reason/comment for grant operation
+        """
         context.session.assertPerm('admin')
         if create:
             verify_name_internal(permission)
@@ -12457,10 +12489,10 @@ class RootExports(object):
                                     (userinfo, perm['name']))
         insert = InsertProcessor('user_perms')
         insert.set(user_id=user_id, perm_id=perm_id)
-        insert.make_create()
+        insert.make_create(label=label)
         insert.execute()
 
-    def revokePermission(self, userinfo, permission):
+    def revokePermission(self, userinfo, permission, label=None):
         """Revoke a permission from a user"""
         context.session.assertPerm('admin')
         user_id = get_user(userinfo, strict=True)['id']
@@ -12471,7 +12503,7 @@ class RootExports(object):
                                     (userinfo, perm['name']))
         update = UpdateProcessor('user_perms', values=locals(),
                                  clauses=["user_id = %(user_id)i", "perm_id = %(perm_id)i"])
-        update.make_revoke()
+        update.make_revoke(label=label)
         update.execute()
 
     def editPermission(self, permission, description):

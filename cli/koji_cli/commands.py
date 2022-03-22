@@ -2445,6 +2445,8 @@ def handle_grant_permission(goptions, session, args):
                       help="Create this permission if the permission does not exist")
     parser.add_option("--description",
                       help="Add description about new permission")
+    parser.add_option("--comment",
+                      help="Additional comment which will be seen in the history.")
     (options, args) = parser.parse_args(args)
     if len(args) < 2:
         parser.error("Please specify a permission and at least one user")
@@ -2462,6 +2464,8 @@ def handle_grant_permission(goptions, session, args):
         kwargs['create'] = True
         if options.description:
             kwargs['description'] = options.description
+    if options.comment:
+        kwargs['label'] = options.comment
     if options.description and not options.new:
         parser.error("Option new must be specified with option description.")
     for user in users:
@@ -2472,6 +2476,8 @@ def handle_revoke_permission(goptions, session, args):
     "[admin] Revoke a permission from a user"
     usage = "usage: %prog revoke-permission <permission> <user> [<user> ...]"
     parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--comment",
+                      help="Additional comment which will be seen in the history.")
     (options, args) = parser.parse_args(args)
     if len(args) < 2:
         parser.error("Please specify a permission and at least one user")
@@ -2484,8 +2490,11 @@ def handle_revoke_permission(goptions, session, args):
         if user is None:
             parser.error("No such user: %s" % n)
         users.append(user)
+    kwargs = {}
+    if options.comment:
+        kwargs['label'] = options.comment
     for user in users:
-        session.revokePermission(user['name'], perm)
+        session.revokePermission(user['name'], perm, **kwargs)
 
 
 def handle_edit_permission(goptions, session, args):
@@ -4670,6 +4679,8 @@ def _print_histline(entry, **kwargs):
         parts.insert(1, "(eid %i)" % event_id)
     if who:
         parts.append(who % x)
+    if x['create_event_label']:
+        parts.append("(%s)" % x['create_event_label'])
     if create and x['active']:
         parts.append("[still active]")
     print(' '.join(parts))
