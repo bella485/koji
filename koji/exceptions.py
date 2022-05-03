@@ -1,5 +1,9 @@
+
 # Exceptions
 PythonImportError = ImportError  # will be masked by koji's one
+
+
+# BEGIN kojikamid dup #
 
 
 class GenericError(Exception):
@@ -15,6 +19,7 @@ class GenericError(Exception):
                 return str(self.args[0])
             except Exception:
                 return str(self.__dict__)
+# END kojikamid dup #
 
 
 class LockError(GenericError):
@@ -37,9 +42,13 @@ class ActionNotAllowed(GenericError):
     faultCode = 1004
 
 
+# BEGIN kojikamid dup #
+
+
 class BuildError(GenericError):
     """Raised when a build fails"""
     faultCode = 1005
+# END kojikamid dup #
 
 
 class AuthLockError(AuthError):
