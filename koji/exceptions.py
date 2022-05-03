@@ -141,49 +141,53 @@ class GSSAPIAuthError(AuthError):
     faultCode = 1023
 
 
-class NoSuchArchive(object):
+class NoSuchItem(GenericError):
     faultCode = 1024
 
 
-class NoSuchBuild(object):
+class NoSuchArchive(NoSuchItem):
     faultCode = 1025
 
 
-class NoSuchChannel(object):
+class NoSuchBuild(NoSuchItem):
     faultCode = 1026
 
 
-class NoSuchContentGenerator(object):
+class NoSuchChannel(NoSuchItem):
     faultCode = 1027
 
 
-class NoSuchPackage(object):
+class NoSuchContentGenerator(NoSuchItem):
     faultCode = 1028
 
 
-class NoSuchPermission(object):
+class NoSuchPackage(NoSuchItem):
     faultCode = 1029
 
 
-class NoSuchRPM(object):
+class NoSuchPermission(NoSuchItem):
     faultCode = 1030
 
 
-class NoSuchRepo(object):
+class NoSuchRPM(NoSuchItem):
     faultCode = 1031
 
 
-class NoSuchTag(object):
+class NoSuchRepo(NoSuchItem):
     faultCode = 1032
 
 
-class NoSuchTarget(object):
+class NoSuchTag(NoSuchItem):
     faultCode = 1033
 
 
-class NoSuchTask(object):
+class NoSuchTarget(NoSuchItem):
     faultCode = 1034
 
 
-class NoSuchUser(object):
+class NoSuchTask(NoSuchItem):
     faultCode = 1035
+
+
+class NoSuchUser(NoSuchItem):
+    faultCode = 1036
