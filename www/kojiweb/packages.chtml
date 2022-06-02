@@ -54,7 +54,7 @@
           Page:
           <select onchange="javascript: window.location = 'packages?start=' + this.value * $packageRange + '$util.passthrough($self, 'userID', 'tagID', 'order', 'prefix', 'inherited', 'blocked')';">
             #for $pageNum in $packagePages
-            <option value="$pageNum"#if $pageNum == $packageCurrentPage then ' selected="selected"' else ''#>#echo $pageNum + 1#</option>
+            <option value="$pageNum"#if $pageNum == $packageCurrentPage then ' selected="selected"' else ''#>#echo $pageNum + 1#  #echo $util.escapeHTML($packages[$pageNum * $packageRange].package_name[:3])# - #if $pageNum == $len($packagePages) - 1 then $util.escapeHTML($packages[-1].package_name[:3]) else $util.escapeHTML($packages[($pageNum + 1) * $packageRange - 1].package_name[:3])#</option>
             #end for
           </select>
         </form>
@@ -103,7 +103,7 @@
           Page:
           <select onchange="javascript: window.location = 'packages?start=' + this.value * $packageRange + '$util.passthrough($self, 'userID', 'tagID', 'order', 'prefix', 'inherited', 'blocked')';">
             #for $pageNum in $packagePages
-            <option value="$pageNum"#if $pageNum == $packageCurrentPage then ' selected="selected"' else ''#>#echo $pageNum + 1#</option>
+            <option value="$pageNum"#if $pageNum == $packageCurrentPage then ' selected="selected"' else ''#>#echo $pageNum + 1#  #echo $util.escapeHTML($packages[$pageNum * $packageRange].package_name[:3])# - #if $pageNum == $len($packagePages) - 1 then $util.escapeHTML($packages[-1].package_name[:3]) else $util.escapeHTML($packages[($pageNum + 1) * $packageRange - 1].package_name[:3])#</option>
             #end for
           </select>
         </form>
