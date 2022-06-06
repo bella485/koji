@@ -712,17 +712,21 @@ class TaskManager(object):
         self.start_ts = self.session.getSessionInfo()['start_ts']
         self.logger = logging.getLogger("koji.TaskManager")
 
-    def findHandlers(self, vars):
+    def findHandlers(self, vars, types=None):
         """Find and index task handlers"""
         for v in vars.values():
-            self.registerHandler(v)
+            self.registerHandler(v, types=types)
 
-    def registerHandler(self, entry):
+    def registerHandler(self, entry, types=None):
         """register and index task handler"""
         if isinstance(entry, type(koji.tasks.BaseTaskHandler)) and \
                 issubclass(entry, koji.tasks.BaseTaskHandler):
             for method in entry.Methods:
-                self.handlers[method] = entry
+                # add allowed types and all non-restricted tasks
+                # currently there is only 'maintenance' handler type
+                # 'image' or 'vm' could be other filters
+                if not hasattr(entry, 'HandlerType') or entry.HandlerType in types:
+                    self.handlers[method] = entry
 
     def registerCallback(self, entry):
         """register and index callback plugins"""

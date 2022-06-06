@@ -81,6 +81,8 @@ from koji.tasks import (
     ServerRestart
 )
 from koji.util import dslice, dslice_ex, isSuccess, parseStatus, to_list
+import tasks  # additional tasks not contained in this file
+
 
 try:
     import requests_gssapi as reqgssapi
@@ -124,9 +126,13 @@ def main(options, session):
     logger = logging.getLogger("koji.build")
     logger.info('Starting up')
     koji.util.setup_rlimits(options.__dict__, logger)
+    allowed_handler_types = []
+    if options.allow_maintenance_tasks:
+        allowed_handler_types.append('maintenance')
     tm = TaskManager(options, session)
-    tm.findHandlers(globals())
-    tm.findHandlers(vars(koji.tasks))
+    tm.findHandlers(globals(), types=allowed_handler_types)
+    tm.findHandlers(vars(koji.tasks), types=allowed_handler_types)
+    tm.findHandlers(vars(tasks), types=allowed_handler_types)
     if options.plugin:
         # load plugins
         pt = koji.plugin.PluginTracker(path=options.pluginpath.split(':'))
@@ -6496,7 +6502,8 @@ def get_options():
                 'cert': None,
                 'serverca': None,
                 'allow_noverifyssl': False,
-                'allow_password_in_scm_url': False}
+                'allow_password_in_scm_url': False,
+                'allow_maintenance_tasks': False}
     if config.has_section('kojid'):
         for name, value in config.items('kojid'):
             if name in ['sleeptime', 'maxjobs', 'minspace', 'retry_interval',
