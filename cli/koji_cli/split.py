@@ -57,6 +57,29 @@ from koji_cli.lib import (
     watch_tasks,
     truncate_string
 )
+
+
+"""
+
+INIT = """import importlib
+import inspect
+import pkgutil
+import six
+
+__all__ = []
+
+for loader, name, is_pkg in pkgutil.walk_packages(__path__):
+    if six.PY2:
+        module = loader.find_module(name).load_module(name)
+    else:
+        spec = loader.find_spec(name)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+    for name, entry in inspect.getmembers(module):
+        if name.startswith('handle_') or name.startswith('anon_handle_'):
+            globals()[name] = entry
+            __all__.append(name)
 """
 
 try:
@@ -65,7 +88,9 @@ except:
     pass
 os.mkdir('commands')
 
-init = open('commands/__init__.py', 'wt')
+with open('commands/__init__.py', 'wt') as f:
+    f.write(INIT)
+
 out = open('xyz.py', 'wt')
 out_cmd = None
 
@@ -82,7 +107,6 @@ for line in open('c.py'):
                 out_cmd = open(os.path.join('commands', "%s.py" % fn), 'wt')
                 out_cmd.write(HEAD)
                 out_cmd.write(line)
-                init.write('from .%s import %s\n' % (fn, fname))
                 state = 'in'
             else:
                 out.write(line)
@@ -99,9 +123,10 @@ for line in open('c.py'):
                 out_cmd = open(os.path.join('commands', "%s.py" % fn), 'wt')
                 out_cmd.write(HEAD)
                 out_cmd.write(line)
-                init.write('from .%s import %s\n' % (fn, fname))
                 state = 'in'
             else:
                 out_cmd.write(line)
         else:
             out_cmd.write(line)
+
+# run autoflake -i -r --remove-all-unused-imports to clean up headers
