@@ -858,3 +858,164 @@ class DatetimeJSONEncoder(json.JSONEncoder):
         if isinstance(o, xmlrpc_client.DateTime):
             return str(o)
         return json.JSONEncoder.default(self, o)
+
+
+def printable_unicode(s):
+    if six.PY2:
+        return s.encode('utf-8')
+    else:  # no cover: 2.x
+        return s
+
+
+def printTaskInfo(session, task_id, topdir, level=0, recurse=True, verbose=True):
+    """Recursive function to print information about a task
+       and its children."""
+
+    BUILDDIR = '/var/lib/mock'
+    indent = " " * 2 * level
+
+    info = session.getTaskInfo(task_id)
+
+    if info is None:
+        raise koji.GenericError("No such task: %d" % task_id)
+
+    if info['host_id']:
+        host_info = session.getHost(info['host_id'])
+    else:
+        host_info = None
+    buildroot_infos = session.listBuildroots(taskID=task_id)
+    build_info = session.listBuilds(taskID=task_id)
+
+    files = list_task_output_all_volumes(session, task_id)
+    logs = []
+    output = []
+    for filename in files:
+        if filename.endswith('.log'):
+            logs += [os.path.join(koji.pathinfo.work(volume=volume),
+                                  koji.pathinfo.taskrelpath(task_id),
+                                  filename) for volume in files[filename]]
+        else:
+            output += [os.path.join(koji.pathinfo.work(volume=volume),
+                                    koji.pathinfo.taskrelpath(task_id),
+                                    filename) for volume in files[filename]]
+
+    owner = session.getUser(info['owner'])['name']
+
+    print("%sTask: %d" % (indent, task_id))
+    print("%sType: %s" % (indent, info['method']))
+    if verbose:
+        print("%sRequest Parameters:" % indent)
+        for line in _parseTaskParams(session, info['method'], task_id, topdir):
+            print("%s  %s" % (indent, line))
+    print("%sOwner: %s" % (indent, owner))
+    print("%sState: %s" % (indent, koji.TASK_STATES[info['state']].lower()))
+    print("%sCreated: %s" % (indent, time.asctime(time.localtime(info['create_ts']))))
+    if info.get('start_ts'):
+        print("%sStarted: %s" % (indent, time.asctime(time.localtime(info['start_ts']))))
+    if info.get('completion_ts'):
+        print("%sFinished: %s" % (indent, time.asctime(time.localtime(info['completion_ts']))))
+    if host_info:
+        print("%sHost: %s" % (indent, host_info['name']))
+    if build_info:
+        print("%sBuild: %s (%d)" % (indent, build_info[0]['nvr'], build_info[0]['build_id']))
+    if buildroot_infos:
+        print("%sBuildroots:" % indent)
+        for root in buildroot_infos:
+            print("%s  %s/%s-%d-%d/" %
+                  (indent, BUILDDIR, root['tag_name'], root['id'], root['repo_id']))
+    if logs:
+        print("%sLog Files:" % indent)
+        for log_path in logs:
+            print("%s  %s" % (indent, log_path))
+    if output:
+        print("%sOutput:" % indent)
+        for file_path in output:
+            print("%s  %s" % (indent, file_path))
+
+    # white space
+    print('')
+
+    if recurse:
+        level += 1
+        children = session.getTaskChildren(task_id, request=True)
+        children.sort(key=lambda x: x['id'])
+        for child in children:
+            printTaskInfo(session, child['id'], topdir, level, verbose=verbose)
+
+
+def build_image(options, task_opts, session, args, img_type):
+    """
+    A private helper function that houses common CLI code for building
+    images with chroot-based tools.
+    """
+
+    if img_type not in ('livecd', 'appliance', 'livemedia'):
+        raise koji.GenericError('Unrecognized image type: %s' % img_type)
+    activate_session(session, options)
+
+    # Set the task's priority. Users can only lower it with --background.
+    priority = None
+    if task_opts.background:
+        # relative to koji.PRIO_DEFAULT; higher means a "lower" priority.
+        priority = 5
+    if _running_in_bg() or task_opts.noprogress:
+        callback = None
+    else:
+        callback = _progress_callback
+
+    # We do some early sanity checking of the given target.
+    # Kojid gets these values again later on, but we check now as a convenience
+    # for the user.
+    target = args[2]
+    tmp_target = session.getBuildTarget(target)
+    if not tmp_target:
+        raise koji.GenericError("No such build target: %s" % target)
+    dest_tag = session.getTag(tmp_target['dest_tag'])
+    if not dest_tag:
+        raise koji.GenericError("No such destination tag: %s" % tmp_target['dest_tag_name'])
+
+    # Set the architecture
+    if img_type == 'livemedia':
+        # livemedia accepts multiple arches
+        arch = [koji.canonArch(a) for a in args[3].split(",")]
+    else:
+        arch = koji.canonArch(args[3])
+
+    # Upload the KS file to the staging area.
+    # If it's a URL, it's kojid's job to go get it when it does the checkout.
+    ksfile = args[4]
+
+    if not task_opts.ksurl:
+        serverdir = unique_path('cli-' + img_type)
+        session.uploadWrapper(ksfile, serverdir, callback=callback)
+        ksfile = os.path.join(serverdir, os.path.basename(ksfile))
+        print('')
+
+    hub_opts = {}
+    passthru_opts = [
+        'format', 'install_tree_url', 'isoname', 'ksurl',
+        'ksversion', 'release', 'repo', 'scratch', 'skip_tag',
+        'specfile', 'vcpu', 'vmem', 'volid', 'optional_arches',
+        'lorax_dir', 'lorax_url', 'nomacboot', 'ksrepo',
+        'squashfs_only', 'compress_arg',
+    ]
+    for opt in passthru_opts:
+        val = getattr(task_opts, opt, None)
+        if val is not None:
+            hub_opts[opt] = val
+
+    if 'optional_arches' in hub_opts:
+        hub_opts['optional_arches'] = hub_opts['optional_arches'].split(',')
+    # finally, create the task.
+    task_id = session.buildImage(args[0], args[1], arch, target, ksfile,
+                                 img_type, opts=hub_opts, priority=priority)
+
+    if not options.quiet:
+        print("Created task: %d" % task_id)
+        print("Task info: %s/taskinfo?taskID=%s" % (options.weburl, task_id))
+    if task_opts.wait or (task_opts.wait is None and not _running_in_bg()):
+        session.logout()
+        return watch_tasks(session, [task_id], quiet=options.quiet,
+                           poll_interval=options.poll_interval, topurl=options.topurl)
+
+

@@ -101,9 +101,9 @@ for line in open('c.py'):
             fname = line[4:].split('(')[0]
             if fname.startswith('handle_') or fname.startswith('anon_handle_'):
                 if fname.startswith('handle_'):
-                    fn = f'cmd_{fname[7:]}'
+                    fn = f'{fname[7:]}'
                 else:
-                    fn = f'cmd_{fname[12:]}'
+                    fn = f'{fname[12:]}'
                 out_cmd = open(os.path.join('commands', "%s.py" % fn), 'wt')
                 out_cmd.write(HEAD)
                 out_cmd.write(line)
@@ -117,9 +117,9 @@ for line in open('c.py'):
             fname = line[4:].split('(')[0]
             if fname.startswith('handle_') or fname.startswith('anon_handle_'):
                 if fname.startswith('handle_'):
-                    fn = f'cmd_{fname[7:]}'
+                    fn = f'{fname[7:]}'
                 else:
-                    fn = f'cmd_{fname[12:]}'
+                    fn = f'{fname[12:]}'
                 out_cmd = open(os.path.join('commands', "%s.py" % fn), 'wt')
                 out_cmd.write(HEAD)
                 out_cmd.write(line)
