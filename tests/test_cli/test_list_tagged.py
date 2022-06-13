@@ -4,7 +4,7 @@ import time
 import mock
 import six
 
-from koji_cli.commands import anon_handle_list_tagged
+from koji_cli.commands.list_tagged import anon_handle_list_tagged
 from . import utils
 
 
@@ -59,7 +59,7 @@ class TestCliListTagged(utils.CliTestCase):
                                                  'tag_name': 'tag',
                                                  'owner_name': 'owner',
                                                  'extra': 'extra-value-2'}]
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.list_tagged.ensure_connection').start()
 
     def tearDown(self):
         if self.original_timezone is None:

@@ -4,7 +4,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_chain_build
+from koji_cli.commands.chain_build import handle_chain_build
 from . import utils
 
 
@@ -20,10 +20,10 @@ class TestChainBuild(utils.CliTestCase):
         self.options.poll_interval = 0
         # Mock out the xmlrpc server
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
-        self.running_in_bg_mock = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.chain_build.activate_session').start()
+        self.running_in_bg_mock = mock.patch('koji_cli.commands.chain_build._running_in_bg').start()
         self.running_in_bg_mock.return_value = False
-        self.watch_tasks_mock = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.watch_tasks_mock = mock.patch('koji_cli.commands.chain_build.watch_tasks').start()
         self.watch_tasks_mock.return_value = 0
         self.error_format = """Usage: %s chain-build [options] <target> <URL> [<URL> [:] <URL> [:] <URL> ...]
 (Specify the --help global option for a list of other help options)

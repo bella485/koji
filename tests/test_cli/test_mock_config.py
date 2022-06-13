@@ -6,7 +6,7 @@ import mock
 import six
 import koji
 
-from koji_cli.commands import anon_handle_mock_config
+from koji_cli.commands.mock_config import anon_handle_mock_config
 from . import utils
 
 
@@ -21,7 +21,7 @@ class TestMockConfig(utils.CliTestCase):
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
         self.gen_config_mock = mock.patch('koji.genMockConfig').start()
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.mock_config.ensure_connection').start()
         self.maxDiff = None
         self.common_args = [
             '--distribution', 'fedora',
@@ -321,7 +321,7 @@ config_opts['macros']['%distribution'] = 'Koji Testing'
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.open')
+    @mock.patch('koji_cli.commands.mock_config.open')
     def test_handle_mock_config_target_option(self, openf, stdout, stderr):
         """Test anon_handle_mock_config with target option"""
         arch = "x86_64"

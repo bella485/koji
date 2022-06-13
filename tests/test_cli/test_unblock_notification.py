@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import handle_unblock_notification
+from koji_cli.commands.unblock_notification import handle_unblock_notification
 from . import utils
 
 
@@ -15,7 +15,7 @@ class TestUnblockNotification(utils.CliTestCase):
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
 
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.unblock_notification.activate_session')
     @mock.patch('sys.stderr', new_callable=StringIO)
     def test_handle_unblock_notification_without_args(self, stderr, activate_session):
         expected = "Usage: %s unblock-notification [options] <notification_id> " \
@@ -30,7 +30,7 @@ class TestUnblockNotification(utils.CliTestCase):
         self.assert_console_message(stderr, expected)
         activate_session.assert_called_once_with(self.session, self.options)
 
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.unblock_notification.activate_session')
     @mock.patch('sys.stderr', new_callable=StringIO)
     def test_handle_unblock_notification_not_all_integers(self, stderr, activate_session):
         expected = "Usage: %s unblock-notification [options] <notification_id> " \
@@ -45,7 +45,7 @@ class TestUnblockNotification(utils.CliTestCase):
         self.assert_console_message(stderr, expected)
         activate_session.assert_called_once_with(self.session, self.options)
 
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.unblock_notification.activate_session')
     @mock.patch('sys.stdout', new_callable=StringIO)
     def test_handle_unblock_notification(self, stdout, activate_session):
         self.options.quiet = False
@@ -58,7 +58,7 @@ class TestUnblockNotification(utils.CliTestCase):
         print(actual)
         self.assertMultiLineEqual(actual, expected)
 
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.unblock_notification.activate_session')
     @mock.patch('sys.stdout', new_callable=StringIO)
     def test_handle_unblock_notification_quiet(self, stdout, activate_session):
         expected = ""

@@ -56,7 +56,7 @@ class TestUserinfo(utils.CliTestCase):
         self.assert_console_message(stderr, expected_warn)
 
     @mock.patch('sys.stdout', new_callable=StringIO)
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_userinfo(self, ensure_connection, stdout):
         expected = """User name: test-user
 User ID: 1

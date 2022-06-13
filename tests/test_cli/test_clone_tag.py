@@ -7,7 +7,7 @@ from mock import call
 import unittest
 
 import koji
-from koji_cli.commands import handle_clone_tag
+from koji_cli.commands.clone_tag import handle_clone_tag
 from . import utils
 
 
@@ -23,7 +23,7 @@ class TestCloneTag(utils.CliTestCase):
                                             'locked': False},
                                            {'id': 2,
                                             'locked': False}]
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session = mock.patch('koji_cli.commands.clone_tag.activate_session').start()
 
         self.error_format = """Usage: %s clone-tag [options] <src-tag> <dst-tag>
 clone-tag will create the destination tag if it does not already exist

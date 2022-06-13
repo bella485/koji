@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import mock
 
 import koji
-from koji_cli.commands import handle_import_archive
+from koji_cli.commands.import_archive import handle_import_archive
 from . import utils
 
 
@@ -16,7 +16,7 @@ class TestImportArchive(utils.CliTestCase):
         self.session.getAPIVersion.return_value = koji.API_VERSION
         self.build_id = '1'
         self.archive_path = '/mnt/brew/work/test-archive.type'
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.import_archive.activate_session').start()
         self.error_format = """Usage: %s import-archive <build-id|n-v-r> <archive_path> [<archive_path2 ...]
 (Specify the --help global option for a list of other help options)
 

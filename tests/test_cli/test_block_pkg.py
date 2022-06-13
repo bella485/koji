@@ -4,7 +4,7 @@ import mock
 import six
 from mock import call
 
-from koji_cli.commands import handle_block_pkg
+from koji_cli.commands.block_pkg import handle_block_pkg
 
 import koji
 from . import utils
@@ -19,7 +19,7 @@ class TestBlockPkg(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.block_pkg.activate_session').start()
         self.error_format = """Usage: %s block-pkg [options] <tag> <package> [<package> ...]
 (Specify the --help global option for a list of other help options)
 

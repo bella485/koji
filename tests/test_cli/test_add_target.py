@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import mock
 
 import koji
-from koji_cli.commands import handle_add_target
+from koji_cli.commands.add_target import handle_add_target
 from . import utils
 
 
@@ -13,7 +13,7 @@ class TestAddTarget(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.add_target.activate_session').start()
         self.error_format = """Usage: %s add-target <name> <build tag> <dest tag>
 (Specify the --help global option for a list of other help options)
 

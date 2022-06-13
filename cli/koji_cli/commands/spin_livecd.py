@@ -2,10 +2,9 @@ from __future__ import absolute_import, division
 
 from optparse import OptionParser
 
-
 from koji_cli.lib import (
     get_usage_str,
-    build_image,
+    _build_image,
 )
 
 
@@ -48,4 +47,4 @@ def handle_spin_livecd(options, session, args):
                      "a build target, and a relative path to a kickstart file.")
     if task_options.volid is not None and len(task_options.volid) > 32:
         parser.error('Volume ID has a maximum length of 32 characters')
-    return build_image(options, task_options, session, args, 'livecd')
+    return _build_image(options, task_options, session, args, 'livecd')

@@ -4,7 +4,7 @@ import six
 import unittest
 
 from mock import call
-from koji_cli.commands import handle_disable_host
+from koji_cli.commands.disable_host import handle_disable_host
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestDisableHost(utils.CliTestCase):
         self.options = mock.MagicMock()
         self.options.quiet = False
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.disable_host.activate_session').start()
         self.error_format = """Usage: %s disable-host [options] <hostname> [<hostname> ...]
 (Specify the --help global option for a list of other help options)
 

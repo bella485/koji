@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import anon_handle_list_notifications
+from koji_cli.commands.list_notifications import anon_handle_list_notifications
 from . import utils
 
 
@@ -15,8 +15,8 @@ class TestListNotifications(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.list_notifications.ensure_connection').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.list_notifications.activate_session').start()
         self.error_format = """Usage: %s list-notifications [options]
 (Specify the --help global option for a list of other help options)
 

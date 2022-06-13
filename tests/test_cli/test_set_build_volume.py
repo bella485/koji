@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_set_build_volume
+from koji_cli.commands.set_build_volume import handle_set_build_volume
 from . import utils
 
 
@@ -20,7 +20,7 @@ class TestSetBuildVolume(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.set_build_volume.activate_session')
     def test_handle_set_build_volume(self, activate_session_mock, stdout):
         """Test handle_set_build_volume function"""
         session = mock.MagicMock()

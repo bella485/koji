@@ -6,7 +6,7 @@ import unittest
 
 from mock import call
 import koji
-from koji_cli.commands import handle_write_signed_rpm
+from koji_cli.commands.write_signed_rpm import handle_write_signed_rpm
 from . import utils
 
 import os
@@ -111,7 +111,7 @@ class TestWriteSignedRPM(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.write_signed_rpm.activate_session')
     def test_handle_write_signed_rpm(
             self,
             activate_session_mock,

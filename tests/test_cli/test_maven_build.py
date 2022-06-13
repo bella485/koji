@@ -7,7 +7,7 @@ import six
 import sys
 import unittest
 
-from koji_cli.commands import handle_maven_build
+from koji_cli.commands.maven_build import handle_maven_build
 from . import utils
 
 EMPTY_BUILD_OPTS = {
@@ -44,9 +44,9 @@ class TestMavenBuild(utils.CliTestCase):
         self.session = mock.MagicMock()
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build(self, watch_tasks_mock, running_in_bg_mock,
                                 activate_session_mock, stdout):
         target = 'target'
@@ -87,9 +87,9 @@ Task info: weburl/taskinfo?taskID=1
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_no_arg(
             self,
             watch_tasks_mock,
@@ -127,9 +127,9 @@ Task info: weburl/taskinfo?taskID=1
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_no_arg_with_ini(
             self,
             watch_tasks_mock,
@@ -167,9 +167,9 @@ Task info: weburl/taskinfo?taskID=1
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_help(
             self,
             watch_tasks_mock,
@@ -235,9 +235,9 @@ Options:
         watch_tasks_mock.assert_not_called()
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_target_not_found(
             self,
             watch_tasks_mock,
@@ -276,9 +276,9 @@ Options:
         watch_tasks_mock.assert_not_called()
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_build_dest_tag_not_found(
             self,
             watch_tasks_mock,
@@ -321,9 +321,9 @@ Options:
         watch_tasks_mock.assert_not_called()
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_build_dest_tag_locked(
             self,
             watch_tasks_mock,
@@ -367,7 +367,7 @@ Options:
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
     @mock.patch(
         'koji.util.parse_maven_param',
         return_value={
@@ -377,8 +377,8 @@ Options:
                     'pkg1',
                     'pkg2']}})
     @mock.patch('koji.util.maven_opts')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_build_inis(
             self,
             watch_tasks_mock,
@@ -500,11 +500,11 @@ Task info: weburl/taskinfo?taskID=1
         self.session.mavenBuild.assert_not_called()
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji.util.maven_opts')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_build_invalid_scm(
             self,
             watch_tasks_mock,
@@ -552,11 +552,11 @@ Task info: weburl/taskinfo?taskID=1
         watch_tasks_mock.assert_not_called()
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji.util.maven_opts', return_value={})
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_build_other_params(
             self,
             watch_tasks_mock,
@@ -635,9 +635,9 @@ Task info: weburl/taskinfo?taskID=1
             source, target, opts, priority=priority)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_quiet(
             self,
             watch_tasks_mock,
@@ -680,9 +680,9 @@ Task info: weburl/taskinfo?taskID=1
         self.assertEqual(rv, 0)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=True)
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
+    @mock.patch('koji_cli.commands.maven_build._running_in_bg', return_value=True)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_quiet(
             self,
             watch_tasks_mock,
@@ -724,10 +724,10 @@ Task info: weburl/taskinfo?taskID=1
         self.assertIsNone(rv)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.maven_build.activate_session')
     @mock.patch('koji.util.parse_maven_param')
     @mock.patch('koji.util.maven_opts', return_value={})
-    @mock.patch('koji_cli.commands.watch_tasks', return_value=0)
+    @mock.patch('koji_cli.commands.maven_build.watch_tasks', return_value=0)
     def test_handle_maven_build_nowait(
             self,
             watch_tasks_mock,

@@ -5,7 +5,7 @@ from optparse import OptionParser
 
 from koji_cli.lib import (
     get_usage_str,
-    build_image,
+    _build_image,
 )
 
 
@@ -52,4 +52,4 @@ def handle_spin_appliance(options, session, args):
     if len(args) != 5:
         parser.error("Five arguments are required: a name, a version, an architecture, "
                      "a build target, and a relative path to a kickstart file.")
-    return build_image(options, task_options, session, args, 'appliance')
+    return _build_image(options, task_options, session, args, 'appliance')

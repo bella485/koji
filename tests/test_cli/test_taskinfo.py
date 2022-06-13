@@ -6,8 +6,8 @@ import time
 import unittest
 
 import koji
-from koji_cli.commands import anon_handle_taskinfo, \
-    _printTaskInfo, _parseTaskParams
+from koji_cli.commands.taskinfo import anon_handle_taskinfo
+from koji_cli.lib import _printTaskInfo, _parseTaskParams
 
 from . import utils
 
@@ -36,7 +36,7 @@ class TestParseTaskParams(utils.CliTestCase):
     def test_error_with_param(self):
         params = []
         expect = ['Unable to parse task parameters']
-        with mock.patch('koji_cli.commands.logging.getLogger', create=True) as get_logger_mock:
+        with mock.patch('logging.getLogger', create=True) as get_logger_mock:
             h = get_logger_mock()
             h.isEnabledFor.return_value = True
             self.__run_parseTask_test('buildSRPMFromCVS', params, expect)
@@ -358,7 +358,7 @@ class TestPrintTaskInfo(utils.CliTestCase):
             'krb_principal': None
         }
 
-    @mock.patch('koji_cli.commands.list_task_output_all_volumes')
+    @mock.patch('koji_cli.lib.list_task_output_all_volumes')
     def test_printTaskInfo_create_repo(self, list_task_output_mock):
         session = mock.MagicMock()
 
@@ -429,7 +429,7 @@ Finished: Thu Jan  1 00:50:00 1970
                 _printTaskInfo(session, 1, '/mnt/koji')
         self.assert_console_message(stdout, expected)
 
-    @mock.patch('koji_cli.commands.list_task_output_all_volumes')
+    @mock.patch('koji_cli.lib.list_task_output_all_volumes')
     def test_printTaskInfo_build_srpm(self, list_task_output_mock):
         session = mock.MagicMock()
 
@@ -580,7 +580,7 @@ Build: bash-4.4.12-5.fc26 (1)
         self.assertEqual(str(cm.exception), "No such task: %d" % task_id)
 
 
-class TestTaskInfo(utils.CliTestCase):
+class TestTaskinfo(utils.CliTestCase):
 
     # Show long diffs in error output...
     maxDiff = None
@@ -593,12 +593,10 @@ class TestTaskInfo(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_anon_handle_taskinfo(
             self,
             ensure_connection_mock,
-            activate_session_mock,
             stdout):
         """Test anon_handle_taskinfo function"""
         session = mock.MagicMock()
@@ -615,7 +613,7 @@ class TestTaskInfo(utils.CliTestCase):
             [],
             stderr=expected,
             activate_session=None)
-        activate_session_mock.assert_not_called()
+        ensure_connection_mock.assert_not_called()
 
         # Case 2. show task info
         task_output = """Task: 1
@@ -631,7 +629,7 @@ Host: kojibuilder
         def print_task(*args, **kwargs):
             print(task_output, end='')
 
-        with mock.patch('koji_cli.commands._printTaskInfo', new=print_task):
+        with mock.patch('koji_cli.commands.taskinfo._printTaskInfo', new=print_task):
             anon_handle_taskinfo(options, session, ['1'])
         self.assert_console_message(stdout, task_output)
 

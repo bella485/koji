@@ -4,7 +4,7 @@ import mock
 from mock import call
 
 import koji
-from koji_cli.commands import handle_remove_tag_inheritance
+from koji_cli.commands.remove_tag_inheritance import handle_remove_tag_inheritance
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestRemoveTagInheritance(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.remove_tag_inheritance.activate_session').start()
         self.error_format = """Usage: %s remove-tag-inheritance <tag> <parent> <priority>
 (Specify the --help global option for a list of other help options)
 

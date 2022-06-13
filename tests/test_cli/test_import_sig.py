@@ -9,7 +9,7 @@ import unittest
 
 from mock import call
 from koji.util import base64encode
-from koji_cli.commands import handle_import_sig
+from koji_cli.commands.import_sig import handle_import_sig
 from . import utils
 
 import os
@@ -30,7 +30,8 @@ class TestImportSIG(utils.CliTestCase):
         self.maxDiff = None
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = \
+            mock.patch('koji_cli.commands.import_sig.activate_session').start()
         self.custom_os_path_exists = {}
         self.os_path_exists = os.path.exists
 

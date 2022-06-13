@@ -7,7 +7,7 @@ import six
 
 import koji
 from koji_cli.lib import _list_tasks
-from koji_cli.commands import handle_list_tasks
+from koji_cli.commands.list_tasks import handle_list_tasks
 from . import utils
 
 
@@ -172,8 +172,8 @@ class TestCliListTasks(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._list_tasks')
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.list_tasks._list_tasks')
+    @mock.patch('koji_cli.commands.list_tasks.activate_session')
     def test_handle_list_tasks(
             self,
             activate_session_mock,

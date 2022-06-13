@@ -14,7 +14,7 @@ class TestListGroups(utils.CliTestCase):
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
 
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.lib.ensure_connection').start()
         self.event_from_opts = mock.patch('koji.util.eventFromOpts').start()
 
         self.error_format = """Usage: %s list-groups [options] <tag> [<group>]
@@ -56,7 +56,7 @@ class TestListGroups(utils.CliTestCase):
         expected = "Querying at event %(id)i (%(timestr)s)" % event + "\n"
         self.__list_groups('build', ['--ts', '1234567'], expected)
 
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def __list_groups(self, query_group, options, expected, ensure_connection_mock):
         _list_tags = [
             {

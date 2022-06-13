@@ -3,7 +3,7 @@ import mock
 import koji
 import six
 
-from koji_cli.commands import handle_edit_permission
+from koji_cli.commands.edit_permission import handle_edit_permission
 from . import utils
 
 
@@ -17,7 +17,8 @@ class TestEditPermission(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = \
+            mock.patch('koji_cli.commands.edit_permission.activate_session').start()
         self.error_format = """Usage: %s edit-permission <permission> <description>
 (Specify the --help global option for a list of other help options)
 

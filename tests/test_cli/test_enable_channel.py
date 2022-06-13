@@ -6,7 +6,7 @@ import mock
 import six
 import koji
 
-from koji_cli.commands import handle_enable_channel
+from koji_cli.commands.enable_channel import handle_enable_channel
 from . import utils
 
 
@@ -19,7 +19,7 @@ class TestEnableChannel(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.enable_channel.activate_session').start()
         self.error_format = """Usage: %s enable-channel [options] <channelname> [<channelname> ...]
 (Specify the --help global option for a list of other help options)
 

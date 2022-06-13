@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import mock
 
 import koji
-from koji_cli.commands import handle_cancel
+from koji_cli.commands.cancel import handle_cancel
 from . import utils
 
 
@@ -15,7 +15,7 @@ class TestCancel(utils.CliTestCase):
         self.options.quiet = False
         self.session = mock.MagicMock()
         self.session.multicall.return_value.__enter__.return_value = self.session
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.cancel.activate_session').start()
 
         self.error_format = """Usage: %s cancel [options] <task_id|build> [<task_id|build> ...]
 (Specify the --help global option for a list of other help options)

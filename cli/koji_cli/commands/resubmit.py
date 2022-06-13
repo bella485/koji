@@ -7,7 +7,7 @@ from koji_cli.lib import (
     _running_in_bg,
     activate_session,
     get_usage_str,
-    printTaskInfo,
+    _printTaskInfo,
     watch_tasks,
 )
 
@@ -30,7 +30,7 @@ def handle_resubmit(goptions, session, args):
     taskID = int(args[0])
     if not options.quiet:
         print("Resubmitting the following task:")
-        printTaskInfo(session, taskID, goptions.topdir, 0, False, True)
+        _printTaskInfo(session, taskID, goptions.topdir, 0, False, True)
     newID = session.resubmitTask(taskID)
     if not options.quiet:
         print("Resubmitted task %s as new task %s" % (taskID, newID))

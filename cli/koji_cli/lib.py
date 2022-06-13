@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 
 import hashlib
 import json
+import logging
 import optparse
 import os
 import random
@@ -10,6 +11,7 @@ import socket
 import string
 import sys
 import time
+import traceback
 from contextlib import closing
 from copy import copy
 
@@ -860,14 +862,189 @@ class DatetimeJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def printable_unicode(s):
+def _printable_unicode(s):
     if six.PY2:
         return s.encode('utf-8')
     else:  # no cover: 2.x
         return s
 
 
-def printTaskInfo(session, task_id, topdir, level=0, recurse=True, verbose=True):
+def _handleMap(lines, data, prefix=''):
+    for key, val in data.items():
+        if key != '__starstar':
+            lines.append('  %s%s: %s' % (prefix, key, val))
+
+
+def _handleOpts(lines, opts, prefix=''):
+    if opts:
+        lines.append("%sOptions:" % prefix)
+        _handleMap(lines, opts, prefix)
+
+
+def _parseTaskParams(session, method, task_id, topdir):
+    try:
+        return _do_parseTaskParams(session, method, task_id, topdir)
+    except Exception:
+        logger = logging.getLogger("koji")
+        if logger.isEnabledFor(logging.DEBUG):
+            tb_str = ''.join(traceback.format_exception(*sys.exc_info()))
+            logger.debug(tb_str)
+        return ['Unable to parse task parameters']
+
+
+def _do_parseTaskParams(session, method, task_id, topdir):
+    """Parse the return of getTaskRequest()"""
+    params = session.getTaskRequest(task_id)
+
+    lines = []
+
+    if method == 'buildSRPMFromCVS':
+        lines.append("CVS URL: %s" % params[0])
+    elif method == 'buildSRPMFromSCM':
+        lines.append("SCM URL: %s" % params[0])
+    elif method == 'buildArch':
+        lines.append("SRPM: %s/work/%s" % (topdir, params[0]))
+        lines.append("Build Tag: %s" % session.getTag(params[1])['name'])
+        lines.append("Build Arch: %s" % params[2])
+        lines.append("SRPM Kept: %r" % params[3])
+        if len(params) > 4:
+            _handleOpts(lines, params[4])
+    elif method == 'tagBuild':
+        build = session.getBuild(params[1])
+        lines.append("Destination Tag: %s" % session.getTag(params[0])['name'])
+        lines.append("Build: %s" % koji.buildLabel(build))
+    elif method == 'buildNotification':
+        build = params[1]
+        buildTarget = params[2]
+        lines.append("Recipients: %s" % (", ".join(params[0])))
+        lines.append("Build: %s" % koji.buildLabel(build))
+        lines.append("Build Target: %s" % buildTarget['name'])
+        lines.append("Web URL: %s" % params[3])
+    elif method == 'build':
+        lines.append("Source: %s" % params[0])
+        lines.append("Build Target: %s" % params[1])
+        if len(params) > 2:
+            _handleOpts(lines, params[2])
+    elif method == 'maven':
+        lines.append("SCM URL: %s" % params[0])
+        lines.append("Build Target: %s" % params[1])
+        if len(params) > 2:
+            _handleOpts(lines, params[2])
+    elif method == 'buildMaven':
+        lines.append("SCM URL: %s" % params[0])
+        lines.append("Build Tag: %s" % params[1]['name'])
+        if len(params) > 2:
+            _handleOpts(lines, params[2])
+    elif method == 'wrapperRPM':
+        lines.append("Spec File URL: %s" % params[0])
+        lines.append("Build Tag: %s" % params[1]['name'])
+        if params[2]:
+            lines.append("Build: %s" % koji.buildLabel(params[2]))
+        if params[3]:
+            lines.append("Task: %s %s" % (params[3]['id'], koji.taskLabel(params[3])))
+        if len(params) > 4:
+            _handleOpts(lines, params[4])
+    elif method == 'chainmaven':
+        lines.append("Builds:")
+        for package, opts in params[0].items():
+            lines.append("  " + package)
+            _handleMap(lines, opts, prefix="  ")
+        lines.append("Build Target: %s" % params[1])
+        if len(params) > 2:
+            _handleOpts(lines, params[2])
+    elif method == 'winbuild':
+        lines.append("VM: %s" % params[0])
+        lines.append("SCM URL: %s" % params[1])
+        lines.append("Build Target: %s" % params[2])
+        if len(params) > 3:
+            _handleOpts(lines, params[3])
+    elif method == 'vmExec':
+        lines.append("VM: %s" % params[0])
+        lines.append("Exec Params:")
+        for info in params[1]:
+            if isinstance(info, dict):
+                _handleMap(lines, info, prefix='  ')
+            else:
+                lines.append("  %s" % info)
+        if len(params) > 2:
+            _handleOpts(lines, params[2])
+    elif method in ('createLiveCD', 'createAppliance', 'createLiveMedia'):
+        argnames = ['Name', 'Version', 'Release', 'Arch', 'Target Info', 'Build Tag', 'Repo',
+                    'Kickstart File']
+        for n, v in zip(argnames, params):
+            lines.append("%s: %s" % (n, v))
+        if len(params) > 8:
+            _handleOpts(lines, params[8])
+    elif method in ('appliance', 'livecd', 'livemedia'):
+        argnames = ['Name', 'Version', 'Arches', 'Target', 'Kickstart']
+        for n, v in zip(argnames, params):
+            lines.append("%s: %s" % (n, v))
+        if len(params) > 5:
+            _handleOpts(lines, params[5])
+    elif method == 'newRepo':
+        tag = session.getTag(params[0])
+        lines.append("Tag: %s" % tag['name'])
+    elif method == 'prepRepo':
+        lines.append("Tag: %s" % params[0]['name'])
+    elif method == 'createrepo':
+        lines.append("Repo ID: %i" % params[0])
+        lines.append("Arch: %s" % params[1])
+        oldrepo = params[2]
+        if oldrepo:
+            lines.append("Old Repo ID: %i" % oldrepo['id'])
+            lines.append("Old Repo Creation: %s" % koji.formatTimeLong(oldrepo['create_ts']))
+        if len(params) > 3:
+            lines.append("External Repos: %s" %
+                         ', '.join([ext['external_repo_name'] for ext in params[3]]))
+    elif method == 'tagNotification':
+        destTag = session.getTag(params[2])
+        srcTag = None
+        if params[3]:
+            srcTag = session.getTag(params[3])
+        build = session.getBuild(params[4])
+        user = session.getUser(params[5])
+
+        lines.append("Recipients: %s" % ", ".join(params[0]))
+        lines.append("Successful?: %s" % (params[1] and 'yes' or 'no'))
+        lines.append("Tagged Into: %s" % destTag['name'])
+        if srcTag:
+            lines.append("Moved From: %s" % srcTag['name'])
+        lines.append("Build: %s" % koji.buildLabel(build))
+        lines.append("Tagged By: %s" % user['name'])
+        lines.append("Ignore Success?: %s" % (params[6] and 'yes' or 'no'))
+        if params[7]:
+            lines.append("Failure Message: %s" % params[7])
+    elif method == 'dependantTask':
+        lines.append("Dependant Tasks: %s" % ", ".join([str(depID) for depID in params[0]]))
+        lines.append("Subtasks:")
+        for subtask in params[1]:
+            lines.append("  Method: %s" % subtask[0])
+            lines.append("  Parameters: %s" %
+                         ", ".join([str(subparam) for subparam in subtask[1]]))
+            if len(subtask) > 2 and subtask[2]:
+                subopts = subtask[2]
+                _handleOpts(lines, subopts, prefix='  ')
+            lines.append("")
+    elif method == 'chainbuild':
+        lines.append("Build Groups:")
+        group_num = 0
+        for group_list in params[0]:
+            group_num += 1
+            lines.append("  %i: %s" % (group_num, ', '.join(group_list)))
+        lines.append("Build Target: %s" % params[1])
+        if len(params) > 2:
+            _handleOpts(lines, params[2])
+    elif method == 'waitrepo':
+        lines.append("Build Target: %s" % params[0])
+        if params[1]:
+            lines.append("Newer Than: %s" % params[1])
+        if params[2]:
+            lines.append("NVRs: %s" % ', '.join(params[2]))
+
+    return lines
+
+
+def _printTaskInfo(session, task_id, topdir, level=0, recurse=True, verbose=True):
     """Recursive function to print information about a task
        and its children."""
 
@@ -940,10 +1117,10 @@ def printTaskInfo(session, task_id, topdir, level=0, recurse=True, verbose=True)
         children = session.getTaskChildren(task_id, request=True)
         children.sort(key=lambda x: x['id'])
         for child in children:
-            printTaskInfo(session, child['id'], topdir, level, verbose=verbose)
+            _printTaskInfo(session, child['id'], topdir, level, verbose=verbose)
 
 
-def build_image(options, task_opts, session, args, img_type):
+def _build_image(options, task_opts, session, args, img_type):
     """
     A private helper function that houses common CLI code for building
     images with chroot-based tools.
@@ -1017,5 +1194,3 @@ def build_image(options, task_opts, session, args, img_type):
         session.logout()
         return watch_tasks(session, [task_id], quiet=options.quiet,
                            poll_interval=options.poll_interval, topurl=options.topurl)
-
-

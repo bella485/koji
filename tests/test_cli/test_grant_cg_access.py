@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import mock
 import unittest
 
-from koji_cli.commands import handle_grant_cg_access
+from koji_cli.commands.grant_cg_access import handle_grant_cg_access
 from . import utils
 
 
@@ -18,7 +18,7 @@ class TestGrantCGAccess(utils.CliTestCase):
         self.options = mock.MagicMock()
         self.options.quiet = False
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.grant_cg_access.activate_session').start()
         self.cg = 'cg'
         self.user = 'user'
 

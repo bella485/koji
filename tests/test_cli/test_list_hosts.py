@@ -6,7 +6,7 @@ import locale
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import anon_handle_list_hosts
+from koji_cli.commands.list_hosts import anon_handle_list_hosts
 from . import utils
 
 
@@ -22,7 +22,7 @@ class TestListHosts(utils.CliTestCase):
         self.original_timezone = os.environ.get('TZ')
         os.environ['TZ'] = 'UTC'
         time.tzset()
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.list_hosts.ensure_connection').start()
         self.error_format = """Usage: %s list-hosts [options]
 (Specify the --help global option for a list of other help options)
 

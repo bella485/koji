@@ -3,7 +3,7 @@ import mock
 import six
 
 from mock import call
-from koji_cli.commands import handle_import_cg
+from koji_cli.commands.import_cg import handle_import_cg
 from . import utils
 
 import os
@@ -11,7 +11,7 @@ import os
 import unittest
 
 
-class TestImportCG(utils.CliTestCase):
+class TestImportCg(utils.CliTestCase):
     def mock_os_path_exists(self, filepath):
         if filepath in self.custom_os_path_exists:
             return self.custom_os_path_exists[filepath]
@@ -23,11 +23,11 @@ class TestImportCG(utils.CliTestCase):
         self.session = mock.MagicMock()
         self.custom_os_path_exists = {}
         self.os_path_exists = os.path.exists
-        self.unique_path_mock = mock.patch('koji_cli.commands.unique_path').start()
-        self.running_in_bg = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.unique_path_mock = mock.patch('koji_cli.commands.import_cg.unique_path').start()
+        self.running_in_bg = mock.patch('koji_cli.commands.import_cg._running_in_bg').start()
         self.running_in_bg.return_value = False
-        self.linked_upload_mock = mock.patch('koji_cli.commands.linked_upload').start()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.linked_upload_mock = mock.patch('koji_cli.commands.import_cg.linked_upload').start()
+        self.activate_session_mock = mock.patch('koji_cli.lib.activate_session').start()
         self.error_format = """Usage: %s import-cg [options] <metadata_file> <files_dir>
 (Specify the --help global option for a list of other help options)
 
@@ -35,7 +35,7 @@ class TestImportCG(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._progress_callback')
+    @mock.patch('koji_cli.commands.import_cg._progress_callback')
     @mock.patch('koji.json')
     def test_handle_import_cg(self, json_mock, progress_callback_mock, stdout):
         """Test handle_import_cg function"""

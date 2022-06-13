@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import anon_handle_list_tags
+from koji_cli.commands.list_tags import anon_handle_list_tags
 from . import utils
 
 
@@ -15,7 +15,7 @@ class TestListTags(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.list_tags.ensure_connection').start()
         self.list_tags_api = [{'arches': '',
                                'id': 455,
                                'locked': False,

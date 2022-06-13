@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import anon_handle_list_api
+from koji_cli.commands.list_api import anon_handle_list_api
 from . import utils
 
 
@@ -17,7 +17,7 @@ class TestListApi(utils.CliTestCase):
 """ % (self.progname, self.progname)
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.list_api.ensure_connection').start()
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     def test_anon_handle_list_api_all_method(self, stdout):

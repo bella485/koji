@@ -10,7 +10,7 @@ from six.moves import StringIO
 import mock
 
 import koji
-from koji_cli.commands import anon_handle_list_history
+from koji_cli.commands.list_history import anon_handle_list_history
 from . import utils
 
 
@@ -20,7 +20,7 @@ class TestListHistory(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.maxDiff = None
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.list_history.ensure_connection').start()
         self.error_format = """Usage: %s list-history [options]
 (Specify the --help global option for a list of other help options)
 

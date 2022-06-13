@@ -4,11 +4,12 @@ from __future__ import print_function
 
 import unittest
 import copy
+from koji_cli.lib import activate_session
 
 import mock
 import six
 
-from koji_cli.commands import anon_handle_wait_repo
+from koji_cli.commands.wait_repo import anon_handle_wait_repo
 from . import utils
 
 
@@ -53,8 +54,7 @@ class TestWaitRepo(utils.CliTestCase):
         self.setUpMocks()
 
     def setUpMocks(self):
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.wait_repo.ensure_connection').start()
         self.checkForBuilds = mock.patch('koji.util.checkForBuilds').start()
 
     def tearDown(self):
@@ -195,7 +195,7 @@ class TestWaitRepo(utils.CliTestCase):
                 test[0],
                 stderr=self.format_error_message(test[1]),
                 activate_session=None)
-        self.activate_session.assert_not_called()
+        self.assertEqual(len(self.ensure_connection.mock_calls), 2)
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
     def test_anon_handle_wait_repo_target_not_found(self, stderr):

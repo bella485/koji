@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_revoke_permission
+from koji_cli.commands.revoke_permission import handle_revoke_permission
 from . import utils
 
 
@@ -20,7 +20,7 @@ class TestRevokePermission(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.revoke_permission.activate_session')
     def test_handle_revoke_permission(
             self,
             activate_session_mock,

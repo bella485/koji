@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import anon_handle_list_buildroot
+from koji_cli.commands.list_buildroot import anon_handle_list_buildroot
 from . import utils
 
 
@@ -15,7 +15,8 @@ class TestListBuilds(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = \
+            mock.patch('koji_cli.commands.list_buildroot.ensure_connection').start()
         self.error_format = """Usage: %s list-buildroot [options] <buildroot-id>
 (Specify the --help global option for a list of other help options)
 

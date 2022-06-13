@@ -6,7 +6,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import handle_edit_target
+from koji_cli.commands.edit_target import handle_edit_target
 from . import utils
 
 
@@ -16,7 +16,7 @@ class TestEditTarget(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.edit_target.activate_session').start()
         self.error_format = """Usage: %s edit-target [options] <name>
 (Specify the --help global option for a list of other help options)
 

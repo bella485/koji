@@ -6,8 +6,10 @@ import six
 import mock
 
 import koji
-from koji_cli.commands import handle_spin_livecd, handle_spin_livemedia, handle_spin_appliance, \
-    _build_image
+from koji_cli.commands.spin_livemedia import handle_spin_livemedia
+from koji_cli.commands.spin_livecd import handle_spin_livecd
+from koji_cli.commands.spin_appliance import handle_spin_appliance
+from koji_cli.lib import _build_image
 from . import utils
 
 
@@ -84,10 +86,10 @@ class TestBuildImage(utils.CliTestCase):
         self.options.poll_interval = 10
         self.session = mock.MagicMock()
         self.arguments = ['test-image', '1', 'target', 'x86_64', 'image.ks']
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
-        self.unique_path = mock.patch('koji_cli.commands.unique_path').start()
-        self.running_in_bg = mock.patch('koji_cli.commands._running_in_bg').start()
-        self.watch_tasks = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.activate_session = mock.patch('koji_cli.lib.activate_session').start()
+        self.unique_path = mock.patch('koji_cli.lib.unique_path').start()
+        self.running_in_bg = mock.patch('koji_cli.lib._running_in_bg').start()
+        self.watch_tasks = mock.patch('koji_cli.lib.watch_tasks').start()
 
         self.build_target = {
             'id': 1,
@@ -140,7 +142,7 @@ class TestBuildImage(utils.CliTestCase):
                 self.arguments, 'appliance']
         with mock.patch('sys.stdout', new_callable=six.StringIO) as stdout:
             _build_image(*args)
-        self.assert_console_message(stdout, expected)
+        self.assert_console_message(stdout, expected,)
         self.session.buildImage.assert_called_once()
         self.watch_tasks.assert_called_once()
 
@@ -262,7 +264,7 @@ class TestSpinAppliance(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_appliance._build_image')
     def test_handle_spin_appliance(self, build_image_mock):
         """Test handle_spin_appliance function"""
         args = ['name', 'version', 'target', 'arch', 'file.ks']
@@ -279,7 +281,7 @@ class TestSpinAppliance(utils.CliTestCase):
         self.assert_console_message(
             stdout, 'spin-appliance is deprecated and will be replaced with image-build\n')
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_appliance._build_image')
     def test_handle_spin_appliance_argument_error(self, build_image_mock):
         """Test handle_spin_appliance function argument error"""
         # takes excatly 5 arguments
@@ -332,7 +334,7 @@ Options:
 """ % (self.progname))
 
 
-class TestSpinLiveMedia(utils.CliTestCase):
+class TestSpinLivemedia(utils.CliTestCase):
 
     # Show long diffs in error output...
     maxDiff = None
@@ -347,7 +349,7 @@ class TestSpinLiveMedia(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_livemedia._build_image')
     def test_handle_spin_livemedia(self, build_image_mock):
         """Test handle_spin_livemedia function"""
         args = ['name', 'version', 'target', 'arch', 'file.ks']
@@ -374,7 +376,7 @@ class TestSpinLiveMedia(utils.CliTestCase):
             stderr=expected,
             activate_session=None)
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_livemedia._build_image')
     def test_handle_spin_livemedia_argument_error(self, build_image_mock):
         """Test handle_spin_livemedia function argument error"""
         # takes excatly 5 arguments
@@ -451,7 +453,7 @@ Options:
 """ % (self.progname))
 
 
-class TestSpinLiveCD(utils.CliTestCase):
+class TestSpinLivecd(utils.CliTestCase):
 
     # Show long diffs in error output...
     maxDiff = None
@@ -466,7 +468,7 @@ class TestSpinLiveCD(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_livecd._build_image')
     def test_handle_spin_livecd(self, build_image_mock):
         """Test handle_spin_livecd function"""
         args = ['name', 'version', 'target', 'arch', 'file.ks']
@@ -482,7 +484,7 @@ class TestSpinLiveCD(utils.CliTestCase):
         self.assert_console_message(
             stdout, 'spin-livecd is deprecated and will be replaced with spin-livemedia\n')
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_livecd._build_image')
     def test_handle_spin_livecd_argument_error(self, build_image_mock):
         """Test handle_spin_livecd function argument error"""
         # takes excatly 5 arguments
@@ -501,7 +503,7 @@ class TestSpinLiveCD(utils.CliTestCase):
                 activate_session=None)
         build_image_mock.assert_not_called()
 
-    @mock.patch('koji_cli.commands._build_image')
+    @mock.patch('koji_cli.commands.spin_livecd._build_image')
     def test_handle_spin_livecd_longer_volid(self, build_image_mock):
         """Test handle_spin_livecd volid options error"""
         expected = self.format_error_message("Volume ID has a maximum length of 32 characters")

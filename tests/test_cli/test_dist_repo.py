@@ -7,7 +7,7 @@ import copy
 import mock
 import six
 
-from koji_cli.commands import handle_dist_repo
+from koji_cli.commands.dist_repo import handle_dist_repo
 from . import utils
 
 
@@ -80,14 +80,14 @@ via 'koji edit-tag -x distrepo.cancel_others=True'
         self.setUpMocks()
 
     def setUpMocks(self):
-        self.unique_path = mock.patch('koji_cli.commands.unique_path').start()
+        self.unique_path = mock.patch('koji_cli.commands.dist_repo.unique_path').start()
         self.unique_path.return_value = '/path/to/cli-dist-repo'
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session = mock.patch('koji_cli.commands.dist_repo.activate_session').start()
 
-        self.running_in_bg = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.running_in_bg = mock.patch('koji_cli.commands.dist_repo._running_in_bg').start()
         self.running_in_bg.return_value = False     # assume run in foreground
 
-        self.watch_tasks = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.watch_tasks = mock.patch('koji_cli.commands.dist_repo.watch_tasks').start()
         self.watch_tasks.return_value = True
 
         self.mocks_table = {}

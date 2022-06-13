@@ -2,11 +2,11 @@ from __future__ import absolute_import
 import mock
 import unittest
 
-from koji_cli.commands import handle_unblock_group_pkg
+from koji_cli.commands.unblock_group_pkg import handle_unblock_group_pkg
 from . import utils
 
 
-class TestBlockGroupPkg(utils.CliTestCase):
+class TestUnblockGroupPkg(utils.CliTestCase):
 
     # Show long diffs in error output...
     maxDiff = None
@@ -14,7 +14,8 @@ class TestBlockGroupPkg(utils.CliTestCase):
     def setUp(self):
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session = \
+            mock.patch('koji_cli.commands.unblock_group_pkg.activate_session').start()
 
         self.error_format = """Usage: %s unblock-group-pkg [options] <tag> <group> <pkg> [<pkg> ...]
 (Specify the --help global option for a list of other help options)

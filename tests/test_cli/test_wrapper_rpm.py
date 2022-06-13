@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_wrapper_rpm
+from koji_cli.commands.wrapper_rpm import handle_wrapper_rpm
 from . import utils
 
 
@@ -26,9 +26,9 @@ class TestWrapperRpm(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._running_in_bg')
-    @mock.patch('koji_cli.commands.watch_tasks')
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.wrapper_rpm._running_in_bg')
+    @mock.patch('koji_cli.commands.wrapper_rpm.watch_tasks')
+    @mock.patch('koji_cli.commands.wrapper_rpm.activate_session')
     def test_handle_wrapper_rpm(
             self,
             activate_session_mock,
@@ -83,9 +83,9 @@ class TestWrapperRpm(utils.CliTestCase):
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
     @mock.patch('koji.util.parse_maven_param')
-    @mock.patch('koji_cli.commands._running_in_bg')
-    @mock.patch('koji_cli.commands.watch_tasks')
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.wrapper_rpm._running_in_bg')
+    @mock.patch('koji_cli.commands.wrapper_rpm.watch_tasks')
+    @mock.patch('koji_cli.commands.wrapper_rpm.activate_session')
     def test_handle_wrapper_rpm_with_ini_config(
             self,
             activate_session_mock,
@@ -193,7 +193,7 @@ class TestWrapperRpm(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.wrapper_rpm.activate_session')
     def test_handle_wrapper_rpm_argument_error(
             self, activate_session_mock, stderr, stdout):
         """Test  handle_wrapper_rpm help message output"""

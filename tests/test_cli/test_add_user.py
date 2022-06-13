@@ -4,7 +4,7 @@ import six
 import unittest
 import koji
 
-from koji_cli.commands import handle_add_user
+from koji_cli.commands.add_user import handle_add_user
 from . import utils
 
 
@@ -18,7 +18,7 @@ class TestAddUser(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.add_user.activate_session').start()
         self.error_format = """Usage: %s add-user <username> [options]
 (Specify the --help global option for a list of other help options)
 

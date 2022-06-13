@@ -4,7 +4,7 @@ import unittest
 
 import mock
 
-from koji_cli.commands import anon_handle_latest_build
+from koji_cli.commands.latest_build import anon_handle_latest_build
 from . import utils
 
 
@@ -14,8 +14,7 @@ class TestLatestBuild(utils.CliTestCase):
         self.maxDiff = None
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.latest_build.ensure_connection').start()
         self.tag_name = 'test-tag'
         self.pkg_name = 'test-pkg'
         self.expected_part_help = """Usage: %s latest-build [options] <tag> <package> [<package> ...]
@@ -43,7 +42,6 @@ https://docs.pagure.org/koji/HOWTO/#package-organization
             stderr=self.expected_part_help + expected,
             exit_code=2,
             activate_session=None)
-        self.activate_session_mock.assert_not_called()
         self.ensure_connection.assert_not_called()
 
     def test_handle_latest_build_more_args(self):
@@ -55,7 +53,6 @@ https://docs.pagure.org/koji/HOWTO/#package-organization
             stderr=self.expected_part_help + expected,
             exit_code=2,
             activate_session=None)
-        self.activate_session_mock.assert_not_called()
         self.ensure_connection.called_once()
 
     def test_handle_latest_build_all_and_pkg(self):
@@ -67,7 +64,6 @@ https://docs.pagure.org/koji/HOWTO/#package-organization
             stderr=self.expected_part_help + expected,
             exit_code=2,
             activate_session=None)
-        self.activate_session_mock.assert_not_called()
         self.ensure_connection.called_once()
 
     def test_handle_latest_build_help(self):

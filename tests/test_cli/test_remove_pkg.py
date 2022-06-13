@@ -6,7 +6,7 @@ import mock
 import six
 from mock import call
 
-from koji_cli.commands import handle_remove_pkg
+from koji_cli.commands.remove_pkg import handle_remove_pkg
 
 import koji
 from . import utils
@@ -21,7 +21,7 @@ class TestRemovePkg(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.remove_pkg.activate_session').start()
         self.error_format = """Usage: %s remove-pkg [options] <tag> <package> [<package> ...]
 (Specify the --help global option for a list of other help options)
 

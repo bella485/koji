@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import anon_handle_list_builds
+from koji_cli.commands.list_builds import anon_handle_list_builds
 from . import utils
 
 
@@ -15,7 +15,7 @@ class TestListBuilds(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.list_builds.ensure_connection').start()
         self.user_info = {'id': 1, 'name': 'kojiadmin', 'status': 0, 'usertype': 0,
                           'krb_principals': []}
         self.owner = 'kojiadmin'

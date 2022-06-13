@@ -4,7 +4,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_resubmit
+from koji_cli.commands.resubmit import handle_resubmit
 from . import utils
 
 
@@ -36,8 +36,8 @@ Log Files:
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.watch_tasks')
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.resubmit.watch_tasks')
+    @mock.patch('koji_cli.commands.resubmit.activate_session')
     def test_handle_resubmit(
             self,
             activate_session_mock,
@@ -56,7 +56,7 @@ Log Files:
         session.getTaskInfo.return_value = None
 
         # Generate task info and nowait tests
-        with mock.patch('koji_cli.commands._printTaskInfo') as p_mock:
+        with mock.patch('koji_cli.commands.resubmit._printTaskInfo') as p_mock:
             p_mock.side_effect = lambda *args, **kwargs: print(self.taskinfo)
             handle_resubmit(options, session, arguments + ['--nowait'])
         activate_session_mock.assert_called_with(session, options)
@@ -72,7 +72,7 @@ Log Files:
 
         # Quiet and watch tasks tests
         arguments.append('--quiet')
-        with mock.patch('koji_cli.commands._running_in_bg') as run_bg_mock:
+        with mock.patch('koji_cli.commands.resubmit._running_in_bg') as run_bg_mock:
             run_bg_mock.return_value = False
             self.assertTrue(handle_resubmit(options, session, arguments))
             run_bg_mock.assert_called_once()
@@ -89,7 +89,7 @@ Log Files:
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.resubmit.activate_session')
     def test_handle_resubmit_argument_error(
             self, activate_session_mock, stderr, stdout):
         """Test handle_resubmit argument error"""

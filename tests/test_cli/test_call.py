@@ -5,7 +5,7 @@ import six
 import unittest
 import koji
 
-from koji_cli.commands import handle_call
+from koji_cli.commands.call import handle_call
 from . import utils
 
 
@@ -19,7 +19,7 @@ class TestCall(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.call.activate_session').start()
         self.error_format = """Usage: %s call [options] <name> [<arg> ...]
 
 Note, that you can use global option --noauth for anonymous calls here
@@ -101,7 +101,7 @@ Note, that you can use global option --noauth for anonymous calls here
         }
 
         for mod, msg in module.items():
-            with mock.patch('koji_cli.commands.%s' % mod, new=None):
+            with mock.patch('koji_cli.commands.call.%s' % mod, new=None):
                 with self.assertRaises(SystemExit) as ex:
                     handle_call(self.options, self.session, arguments)
                 self.assertExitCode(ex, 2)

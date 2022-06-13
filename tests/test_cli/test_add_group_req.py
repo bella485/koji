@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import mock
 import unittest
 
-from koji_cli.commands import handle_add_group_req
+from koji_cli.commands.add_group_req import handle_add_group_req
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestAddGroupReq(utils.CliTestCase):
     def setUp(self):
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session = mock.patch('koji_cli.commands.add_group_req.activate_session').start()
 
         self.error_format = """Usage: %s add-group-req [options] <tag> <target group> <required group>
 (Specify the --help global option for a list of other help options)

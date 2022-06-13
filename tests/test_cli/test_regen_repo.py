@@ -3,11 +3,12 @@ from __future__ import print_function
 
 import unittest
 import copy
+from koji_cli.lib import activate_session
 
 import mock
 import six
 
-from koji_cli.commands import handle_regen_repo
+from koji_cli.commands.regen_repo import handle_regen_repo
 from . import utils
 
 
@@ -52,12 +53,12 @@ class TestRegenRepo(utils.CliTestCase):
         self.setUpMocks()
 
     def setUpMocks(self):
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session = mock.patch('koji_cli.commands.regen_repo.activate_session').start()
 
-        self.running_in_bg = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.running_in_bg = mock.patch('koji_cli.commands.regen_repo._running_in_bg').start()
         self.running_in_bg.return_value = False     # assume run in foreground
 
-        self.watch_tasks = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.watch_tasks = mock.patch('koji_cli.commands.regen_repo.watch_tasks').start()
         self.watch_tasks.return_value = True
 
         self.mocks_table = {}
@@ -96,7 +97,8 @@ class TestRegenRepo(utils.CliTestCase):
             self.options,
             self.session,
             [self.tag_name],
-            stderr=expected)
+            stderr=expected,
+            activate_session=None)
 
         self.resetMocks()
 
@@ -128,7 +130,8 @@ class TestRegenRepo(utils.CliTestCase):
             self.options,
             self.session,
             arguments,
-            stderr=expected)
+            stderr=expected,
+            activate_session=None)
 
         self.resetMocks()
 

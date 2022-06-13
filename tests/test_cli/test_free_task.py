@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import mock
 from six.moves import StringIO
 
-from koji_cli.commands import handle_free_task
+from koji_cli.commands.free_task import handle_free_task
 from . import utils
 
 
@@ -12,7 +12,7 @@ class TestFreeTask(utils.CliTestCase):
         self.options = mock.MagicMock()
         self.maxDiff = None
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.free_task.activate_session').start()
         self.error_format = """Usage: %s free-task [options] <task_id> [<task_id> ...]
 (Specify the --help global option for a list of other help options)
 

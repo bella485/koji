@@ -20,7 +20,7 @@ Available search types: package, build, tag, target, user, host, rpm, maven, win
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     def test_anon_handle_search(
             self,

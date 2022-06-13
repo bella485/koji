@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_tag_build
+from koji_cli.commands.tag_build import handle_tag_build
 from . import utils
 
 
@@ -22,10 +22,10 @@ class TestTagBuild(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname)
 
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
-        self.running_in_bg = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.activate_session = mock.patch('koji_cli.commands.tag_build.activate_session').start()
+        self.running_in_bg = mock.patch('koji_cli.commands.tag_build._running_in_bg').start()
         self.running_in_bg.return_value = False
-        self.watch_tasks = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.watch_tasks = mock.patch('koji_cli.commands.tag_build.watch_tasks').start()
         self.watch_tasks.return_value = True
 
     def tearDown(self):

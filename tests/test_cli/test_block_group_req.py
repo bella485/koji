@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import mock
 import unittest
 
-from koji_cli.commands import handle_block_group_req
+from koji_cli.commands.block_group_req import handle_block_group_req
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestBlockGroupReq(utils.CliTestCase):
     def setUp(self):
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session = mock.patch('koji_cli.commands.block_group_req.activate_session').start()
 
         self.error_format = """Usage: %s block-group-req [options] <tag> <group> <blocked req>
 (Specify the --help global option for a list of other help options)

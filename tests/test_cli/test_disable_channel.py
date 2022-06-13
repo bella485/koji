@@ -6,7 +6,7 @@ import mock
 import six
 
 import koji
-from koji_cli.commands import handle_disable_channel
+from koji_cli.commands.disable_channel import handle_disable_channel
 from . import utils
 
 
@@ -18,7 +18,7 @@ class TestDisableChannel(utils.CliTestCase):
         self.options = mock.MagicMock()
         self.options.quiet = False
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.disable_channel.activate_session').start()
         self.error_format = """Usage: %s disable-channel [options] <channelname> [<channelname> ...]
 (Specify the --help global option for a list of other help options)
 

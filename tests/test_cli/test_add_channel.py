@@ -6,7 +6,7 @@ import mock
 import six
 
 import koji
-from koji_cli.commands import handle_add_channel
+from koji_cli.commands.add_channel import handle_add_channel
 from . import utils
 
 
@@ -19,7 +19,7 @@ class TestAddChannel(utils.CliTestCase):
         self.channel_id = 1
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.add_channel.activate_session').start()
         self.error_format = """Usage: %s add-channel [options] <channel_name>
 (Specify the --help global option for a list of other help options)
 

@@ -6,7 +6,7 @@ import unittest
 
 import koji
 
-from koji_cli.commands import handle_image_build, _build_image_oz
+from koji_cli.commands.image_build import handle_image_build, _build_image_oz
 from . import utils
 
 if six.PY2:
@@ -110,11 +110,11 @@ class TestBuildImageOz(utils.CliTestCase):
         }
 
         # mocks
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
-        self.watch_tasks = mock.patch('koji_cli.commands.watch_tasks').start()
-        self.unique_path = mock.patch('koji_cli.commands.unique_path').start()
+        self.activate_session = mock.patch('koji_cli.commands.image_build.activate_session').start()
+        self.watch_tasks = mock.patch('koji_cli.commands.image_build.watch_tasks').start()
+        self.unique_path = mock.patch('koji_cli.commands.image_build.unique_path').start()
         self.unique_path.return_value = '/path/to/cli-image'
-        self.running_in_bg = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.running_in_bg = mock.patch('koji_cli.commands.image_build._running_in_bg').start()
         self.running_in_bg.return_value = False
 
     def tearDown(self):
@@ -250,7 +250,7 @@ class TestImageBuild(utils.CliTestCase):
             exit_code=2)
         self.session.activate_session_mock.assert_not_called()
 
-    @mock.patch('koji_cli.commands._build_image_oz')
+    @mock.patch('koji_cli.commands.image_build._build_image_oz')
     def test_handle_image_build_with_config_valid_with_config(self, build_image_oz_mock):
         """Test handle_image_build."""
         config_file = os.path.join(os.path.dirname(__file__), 'data/image-build-config.conf')

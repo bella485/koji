@@ -7,7 +7,7 @@ from six.moves import StringIO
 import copy
 
 import koji
-from koji_cli.commands import anon_handle_hostinfo
+from koji_cli.commands.hostinfo import anon_handle_hostinfo
 from . import utils
 
 
@@ -40,7 +40,7 @@ class TestHostinfo(utils.CliTestCase):
 
 %s: error: {message}
 """ % (self.progname, self.progname)
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.hostinfo.ensure_connection').start()
 
     def tearDown(self):
         locale.resetlocale()

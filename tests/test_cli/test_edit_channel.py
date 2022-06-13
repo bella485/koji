@@ -6,7 +6,7 @@ import unittest
 import mock
 
 import koji
-from koji_cli.commands import handle_edit_channel
+from koji_cli.commands.edit_channel import handle_edit_channel
 from . import utils
 
 
@@ -24,7 +24,7 @@ class TestEditChannel(utils.CliTestCase):
             'description': self.description,
         }
         self.maxDiff = None
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.edit_channel.activate_session').start()
         self.error_format = """Usage: %s edit-channel [options] <old-name>
 (Specify the --help global option for a list of other help options)
 

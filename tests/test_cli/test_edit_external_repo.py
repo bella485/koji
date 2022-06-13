@@ -5,7 +5,7 @@ import six
 import unittest
 
 import koji
-from koji_cli.commands import handle_edit_external_repo
+from koji_cli.commands.edit_external_repo import handle_edit_external_repo
 from . import utils
 
 
@@ -17,7 +17,8 @@ class TestEditExternalRepo(utils.CliTestCase):
     def setUp(self):
         self.options = mock.MagicMock()
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = \
+            mock.patch('koji_cli.commands.edit_external_repo.activate_session').start()
         self.error_format = """Usage: %s edit-external-repo [options] <name>
 (Specify the --help global option for a list of other help options)
 

@@ -5,7 +5,7 @@ import unittest
 import six
 import mock
 
-from koji_cli.commands import handle_remove_channel
+from koji_cli.commands.remove_channel import handle_remove_channel
 from . import utils
 
 
@@ -24,7 +24,7 @@ class TestRemoveChannel(utils.CliTestCase):
         self.maxDiff = None
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_channel.activate_session')
     def test_handle_remove_channel(self, activate_session_mock, stdout):
         self.session.getChannel.return_value = self.channel_info
         rv = handle_remove_channel(self.options, self.session, [self.channel_name])
@@ -37,7 +37,7 @@ class TestRemoveChannel(utils.CliTestCase):
         self.assertNotEqual(rv, 1)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_channel.activate_session')
     def test_handle_remove_channel_force(self, activate_session_mock, stdout):
         self.session.getChannel.return_value = self.channel_info
         rv = handle_remove_channel(self.options, self.session, ['--force', self.channel_name])
@@ -50,7 +50,7 @@ class TestRemoveChannel(utils.CliTestCase):
         self.assertNotEqual(rv, 1)
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_channel.activate_session')
     def test_handle_remove_channel_no_channel(
             self, activate_session_mock, stderr):
         channel_info = None
@@ -68,7 +68,7 @@ class TestRemoveChannel(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_channel.activate_session')
     def test_handle_remove_channel_help(
             self, activate_session_mock, stderr, stdout):
         with self.assertRaises(SystemExit) as ex:

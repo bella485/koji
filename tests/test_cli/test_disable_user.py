@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_disable_user
+from koji_cli.commands.disable_user import handle_disable_user
 from . import utils
 
 
@@ -16,7 +16,7 @@ class TestDisableUser(utils.CliTestCase):
         self.options = mock.MagicMock()
         self.options.quiet = False
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.disable_user.activate_session').start()
         self.username = 'user'
         self.error_format = """Usage: %s disable-user <username>
 (Specify the --help global option for a list of other help options)

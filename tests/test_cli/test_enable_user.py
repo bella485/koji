@@ -3,7 +3,7 @@ import mock
 import unittest
 import koji
 
-from koji_cli.commands import handle_enable_user
+from koji_cli.commands.enable_user import handle_enable_user
 from . import utils
 
 
@@ -13,7 +13,7 @@ class TestEnableUser(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.enable_user.activate_session').start()
         self.error_format = """Usage: %s enable-user <username>
 (Specify the --help global option for a list of other help options)
 

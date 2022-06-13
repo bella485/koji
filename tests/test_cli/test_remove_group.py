@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import mock
 import six
 
-from koji_cli.commands import handle_remove_group
+from koji_cli.commands.remove_group import handle_remove_group
 from . import utils
 
 
@@ -23,7 +23,7 @@ class TestRemoveGroup(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_group.activate_session')
     def test_handle_remove_group_nonexistent_tag(self, activate_session_mock, stderr, stdout):
         tag = 'nonexistent-tag'
         group = 'group'
@@ -48,7 +48,7 @@ class TestRemoveGroup(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_group.activate_session')
     def test_handle_remove_group_nonexistent_group(self, activate_session_mock, stdout, stderr):
         tag = 'tag'
         group = 'group'
@@ -71,7 +71,7 @@ class TestRemoveGroup(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_group.activate_session')
     def test_handle_remove_group(self, activate_session_mock, stdout, stderr):
         tag = 'tag'
         group = 'group'
@@ -95,7 +95,7 @@ class TestRemoveGroup(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_group.activate_session')
     def test_handle_remove_group_error_handling(self, activate_session_mock, stdout, stderr):
         expected = self.format_error_message(
                         "Please specify a tag name and a group name")

@@ -13,7 +13,7 @@ class TestListVolumes(utils.CliTestCase):
     maxDiff = None
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_anon_handle_list_volumes(
             self,
             ensure_connection_mock,

@@ -2,6 +2,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 import mock
 import os
+import re
 import six
 import sys
 from six.moves import map
@@ -66,6 +67,11 @@ class CliTestCase(unittest.TestCase):
         kwargs['file'] = self.STDOUT
         print(" ".join(map(str, args)), **kwargs)
 
+    def handler_name(self):
+        clsname = self.__class__.__name__[4:]
+        handler = re.sub(r'([A-Z])', r'_\1', clsname).lower()[1:]
+        return handler
+
     def assert_function_wrapper(self, callableObj, *args, **kwargs):
         """Wrapper func with anonymous funtion without argument"""
         self.__assert_callable(callableObj)
@@ -98,7 +104,7 @@ class CliTestCase(unittest.TestCase):
 
         Keyword arguments: (reseverd for assert_system_exit)
             activate_session (string):
-                Mock koji_cli.commands.activate_session and test if it is
+                Mock koji_cli.commands.<cmd>.activate_session and test if it is
                 called.
                 Default is on, use None to stop mocking.
 
@@ -136,7 +142,7 @@ class CliTestCase(unittest.TestCase):
         ]
 
         activate = kwargs.get(
-            'activate_session', 'koji_cli.commands.activate_session')
+            'activate_session', 'koji_cli.commands.%s.activate_session' % self.handler_name())
 
         # stdout/stderr message comparison, None means don't care
         # message/error allows many different data types, None, string and dict
@@ -189,8 +195,12 @@ class CliTestCase(unittest.TestCase):
         self.assert_console_message(stderr, **message['stderr'])
         assert_function()
 
-    @mock.patch('koji_cli.commands.activate_session')
-    def assert_help(self, callableObj, message, activate_session_mock):
+    def assert_help(self, callableObj, message):
+        patch = mock.patch('koji_cli.commands.%s.activate_session' % self.handler_name())
+        try:
+            activate_session_mock = patch.start()
+        except Exception:
+            activate_session_mock = None
         # optarse uses gettext directly and it is driven by LANGUAGE
         # we need english to get comparable strings
         os.environ['LANGUAGE'] = 'C'
@@ -203,7 +213,9 @@ class CliTestCase(unittest.TestCase):
             stderr='',
             activate_session=None,
             exit_code=0)
-        activate_session_mock.assert_not_called()
+        if activate_session_mock is not None:
+            activate_session_mock.assert_not_called()
+            activate_session_mock.stop()
 
     def assertExitCode(self, ex, code):
         if isinstance(ex.exception, int):

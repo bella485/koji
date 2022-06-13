@@ -5,8 +5,9 @@ import six
 import sys
 import unittest
 
-from koji_cli.commands import handle_remove_host_from_channel
+from koji_cli.commands.remove_host_from_channel import handle_remove_host_from_channel
 from . import utils
+
 
 class TestRemoveHostFromChannel(utils.CliTestCase):
 
@@ -14,7 +15,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
     maxDiff = None
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_host_from_channel.activate_session')
     def test_handle_remove_host_from_channel(
             self, activate_session_mock, stdout):
         host = 'host'
@@ -44,7 +45,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
         self.assertNotEqual(rv, 1)
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_host_from_channel.activate_session')
     def test_handle_remove_host_from_channel_no_host(
             self, activate_session_mock, stderr):
         host = 'host'
@@ -73,7 +74,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
         session.removeHostFromChannel.assert_not_called()
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_host_from_channel.activate_session')
     def test_handle_remove_host_from_channel_not_a_member(
             self, activate_session_mock, stderr):
         host = 'host'
@@ -106,7 +107,7 @@ class TestRemoveHostFromChannel(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_host_from_channel.activate_session')
     def test_handle_remove_host_from_channel_help(
             self, activate_session_mock, stderr, stdout):
         args = []

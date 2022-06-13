@@ -84,7 +84,7 @@ for loader, name, is_pkg in pkgutil.walk_packages(__path__):
 
 try:
     shutil.rmtree('commands')
-except:
+except IOError:
     pass
 os.mkdir('commands')
 

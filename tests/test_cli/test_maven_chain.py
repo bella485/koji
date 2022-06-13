@@ -1,9 +1,10 @@
 from __future__ import absolute_import
+from koji_cli.lib import activate_session
 import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_maven_chain
+from koji_cli.commands.maven_chain import handle_maven_chain
 from . import utils
 
 
@@ -26,9 +27,9 @@ class TestMavenChain(utils.CliTestCase):
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
     @mock.patch('koji.util.parse_maven_chain')
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=False)
-    @mock.patch('koji_cli.commands.watch_tasks')
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.maven_chain._running_in_bg', return_value=False)
+    @mock.patch('koji_cli.commands.maven_chain.watch_tasks')
+    @mock.patch('koji_cli.commands.maven_chain.activate_session')
     def test_handle_maven_chain(
             self,
             activate_session_mock,
@@ -66,7 +67,8 @@ class TestMavenChain(utils.CliTestCase):
             options,
             session,
             arguments,
-            stderr=expected)
+            stderr=expected,
+            activate_session=None)
 
         # Unknow destination tag test
         session.getBuildTarget.return_value = target_info
@@ -77,7 +79,8 @@ class TestMavenChain(utils.CliTestCase):
             options,
             session,
             arguments,
-            stderr=expected)
+            stderr=expected,
+            activate_session=None)
 
         # Distination is locked and --scratch is not specified
         session.getTag.return_value = tag_info
@@ -88,7 +91,8 @@ class TestMavenChain(utils.CliTestCase):
             options,
             session,
             arguments,
-            stderr=expected)
+            stderr=expected,
+            activate_session=None)
 
         # Test ValueError exception asserted in parse_maven_chain
         arguments.extend(['--skip-tag', '--scratch',
@@ -100,7 +104,8 @@ class TestMavenChain(utils.CliTestCase):
             options,
             session,
             arguments,
-            stderr=expected)
+            stderr=expected,
+            activate_session=None)
 
         # Background or --nowait is true
         parse_maven_chain_mock.side_effect = None
@@ -140,7 +145,7 @@ class TestMavenChain(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.maven_chain.activate_session')
     def test_handle_maven_no_argument_error(
             self,
             activate_session_mock,

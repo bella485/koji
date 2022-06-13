@@ -11,7 +11,7 @@ from koji_cli.lib import (
     ensure_connection,
     format_inheritance_flags,
     get_usage_str,
-    printable_unicode,
+    _printable_unicode,
 )
 
 
@@ -33,15 +33,15 @@ def _printInheritance(tags, sibdepths=None, reverse=False):
         if depth < currtag['currdepth']:
             outspacing = depth - outdepth
             sys.stdout.write(' ' * (outspacing * 3 - 1))
-            sys.stdout.write(printable_unicode(u'\u2502'))
+            sys.stdout.write(_printable_unicode(u'\u2502'))
             outdepth = depth
 
     sys.stdout.write(' ' * ((currtag['currdepth'] - outdepth) * 3 - 1))
     if siblings:
-        sys.stdout.write(printable_unicode(u'\u251c'))
+        sys.stdout.write(_printable_unicode(u'\u251c'))
     else:
-        sys.stdout.write(printable_unicode(u'\u2514'))
-    sys.stdout.write(printable_unicode(u'\u2500'))
+        sys.stdout.write(_printable_unicode(u'\u2514'))
+    sys.stdout.write(_printable_unicode(u'\u2500'))
     if reverse:
         sys.stdout.write('%(name)s (%(tag_id)i)\n' % currtag)
     else:

@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import handle_block_notification
+from koji_cli.commands.block_notification import handle_block_notification
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestBlockNotification(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.block_notification.activate_session').start()
         self.error_format = """Usage: %s block-notification [options]
 (Specify the --help global option for a list of other help options)
 

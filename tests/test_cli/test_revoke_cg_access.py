@@ -3,11 +3,11 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_revoke_cg_access
+from koji_cli.commands.revoke_cg_access import handle_revoke_cg_access
 from . import utils
 
 
-class TestRevokeCGAccess(utils.CliTestCase):
+class TestRevokeCgAccess(utils.CliTestCase):
 
     # Show long diffs in error output...
     maxDiff = None
@@ -20,7 +20,7 @@ class TestRevokeCGAccess(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.revoke_cg_access.activate_session')
     def test_handle_revoke_cg_access(
             self,
             activate_session_mock,

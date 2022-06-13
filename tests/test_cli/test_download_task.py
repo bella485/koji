@@ -7,7 +7,7 @@ import mock
 import six
 from mock import call
 
-from koji_cli.commands import anon_handle_download_task
+from koji_cli.commands.download_task import anon_handle_download_task
 from . import utils
 
 progname = os.path.basename(sys.argv[0]) or 'koji'
@@ -47,10 +47,10 @@ class TestDownloadTask(utils.CliTestCase):
         # Mock out the xmlrpc server
         self.session = mock.MagicMock()
         self.list_task_output_all_volumes = mock.patch(
-            'koji_cli.commands.list_task_output_all_volumes').start()
+            'koji_cli.commands.download_task.list_task_output_all_volumes').start()
         self.ensuredir = mock.patch('koji.ensuredir').start()
-        self.download_file = mock.patch('koji_cli.commands.download_file').start()
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.download_file = mock.patch('koji_cli.commands.download_task.download_file').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.download_task.ensure_connection').start()
         self.stdout = mock.patch('sys.stdout', new_callable=six.StringIO).start()
         self.stderr = mock.patch('sys.stderr', new_callable=six.StringIO).start()
 

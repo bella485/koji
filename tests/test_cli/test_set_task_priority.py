@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_set_task_priority
+from koji_cli.commands.set_task_priority import handle_set_task_priority
 
 import koji
 from . import utils
@@ -18,7 +18,7 @@ class TestSetTaskPriority(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.set_task_priority.activate_session').start()
         self.error_format = """Usage: %s set-task-priority [options] --priority=<priority> <task_id> [<task_id> ...]
 (Specify the --help global option for a list of other help options)
 

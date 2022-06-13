@@ -4,7 +4,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_add_host_to_channel
+from koji_cli.commands.add_host_to_channel import handle_add_host_to_channel
 from . import utils
 
 
@@ -12,7 +12,7 @@ class TestAddHostToChannel(utils.CliTestCase):
 
     def setUp(self):
         self.maxDiff = None
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.add_host_to_channel.activate_session').start()
         self.error_format = """Usage: %s add-host-to-channel [options] <hostname> <channel>
 (Specify the --help global option for a list of other help options)
 
@@ -159,7 +159,7 @@ class TestAddHostToChannel(utils.CliTestCase):
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.add_host_to_channel.activate_session')
     def test_handle_add_host_to_channel_help(
             self, activate_session_mock, stderr, stdout):
         arguments = []

@@ -7,7 +7,7 @@ import copy
 import locale
 from six.moves import StringIO
 
-from koji_cli.commands import anon_handle_buildinfo
+from koji_cli.commands.buildinfo import anon_handle_buildinfo
 from . import utils
 
 

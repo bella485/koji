@@ -5,7 +5,7 @@ import six
 import unittest
 
 import koji
-from koji_cli.commands import handle_moshimoshi, _printable_unicode
+from koji_cli.commands.moshimoshi import handle_moshimoshi, _printable_unicode
 from . import utils
 
 
@@ -31,7 +31,7 @@ class TestHello(utils.CliTestCase):
         self.maxDiff = None
         self.options = mock.MagicMock()
         self.options.quiet = False
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.moshimoshi.activate_session').start()
         self.error_format = """Usage: %s moshimoshi [options]
 (Specify the --help global option for a list of other help options)
 
@@ -40,7 +40,7 @@ class TestHello(utils.CliTestCase):
         self.huburl = "https://%s.local/%shub" % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._printable_unicode')
+    @mock.patch('koji_cli.commands.moshimoshi._printable_unicode')
     def test_handle_moshimoshi(self, print_unicode_mock, stdout):
         """Test handle_moshimoshi function"""
         user = {'name': self.progname,

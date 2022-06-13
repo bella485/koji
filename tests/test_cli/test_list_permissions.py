@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_list_permissions
+from koji_cli.commands.list_permissions import handle_list_permissions
 from . import utils
 
 
@@ -17,7 +17,7 @@ class TestListPermissions(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.list_permissions.activate_session').start()
         self.options = mock.MagicMock()
         self.options.quiet = True
         # Show long diffs in error output...

@@ -4,7 +4,7 @@ import six
 import unittest
 
 import koji
-from koji_cli.commands import handle_restart_hosts
+from koji_cli.commands.restart_hosts import handle_restart_hosts
 from . import utils
 
 
@@ -18,10 +18,10 @@ class TestRestartHosts(utils.CliTestCase):
         self.options.quiet = None
         self.options.poll_interval = 3
         self.session = mock.MagicMock()
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
-        self.running_in_bg_mock = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.restart_hosts.activate_session').start()
+        self.running_in_bg_mock = mock.patch('koji_cli.commands.restart_hosts._running_in_bg').start()
         self.running_in_bg_mock.return_value = False
-        self.watch_tasks_mock = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.watch_tasks_mock = mock.patch('koji_cli.commands.restart_hosts.watch_tasks').start()
         self.task_id = 101
 
     def test_handle_restart_hosts_force_options(self):
@@ -104,7 +104,7 @@ class TestRestartHosts(utils.CliTestCase):
         expect += "Use --force to run anyway\n"
         self.assert_console_message(stderr, expect)
 
-    @mock.patch('koji_cli.commands._running_in_bg')
+    @mock.patch('koji_cli.commands.restart_hosts._running_in_bg')
     def test_handle_restart_hosts_wait_option(self, running_in_bg_mock):
         """Test %s function with --force option""" % handle_restart_hosts.__name__
         arguments = ['--wait']
@@ -128,7 +128,7 @@ class TestRestartHosts(utils.CliTestCase):
         self.watch_tasks_mock.assert_called_with(
             self.session, [self.task_id], quiet=None, poll_interval=3, topurl=self.options.topurl)
 
-    @mock.patch('koji_cli.commands._running_in_bg')
+    @mock.patch('koji_cli.commands.restart_hosts._running_in_bg')
     def test_handle_restart_hosts_other_options(self, running_in_bg_mock):
         """Test %s function with --force option""" % handle_restart_hosts.__name__
         arguments = ['--nowait',
@@ -156,7 +156,7 @@ class TestRestartHosts(utils.CliTestCase):
         self.watch_tasks_mock.assert_not_called()
 
     @mock.patch('sys.stderr', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._running_in_bg')
+    @mock.patch('koji_cli.commands.restart_hosts._running_in_bg')
     def test_handle_restart_hosts_arguments(self, running_in_bg_mock, stderr):
         """Test %s function with --force option""" % handle_restart_hosts.__name__
 

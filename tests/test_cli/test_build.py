@@ -2,7 +2,8 @@ from __future__ import absolute_import
 import mock
 import six
 
-from koji_cli.commands import handle_build, _progress_callback
+from koji_cli.commands.build import handle_build
+from koji_cli.lib import _progress_callback
 from . import utils
 
 
@@ -27,12 +28,12 @@ class TestBuild(utils.CliTestCase):
         self.source_scm = 'http://scm'
         self.task_id = 1
         self.priority = None
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
-        self.unique_path_mock = mock.patch('koji_cli.commands.unique_path').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.build.activate_session').start()
+        self.unique_path_mock = mock.patch('koji_cli.commands.build.unique_path').start()
         self.unique_path_mock.return_value = 'random_path'
-        self.running_in_bg_mock = mock.patch('koji_cli.commands._running_in_bg').start()
+        self.running_in_bg_mock = mock.patch('koji_cli.commands.build._running_in_bg').start()
         self.running_in_bg_mock.return_value = False
-        self.watch_tasks_mock = mock.patch('koji_cli.commands.watch_tasks').start()
+        self.watch_tasks_mock = mock.patch('koji_cli.commands.build.watch_tasks').start()
         self.watch_tasks_mock.return_value = 0
         self.error_format = """Usage: %s build [options] <target> <srpm path or scm url>
 
@@ -496,7 +497,7 @@ Task info: weburl/taskinfo?taskID=1
         self.assertEqual(rv, 0)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands._running_in_bg', return_value=True)
+    @mock.patch('koji_cli.commands.build._running_in_bg', return_value=True)
     def test_handle_build_running_in_bg(self, running_in_bg_mock, stdout):
         args = [self.target, self.source_srpm]
         opts = {'custom_user_metadata': {}, 'wait_builds': []}

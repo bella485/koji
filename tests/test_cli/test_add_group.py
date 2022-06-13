@@ -4,7 +4,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_add_group
+from koji_cli.commands.add_group import handle_add_group
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestAddGroup(utils.CliTestCase):
     maxDiff = None
 
     def setUp(self):
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.add_group.activate_session').start()
         self.error_format = """Usage: %s add-group <tag> <group>
 (Specify the --help global option for a list of other help options)
 

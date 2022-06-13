@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import handle_win_build
+from koji_cli.commands.win_build import handle_win_build
 from . import utils
 
 

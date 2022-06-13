@@ -6,7 +6,7 @@ import koji
 
 from mock import call
 
-from koji_cli.commands import handle_edit_host
+from koji_cli.commands.edit_host import handle_edit_host
 from . import utils
 
 
@@ -16,7 +16,7 @@ class TestEditHost(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.edit_host.activate_session').start()
         self.error_format = """Usage: %s edit-host <hostname> [<hostname> ...] [options]
 (Specify the --help global option for a list of other help options)
 

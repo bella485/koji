@@ -5,7 +5,8 @@ import unittest
 
 import koji
 
-from koji_cli.commands import handle_image_build_indirection, _build_image_indirection
+from koji_cli.commands.image_build_indirection import (handle_image_build_indirection,
+                                                       _build_image_indirection)
 from . import utils
 
 
@@ -46,8 +47,8 @@ class TestBuildImageIndirection(utils.CliTestCase):
         self.options.quiet = False
         self.options.weburl = self.weburl
         self.session = mock.MagicMock()
-        self.activate_session = mock.patch('koji_cli.commands.activate_session').start()
-        self.unique_path = mock.patch('koji_cli.commands.unique_path').start()
+        self.activate_session = mock.patch('koji_cli.commands.image_build_indirection.activate_session').start()
+        self.unique_path = mock.patch('koji_cli.commands.image_build_indirection.unique_path').start()
 
         self.task_opts = Options(TASK_OPTIONS)
 
@@ -198,7 +199,7 @@ class TestImageBuildIndirection(utils.CliTestCase):
 %s: error: {message}
 """ % (self.progname, self.progname, self.progname)
 
-    @mock.patch('koji_cli.commands._build_image_indirection')
+    @mock.patch('koji_cli.commands.image_build_indirection._build_image_indirection')
     def test_handle_image_build_indirection(self, build_image_mock):
         """Test handle_image_build_indirection function"""
         handle_image_build_indirection(self.options, self.session, [])

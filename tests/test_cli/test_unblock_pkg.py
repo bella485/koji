@@ -4,7 +4,7 @@ import six
 import unittest
 
 
-from koji_cli.commands import handle_unblock_pkg
+from koji_cli.commands.unblock_pkg import handle_unblock_pkg
 from . import utils
 
 
@@ -21,7 +21,7 @@ class TestUnblockPkg(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.unblock_pkg.activate_session')
     def test_handle_unblock_pkg(
             self,
             activate_session_mock,

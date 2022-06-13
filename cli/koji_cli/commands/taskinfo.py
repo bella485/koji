@@ -6,7 +6,7 @@ from optparse import OptionParser
 from koji_cli.lib import (
     ensure_connection,
     get_usage_str,
-    printTaskInfo,
+    _printTaskInfo,
 )
 
 
@@ -25,4 +25,4 @@ def anon_handle_taskinfo(goptions, session, args):
 
     for arg in args:
         task_id = int(arg)
-        printTaskInfo(session, task_id, goptions.topdir, 0, options.recurse, options.verbose)
+        _printTaskInfo(session, task_id, goptions.topdir, 0, options.recurse, options.verbose)

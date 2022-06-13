@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import handle_untag_build
+from koji_cli.commands.untag_build import handle_untag_build
 from . import utils
 
 
@@ -14,7 +14,7 @@ class TestUntagBuild(utils.CliTestCase):
         self.options.debug = False
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.activate_session_mock = mock.patch('koji_cli.commands.activate_session').start()
+        self.activate_session_mock = mock.patch('koji_cli.commands.untag_build.activate_session').start()
         self.tag_info = {'arches': 'x86_64',
                          'extra': {},
                          'id': 1,

@@ -5,7 +5,7 @@ from optparse import OptionParser
 
 from koji_cli.lib import (
     get_usage_str,
-    build_image,
+    _build_image,
 )
 
 
@@ -68,4 +68,4 @@ def handle_spin_livemedia(options, session, args):
         parser.error('The "--lorax_url" option requires that "--lorax_dir" also be used.')
     if task_options.volid is not None and len(task_options.volid) > 32:
         parser.error('Volume ID has a maximum length of 32 characters')
-    return build_image(options, task_options, session, args, 'livemedia')
+    return _build_image(options, task_options, session, args, 'livemedia')

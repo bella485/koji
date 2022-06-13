@@ -4,7 +4,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import handle_remove_notification
+from koji_cli.commands.remove_notification import handle_remove_notification
 from . import utils
 
 
@@ -15,14 +15,14 @@ class TestAddHost(utils.CliTestCase):
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
 
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_notification.activate_session')
     def test_handle_remove_notification(self, activate_session_mock):
         handle_remove_notification(self.options, self.session, ['1', '3', '5'])
 
         self.session.deleteNotification.assert_has_calls([mock.call(1), mock.call(3),
                                                           mock.call(5)])
 
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.remove_notification.activate_session')
     @mock.patch('sys.stdout', new_callable=StringIO)
     def test_handle_remove_notification_not_quiet(self, stdout, activate_session_mock):
         self.options.quiet = False

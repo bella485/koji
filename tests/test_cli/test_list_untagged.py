@@ -22,7 +22,7 @@ class TestListUntagged(utils.CliTestCase):
                            ]
 
     @mock.patch('sys.stdout', new_callable=StringIO)
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_list_untagged_without_arguments(self, ensure_connection_mock,
                                              stdout):
         package_name = 'test-package-1234'
@@ -33,7 +33,7 @@ class TestListUntagged(utils.CliTestCase):
         anon_handle_list_untagged(self.options, self.session, [package_name])
         self.assert_console_message(stdout, expected)
 
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_list_untagged_more_arguments(self, ensure_connection_mock):
         packages_name = ['test-package-1', 'test-package-2']
         expected = """Usage: %s list-untagged [options] [<package>]
@@ -51,7 +51,7 @@ class TestListUntagged(utils.CliTestCase):
 
     @mock.patch('sys.stderr', new_callable=StringIO)
     @mock.patch('sys.stdout', new_callable=StringIO)
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_list_untagged_package(self, ensure_connection, stdout, stderr):
         # test case when package is existing
         package_name = 'test-package-1234'
@@ -76,7 +76,7 @@ class TestListUntagged(utils.CliTestCase):
         self.assert_console_message(stderr, expected)
 
     @mock.patch('sys.stdout', new_callable=StringIO)
-    @mock.patch('koji_cli.commands.ensure_connection')
+    @mock.patch('koji_cli.lib.ensure_connection')
     def test_list_untagged_package_path(self, ensure_connection, stdout):
         # test case when package is existing
         package_name = 'test-package-1234'

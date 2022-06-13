@@ -3,7 +3,7 @@ import mock
 import six
 import unittest
 
-from koji_cli.commands import handle_set_pkg_owner
+from koji_cli.commands.set_pkg_owner import handle_set_pkg_owner
 from . import utils
 
 
@@ -20,7 +20,7 @@ class TestSetPkgOwner(utils.CliTestCase):
 """ % (self.progname, self.progname)
 
     @mock.patch('sys.stdout', new_callable=six.StringIO)
-    @mock.patch('koji_cli.commands.activate_session')
+    @mock.patch('koji_cli.commands.set_pkg_owner.activate_session')
     def test_handle_set_pkg_owner(
             self,
             activate_session_mock,

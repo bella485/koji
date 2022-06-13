@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import mock
 import six
 
-from koji_cli.commands import anon_handle_download_logs
+from koji_cli.commands.download_logs import anon_handle_download_logs
 from . import utils
 
 
@@ -21,10 +21,10 @@ class TestDownloadLogs(utils.CliTestCase):
         # Mock out the xmlrpc server
         self.session = mock.MagicMock()
         self.list_task_output_all_volumes = mock.patch(
-            'koji_cli.commands.list_task_output_all_volumes').start()
+            'koji_cli.commands.download_logs.list_task_output_all_volumes').start()
         self.ensuredir = mock.patch('koji.ensuredir').start()
-        self.download_file = mock.patch('koji_cli.commands.download_file').start()
-        self.ensure_connection = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.download_file = mock.patch('koji_cli.commands.download_logs.download_file').start()
+        self.ensure_connection = mock.patch('koji_cli.commands.download_logs.ensure_connection').start()
         self.stdout = mock.patch('sys.stdout', new_callable=six.StringIO).start()
         self.error_format = """Usage: %s download-logs [options] <task_id> [<task_id> ...]
        %s download-logs [options] --nvr <n-v-r> [<n-v-r> ...]

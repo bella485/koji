@@ -6,7 +6,7 @@ import mock
 from six.moves import StringIO
 
 import koji
-from koji_cli.commands import anon_handle_list_channels
+from koji_cli.commands.list_channels import anon_handle_list_channels
 from . import utils
 
 
@@ -18,7 +18,7 @@ class TestListChannels(utils.CliTestCase):
         self.options.quiet = True
         self.session = mock.MagicMock()
         self.session.getAPIVersion.return_value = koji.API_VERSION
-        self.ensure_connection_mock = mock.patch('koji_cli.commands.ensure_connection').start()
+        self.ensure_connection_mock = mock.patch('koji_cli.commands.list_channels.ensure_connection').start()
         self.list_channels = [
             {'id': 1, 'name': 'default', 'enabled': True, 'comment': 'test-comment-1',
              'description': 'test-description-1'},
