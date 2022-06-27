@@ -6742,6 +6742,10 @@ class CG_Importer(object):
                 raise koji.GenericError("Build already exists: %r" % buildinfo)
         # gather needed data
         buildinfo = dslice(metadata['build'], ['name', 'version', 'release', 'extra', 'source'])
+        if '-' in buildinfo['version']:
+            raise koji.GenericError(f"version string '{buildinfo['version']}' can't contain '-'")
+        if '-' in buildinfo['release']:
+            raise koji.GenericError(f"release string '{buildinfo['release']}' can't contain '-'")
         if 'build_id' in metadata['build']:
             buildinfo['build_id'] = metadata['build']['build_id']
         # epoch is not in the metadata spec, but we allow it to be specified
