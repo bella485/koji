@@ -6988,7 +6988,13 @@ def anon_handle_download_task(options, session, args):
                         if suboptions.dirpertask:
                             new_filename = '%s/%s' % (task_id, filename)
                         else:
-                            if taskarch not in filename:
+                            if task['method'] == 'buildSRPMFromSCM':
+                                if 'src.log' not in filename:
+                                    part_filename = filename[:-len('.log')]
+                                    new_filename = "%s.src.log" % (part_filename)
+                                else:
+                                    new_filename = filename
+                            elif taskarch not in filename:
                                 part_filename = filename[:-len('.log')]
                                 new_filename = "%s.%s.log" % (part_filename, taskarch)
                             else:

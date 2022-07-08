@@ -167,17 +167,22 @@ Default behavior without --all option downloads .rpm files only for build and bu
         self.assertIsNone(rv)
 
     def test_handle_download_task_log(self):
-        args = [str(self.parent_task_id), '--log']
+        args = [str(self.parent_task_id), '--log', '--all']
         self.session.getTaskInfo.return_value = self.parent_task_info
         self.session.getTaskChildren.return_value = [{'id': 22222,
                                                       'method': 'buildArch',
                                                       'arch': 'noarch',
-                                                      'state': 2}]
+                                                      'state': 2},
+                                                     {'id': 33333,
+                                                      'method': 'buildSRPMFromSCM',
+                                                      'arch': 'noarch',
+                                                      'state': 2}
+                                                     ]
         self.list_task_output_all_volumes.side_effect = [{}, {
-            'somerpm.src.rpm': ['DEFAULT', 'vol1'],
-            'somerpm.x86_64.rpm': ['DEFAULT', 'vol2'],
-            'somerpm.noarch.rpm': ['vol3'],
-            'somelog.log': ['DEFAULT', 'vol1']}]
+            'somelog.log': ['DEFAULT', 'vol1'],
+            'somerpm.noarch.rpm': ['vol3'], }, {
+            'somelog.log': ['DEFAULT', 'vol1'],
+            'somerpm.src.rpm': ['DEFAULT', 'vol2'], }]
 
         # Run it and check immediate output
         # args: task_id --log
@@ -192,22 +197,23 @@ Default behavior without --all option downloads .rpm files only for build and bu
         self.session.getTaskInfo.assert_called_once_with(self.parent_task_id)
         self.session.getTaskChildren.assert_called_once_with(self.parent_task_id)
         self.list_task_output_all_volumes.assert_has_calls([
-            mock.call(self.session, self.parent_task_id), mock.call(self.session, 22222)])
+            mock.call(self.session, self.parent_task_id), mock.call(self.session, 22222),
+            mock.call(self.session, 33333)])
         self.assertListEqual(self.download_file.mock_calls, [
-            call('https://topurl/work/tasks/2222/22222/somerpm.src.rpm',
-                 'somerpm.src.rpm', quiet=None, noprogress=None, size=7, num=1),
-            call('https://topurl/vol/vol1/work/tasks/2222/22222/somerpm.src.rpm',
-                 'vol1/somerpm.src.rpm', quiet=None, noprogress=None, size=7, num=2),
-            call('https://topurl/work/tasks/2222/22222/somerpm.x86_64.rpm',
-                 'somerpm.x86_64.rpm', quiet=None, noprogress=None, size=7, num=3),
-            call('https://topurl/vol/vol2/work/tasks/2222/22222/somerpm.x86_64.rpm',
-                 'vol2/somerpm.x86_64.rpm', quiet=None, noprogress=None, size=7, num=4),
-            call('https://topurl/vol/vol3/work/tasks/2222/22222/somerpm.noarch.rpm',
-                 'vol3/somerpm.noarch.rpm', quiet=None, noprogress=None, size=7, num=5),
             call('https://topurl/work/tasks/2222/22222/somelog.log',
-                 'somelog.noarch.log', quiet=None, noprogress=None, size=7, num=6),
+                 'somelog.noarch.log', quiet=None, noprogress=None, size=7, num=1),
             call('https://topurl/vol/vol1/work/tasks/2222/22222/somelog.log',
-                 'vol1/somelog.noarch.log', quiet=None, noprogress=None, size=7, num=7)
+                 'vol1/somelog.noarch.log', quiet=None, noprogress=None, size=7, num=2),
+            call('https://topurl/vol/vol3/work/tasks/2222/22222/somerpm.noarch.rpm',
+                 'vol3/somerpm.noarch.rpm', quiet=None, noprogress=None, size=7, num=3),
+            call('https://topurl/work/tasks/3333/33333/somelog.log',
+                 'somelog.src.log', quiet=None, noprogress=None, size=7, num=4),
+            call('https://topurl/vol/vol1/work/tasks/3333/33333/somelog.log',
+                 'vol1/somelog.src.log', quiet=None, noprogress=None, size=7, num=5),
+            call('https://topurl/work/tasks/3333/33333/somerpm.src.rpm',
+                 'somerpm.src.rpm', quiet=None, noprogress=None, size=7, num=6),
+            call('https://topurl/vol/vol2/work/tasks/3333/33333/somerpm.src.rpm',
+                 'vol2/somerpm.src.rpm', quiet=None, noprogress=None, size=7, num=7),
         ])
         self.assertIsNone(rv)
 
