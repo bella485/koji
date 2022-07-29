@@ -5,3 +5,6 @@ psycopg2-binary;python_version >= '3.0'
 python-multilib
 python-qpid-proton
 rpm-py-installer
+requests
+dateutil
+six
