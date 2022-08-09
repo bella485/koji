@@ -6950,9 +6950,9 @@ def anon_handle_download_task(options, session, args):
     build_methods_list = ['buildArch', 'build']
     rpm_file_types = ['rpm', 'src.rpm']
     for task in list_tasks:
-        taskarch = task['arch']
+        taskarches = (task['arch'], task['label'])
         task_id = str(task['id'])
-        if len(suboptions.arches) == 0 or taskarch in suboptions.arches:
+        if len(suboptions.arches) == 0 or any(tarch in suboptions.arches for tarch in taskarches):
             files = list_task_output_all_volumes(session, task["id"])
             for filename in files:
                 if filename.endswith('src.rpm'):
