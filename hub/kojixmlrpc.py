@@ -597,9 +597,6 @@ _default_policies = {
     'volume': '''
             all :: DEFAULT
             ''',
-    'builder_resources': '''
-            all :: allow
-            ''',
     'priority': '''
             all :: stay
             ''',

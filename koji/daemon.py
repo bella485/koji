@@ -51,29 +51,6 @@ from koji.util import (
 )
 
 
-def _factor(unit):
-    if unit == 'kB':
-        return 1024
-    elif unit == 'MB':
-        return 1024**2
-    elif unit == 'GB':
-        return 1024**3
-    else:
-        return 1
-
-def _get_memory_usage(pid):
-    mem = 0
-    r = subprocess.check_output(["ps", "-o", "pid,ppid,pgid,rss", "-u", "tkopecek"]).decode('utf-8')
-    for line in r.split('\n'):
-        if not line:
-            continue
-        pid, ppid, pgid, rss = line.split()
-        if pid == 'PID':
-            continue
-        if PID in (pid, ppid, pgid):
-            mem += int(rss)
-    return mem
-
 def incremental_upload(session, fname, fd, path, retries=5, logger=None):
     if not fd:
         return
@@ -741,7 +718,6 @@ class TaskManager(object):
         self.tasks = {}
         self.pids = {}
         self.subsessions = {}
-        self.reservations = {}
         self.handlers = {}
         self.status = ''
         self.restart_pending = False
@@ -785,56 +761,7 @@ class TaskManager(object):
         for task_id in self.pids:
             self.cleanupTask(task_id)
         self.session.host.freeTasks(to_list(self.tasks.keys()))
-        self.session.host.updateHost(0.0, False, self.free_resources())
-
-    def free_resources(self):
-        memory = 0
-        with open('/proc/meminfo', 'rt') as f:
-            for line in f.readlines():
-                if line.startswith('MemAvailable:'):
-                    _, size, unit = line.split()
-                    # in MB
-                    memory = int(size) * _factor(unit)
-
-        br_path = self.options.mockdir
-        if not os.path.exists(br_path):
-            self.logger.error("No such directory: %s" % br_path)
-            raise IOError("No such directory: %s" % br_path)
-        fs_stat = os.statvfs(br_path)
-        space = fs_stat.f_bavail * fs_stat.f_bsize
-
-        # subtract used/reserved memory
-        for task_id in tasks.keys():
-            used_mem = 0
-            if task_id in self.pids:
-                used_mem = _get_memory_usage(self.pids[task_id])
-            reserved_mem = 0
-            if task_id in self.reservations:
-                reserved_mem = self.reservations[task_id].get('memory', 0)
-            memory -= max(reserved_mem, used_mem)
-
-        # underestimate space - checking it correctly would be too slow (running "du -s")
-        for r in self.reservations.values():
-            space -= r.get('space', 0)
-
-        return {
-            'memory': memory,
-            'space': space,
-        }
-
-    def reserve_resources(self, task_id, requested):
-        available = self.free_resources()
-        mem = requested.get('memory', 0)
-        if available['memory'] < mem:
-            self.logger.warning("Insufficient memory %s (requested %s)", available['memory'], mem)
-            return False
-        space = requested.get('space', 0)
-        if available['space'] < space:
-            self.logger.warning("Insufficient space %s (requested %s)", available['space'], space)
-            return False
-
-        self.reservations[task_id] = requested
-        return True
+        self.session.host.updateHost(task_load=0.0, ready=False)
 
     def updateBuildroots(self, nolocal=False):
         """Handle buildroot cleanup/maintenance
@@ -1068,8 +995,6 @@ class TaskManager(object):
                     del self.pids[id]
                 if id in self.tasks:
                     del self.tasks[id]
-                if id in self.reservations:
-                    del self.reservations[id]
         for id, pid in list(self.pids.items()):
             if id not in tasks:
                 # expected to happen when:
@@ -1085,24 +1010,20 @@ class TaskManager(object):
                     self.logger.info("Killing canceled task %r (pid %r)" % (id, pid))
                     if self.cleanupTask(id):
                         del self.pids[id]
-                    if id in self.reservations:
-                        del self.reservations[id]
                 elif tinfo['host_id'] != self.host_id:
                     self.logger.info("Killing reassigned task %r (pid %r)" % (id, pid))
                     if self.cleanupTask(id):
                         del self.pids[id]
-                    if id in self.reservations:
-                        del self.reservations[id]
                 else:
                     self.logger.info("Lingering task %r (pid %r)" % (id, pid))
 
     def getNextTask(self):
         self.ready = self.readyForTask()
-        self.session.host.updateHost(self.task_load, self.ready, self.free_resources())
+        self.session.host.updateHost(self.task_load, self.ready)
         if not self.ready:
             self.logger.info("Not ready for task")
             return False
-        task = self.session.host.getLoadData()
+        task = self.session.host.getAvailableTask()
         if not task:
             return False
         if task['method'] not in self.handlers:
@@ -1116,7 +1037,6 @@ class TaskManager(object):
             return False
         self.takeTask(task)
         return True
-
 
     def _waitTask(self, task_id, pid=None):
         """Wait (nohang) on the task, return true if finished"""
@@ -1385,12 +1305,6 @@ class TaskManager(object):
             self.logger.warning("Task '%s' has no request" % task['id'])
             return False
         params = task_info['request']
-
-        if not self.reserve_resources(task_info['id'], task_info.get('required_resources')):
-            self.logger.info("Skipping task %s (%s) due to insufficient resources",
-                              task['id'], task['method'])
-            return False
-
         handler = handlerClass(task_info['id'], method, params, self.session, self.options)
         if hasattr(handler, 'checkHost'):
             try:
