@@ -20,6 +20,8 @@ DateTime = xmlrpc_client.DateTime
 class ExtendedMarshaller(xmlrpc_client.Marshaller):
 
     dispatch = xmlrpc_client.Marshaller.dispatch.copy()
+    # https://www.w3.org/TR/xml/#Unicode
+    xml_forbidden_chars = re.compile('[\x00-\x08\x0b-\x0c\x0e-\x1f]', re.UNICODE)
 
     def _dump(self, value, write):
         # Parent class is unfriendly to subclasses :-/
@@ -58,6 +60,14 @@ class ExtendedMarshaller(xmlrpc_client.Marshaller):
         dispatch[re.Pattern] = dump_re
     except AttributeError:
         dispatch[re._pattern_type] = dump_re
+
+    def dump_unicode_bytes(self, value, write):
+        # find illegal chars and encode them as a base64
+        if self.xml_forbidden_chars.search(value):
+            return self.dump_bytes(value.encode(), write)
+        else:
+            return self.dump_unicode(value, write)
+    dispatch[str] = dump_unicode_bytes
 
 
 if six.PY2:
