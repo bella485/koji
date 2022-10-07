@@ -2806,7 +2806,12 @@ class ClientSession(object):
         return ret
 
     def _read_xmlrpc_response(self, response):
-        p, u = getparser()
+        try:
+            # to convert encoded bytes
+            p, u = getparser(use_builtin_types=True)
+        except TypeError:
+            # fallback python < 3.4
+            p, u = getparser()
         for chunk in response.iter_content(8192):
             if self.opts.get('debug_xmlrpc', False):
                 self.logger.debug("body: %r" % chunk)
