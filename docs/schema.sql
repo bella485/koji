@@ -955,4 +955,21 @@ CREATE TABLE proton_queue (
 ) WITHOUT OIDS;
 
 
+-- Scheduler tables
+CREATE TYPE logger_level AS ENUM ('NOTSET', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL');
+CREATE TABLE scheduler_log_messages (
+        id SERIAL NOT NULL PRIMARY KEY,
+        task_id INTEGER REFERENCES task (id),
+        host_id INTEGER REFERENCES host (id),
+        msg_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        logger_name VARCHAR(200) NOT NULL,
+        level logger_level NOT NULL,
+        location VARCHAR(200),
+        msg TEXT NOT NULL
+) WITHOUT OIDS;
+CREATE INDEX scheduler_log_messages_task_id ON scheduler_log_messages(task_id);
+CREATE INDEX scheduler_log_messages_host_id ON scheduler_log_messages(host_id);
+CREATE INDEX scheduler_log_messages_msg_time ON scheduler_log_messages(msg_time);
+CREATE INDEX scheduler_log_messages_level ON scheduler_log_messages(level);
+
 COMMIT WORK;

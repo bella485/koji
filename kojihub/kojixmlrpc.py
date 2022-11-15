@@ -42,6 +42,8 @@ from koji.context import context
 from koji.server import ServerError, BadRequest, RequestTimeout
 from koji.xmlrpcplus import ExtendedMarshaller, Fault, dumps, getparser
 
+from . import scheduler
+
 
 class Marshaller(ExtendedMarshaller):
 
