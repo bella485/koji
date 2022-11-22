@@ -2686,6 +2686,7 @@ class ClientSession(object):
             sinfo = None
         finally:
             self.opts = old_opts
+
         if not sinfo:
             err = 'unable to obtain a session'
             if e_str:
@@ -2892,6 +2893,7 @@ class ClientSession(object):
         return result
 
     def _renew_session(self):
+        """Renew expirated session or subsession."""
         if not hasattr(self, 'auth_method'):
             raise GenericError("Missing info for reauthentication")
         # will be deleted by setSession
@@ -2904,9 +2906,19 @@ class ClientSession(object):
         if self.exclusive:
             self.exclusiveSession()
 
+    def renew_expired_session(func):
+        """Decorator to renew expirated session or subsession."""
+        def _renew_expired_session(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except AuthExpired:
+                args[0]._renew_session()
+                return func(*args, **kwargs)
+        return _renew_expired_session
+
+    @renew_expired_session
     def _callMethod(self, name, args, kwargs=None, retry=True):
         """Make a call to the hub with retries and other niceties"""
-
         if self.multicall:
             if kwargs is None:
                 kwargs = {}
@@ -2942,13 +2954,6 @@ class ClientSession(object):
                             # server correctly reporting an outage
                             tries = 0
                             continue
-                    elif isinstance(err, AuthExpired):
-                        if self.logged_in:
-                            self._renew_session()
-                            return self._callMethod(name, args, kwargs, retry)
-                        else:
-                            raise AuthError("Session ID %s is unlogged and expired." %
-                                            self.sinfo['session-id'])
                     else:
                         raise err
 
