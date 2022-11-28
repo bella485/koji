@@ -2496,8 +2496,11 @@ class ClientSession(object):
         """
         # store calling parameters
         self.auth_method = {'method': 'login', 'kwargs': {'opts': opts}}
-        sinfo = self.callMethod('login', self.opts['user'], self.opts['password'], opts=opts,
-                                renew=renew)
+        kwargs = {'opts': opts}
+        if renew:
+            kwargs['renew'] = True
+            kwargs['exclusive'] = self.exclusive
+        sinfo = self.callMethod('login', self.opts['user'], self.opts['password'], **kwargs)
         if not sinfo:
             return False
         self.setSession(sinfo)
@@ -2573,7 +2576,10 @@ class ClientSession(object):
                 # will fail with a handshake failure, which is retried by default.
                 # For this case we're now using retry=False and test errors for
                 # this exact usecase.
-                kwargs = {'proxyuser': proxyuser, 'renew': renew}
+                kwargs = {'proxyuser': proxyuser}
+                if renew:
+                    kwargs['renew'] = True
+                    kwargs['exclusive'] = self.exclusive
                 if proxyauthtype is not None:
                     kwargs['proxyauthtype'] = proxyauthtype
                 for tries in range(self.opts.get('max_retries', 30)):
@@ -2669,7 +2675,10 @@ class ClientSession(object):
         self.opts['serverca'] = serverca
         e_str = None
         try:
-            kwargs = {'proxyuser': proxyuser, 'renew': renew}
+            kwargs = {'proxyuser': proxyuser}
+            if renew:
+                kwargs['renew'] = True
+                kwargs['exclusive'] = self.exclusive
             if proxyauthtype is not None:
                 kwargs['proxyauthtype'] = proxyauthtype
             sinfo = self._callMethod('sslLogin', [], kwargs)
@@ -2901,8 +2910,6 @@ class ClientSession(object):
         kwargs['renew'] = True
         self.logged_in = False
         auth_method(*args, **kwargs)
-        if self.exclusive:
-            self.exclusiveSession()
 
     def renew_expired_session(func):
         """Decorator to renew expirated session or subsession."""
