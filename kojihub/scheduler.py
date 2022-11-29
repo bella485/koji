@@ -1,7 +1,61 @@
 import functools
 import logging
 
-from koji.db import InsertProcessor
+from koji.db import InsertProcessor, QueryProcessor
+
+
+class SchedulerExports():
+    def getLogs(self, taskID=None, hostID=None, level=None,
+                from_ts=None, to_ts=None, logger_name=None):
+        """Return all related log messages
+
+        :param int taskID: filter by task
+        :param int hostID: filter by host
+        :param str level: filter by message level
+        :param float from_ts: filter from earliest time
+        :param float to_ts: filter to latest time (from_ts < ts <= to_ts)
+        :param str logger_name: filter by logger name
+        :return [dict]: list of messages
+        """
+        fields = (
+            ('scheduler_log_messages.id', 'id'),
+            ('task_id', 'task_id'),
+            ('host_id', 'host_id'),
+            ('msg_time', 'msg_time'),
+            ('logger_name', 'logger_name'),
+            ('level', 'level'),
+            ('location', 'location'),
+            ('msg', 'msg'),
+            ('hosts.name', 'host_name'),
+        )
+        clauses = []
+        values = {}
+        if taskID is not None:
+            clauses.append("taskID = %(taskID)")
+            values['taskID'] = taskID
+        if hostID is not None:
+            clauses.append("hostID = %(hostID)")
+            values['hostID'] = hostID
+        if level is not None:
+            clauses.append("level = %(level)s")
+            values['level'] = level.upper()
+        if from_ts is not None:
+            clauses.append("msg_time > %(from_ts)s")
+            values['from_ts'] = float(from_ts)
+        if to_ts is not None:
+            clauses.append("msg_time <= %(to_ts)s")
+            values['to_ts'] = float(to_ts)
+        if logger_name is not None:
+            clauses.append("logger_name = %(to_ts)s")
+            values['logger_name'] = logger_name
+
+        columns, aliases = zip(*fields)
+        query = QueryProcessor(tables=['scheduler_log_messages'],
+                               columns=columns, aliases=aliases,
+                               joins=['hosts ON host_id = hosts.id'],
+                               clauses=clauses, values=values,
+                               opts={'order': 'msg_time'})
+        return query.execute()
 
 
 class DBLogger(object):

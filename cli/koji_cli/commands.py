@@ -7737,3 +7737,62 @@ def anon_handle_userinfo(goptions, session, args):
         print("Number of tasks: %d" % tasks.result)
         print("Number of builds: %d" % builds.result)
         print('')
+
+
+def handle_scheduler_logs(goptions, session, args):
+    "[monitor] Query scheduler logs"
+    usage = "usage: %prog scheduler-logs <options>"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--task", type="int", action="store",
+                      help="Filter by task ID")
+    parser.add_option("--host", type="str", action="store",
+                      help="Filter by host (name/ID)")
+    parser.add_option("--level", type="str", action="store",
+                      choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                      help="Filter by message level")
+    parser.add_option("--from", type="float", action="store", dest="from_ts",
+                      help="Logs from given timestamp")
+    parser.add_option("--to", type="float", action="store", dest="to_ts",
+                      help="Logs until given timestamp (included)")
+    parser.add_option("--logger", type="str", action="store",
+                      help="Filter by logger name")
+    (options, args) = parser.parse_args(args)
+    if len(args) != 0:
+        parser.error("There are no arguments for this command")
+
+    kwargs = {}
+    if options.task:
+        kwargs['taskID'] = options.task
+    if options.host:
+        try:
+            kwargs['hostID'] = int(options.host)
+        except ValueError:
+            kwargs['hostID'] = session.getHost(options.host)['id']
+    if options.level:
+        kwargs['level'] = options.level
+    if options.from_ts:
+        kwargs['from_ts'] = options.from_ts
+    if options.to_ts:
+        kwargs['to_ts'] = options.to_ts
+    if options.logger:
+        kwargs['logger_name'] = options.logger
+
+    logs = session.scheduler.getLogs(**kwargs)
+
+    mask = ("%(task_id)s\t%(host_name)s\t%(msg_time)s\t%(logger_name)s"
+            "\t%(level)s\t%(location)s\t%(msg)s")
+    if not goptions.quiet:
+        h = mask % {
+            'task_id': 'Task',
+            'host_name': 'Host',
+            'msg_time': 'Time',
+            'logger_name': 'Logger',
+            'level': 'Level',
+            'location': 'Location',
+            'msg': 'Message',
+        }
+        print(h)
+        print('-' * len(h))
+
+    for log in logs:
+        print(mask % log)
