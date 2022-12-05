@@ -131,6 +131,7 @@ class HandlerRegistry(object):
         return ret
 
     def list_api(self):
+        """List available API calls"""
         funcs = []
         for name, func in self.funcs.items():
             # the keys in self.funcs determine the name of the method as seen over xmlrpc
@@ -139,7 +140,7 @@ class HandlerRegistry(object):
             args = []
             argdesc = []
             for pname, param in sig.parameters.items():
-                if param.default != inspect._empty:
+                if param.default != param.empty:
                     args.append([pname, param.default])
                 else:
                     args.append(pname)
