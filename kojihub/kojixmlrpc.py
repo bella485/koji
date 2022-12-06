@@ -708,6 +708,7 @@ def setup_logging2(opts):
     log_handler.setFormatter(HubFormatter(opts['LogFormat']))
 
 
+    import scheduler
 def get_memory_usage():
     pagesize = resource.getpagesize()
     statm = [pagesize * int(y) // 1024
@@ -845,8 +846,10 @@ def get_registry(opts, plugins):
     registry = HandlerRegistry()
     functions = kojihub.RootExports()
     hostFunctions = kojihub.HostExports()
+    schedulerFunctions = scheduler.SchedulerExports()
     registry.register_instance(functions)
     registry.register_module(hostFunctions, "host")
+    registry.register_module(schedulerFunctions, "scheduler")
     registry.register_function(koji.auth.login)
     registry.register_function(koji.auth.sslLogin)
     registry.register_function(koji.auth.logout)
