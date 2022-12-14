@@ -288,6 +288,16 @@ class Task(object):
         if state == koji.TASK_STATES['OPEN']:
             update.rawset(start_time='NOW()')
         update.execute()
+
+        update = UpdateProcessor(
+            table='scheduler_task_runs',
+            clauses=['task_id = %(task_id)i', 'host_id = %(host_id)i'],
+            values={'task_id': task_id, 'host_id': host_id},
+            data={'state': state},
+        )
+        if state == koji.TASK_STATES['OPEN']:
+            update.rawset(start_time='NOW()')
+        update.execute()
         self.runCallbacks('postTaskStateChange', info, 'state', koji.TASK_STATES[newstate])
         self.runCallbacks('postTaskStateChange', info, 'host_id', host_id)
         return True
@@ -744,6 +754,7 @@ def make_task(method, arglist, **opts):
     opts['id'] = task_id
     koji.plugin.run_callbacks(
         'postTaskStateChange', attribute='state', old=None, new='FREE', info=opts)
+    scheduler.schedule(task_id=task_id)
     return task_id
 
 
@@ -14040,7 +14051,12 @@ class Host(object):
         This data is relatively small and the necessary load analysis is
         relatively complex, so we let the host machines crunch it."""
         host = get_host(self.id)
-        tasks = scheduler.getTaskRuns(hostID=self.id)
+        query = QueryProcessor(tables=['host_channels'], columns=['channel_id'],
+                               clauses=['host_id = %(id)s', 'active IS TRUE'],
+                               values={'id': self.id},
+                               opts={'asList': True})
+        host['channels'] = [x[0] for x in query.execute()]
+        tasks = scheduler.get_task_runs(hostID=self.id)
         return [[host], tasks]
 
     def getTask(self):
@@ -14189,21 +14205,9 @@ class HostExports(object):
         host = Host()
         host.verify()
 
-        query = QueryProcessor(
-            tables=['scheduler_task_runs'],
-            clauses=[
-                'host_id = %(host_id)s',
-                'state in %(states)s'
-            ],
-            values={
-                'host_id': host.id,
-                'states': [
-                    koji.TASK_STATES['SCHEDULED'],
-                    koji.TASK_STATES['ASSIGNED'],
-                ],
-            }
-        )
-        tasks = query.execute()
+        tasks = scheduler.get_task_runs(hostID=host.id,
+                                        states=[koji.TASK_STATES['ASSIGNED'],
+                                                koji.TASK_STATES['SCHEDULED']])
         for task in tasks:
             sched_logger.debug("Sending task", host_id=host.id, task_id=task['id'],
                                location="getTasks")

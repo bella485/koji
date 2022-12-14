@@ -7753,7 +7753,6 @@ def anon_handle_scheduler_info(goptions, session, args):
     parser.add_option("--host", action="store", default=None,
                       help="Limit data to given builder (name/id)")
     parser.add_option("--state", action="store", type='str', default=None,
-                      choices=[x for x in koji.TASK_STATES.keys()],
                       help="Limit data to task state")
     (options, args) = parser.parse_args(args)
     if len(args) > 0:
@@ -7769,17 +7768,17 @@ def anon_handle_scheduler_info(goptions, session, args):
             host_id = session.getHost(options.host, strict=True)['id']
 
     if options.state:
-        state = koji.TASK_STATES[options.state]
+        states = [koji.TASK_STATES[options.state]]
     else:
-        state = None
+        states = None
 
     # get the data
-    runs = session.scheduler.getTaskRuns(taskID=options.task, hostID=host_id, state=state)
+    runs = session.scheduler.getTaskRuns(taskID=options.task, hostID=host_id, states=states)
     mask = '%(task_id)s\t%(host_id)s\t%(state)s\t%(create_time)s\t%(start_time)s\t%(end_time)s'
     if not goptions.quiet:
         header = mask % {
             'task_id': 'Task',
-            'host_name': 'Host',
+            'host_id': 'Host',
             'state': 'State',
             'create_time': 'Created',
             'start_time': 'Started',
@@ -7788,7 +7787,7 @@ def anon_handle_scheduler_info(goptions, session, args):
         print(header)
         print('-' * len(header))
     for run in runs:
-        run['state'] = koji.TASK_STATES[runs['state']]
+        run['state'] = koji.TASK_STATES[run['state']]
         print(mask % run)
 
     if host_id:
@@ -7799,7 +7798,7 @@ def anon_handle_scheduler_info(goptions, session, args):
         else:
             print('-')
 
-                      
+
 def handle_scheduler_logs(goptions, session, args):
     "[monitor] Query scheduler logs"
     usage = "usage: %prog scheduler-logs <options>"

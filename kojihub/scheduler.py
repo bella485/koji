@@ -1,10 +1,99 @@
 import functools
 import logging
 
-from koji.db import InsertProcessor, QueryProcessor
+import koji
+from koji.db import InsertProcessor, QueryProcessor, DeleteProcessor
+
+logger = logging.getLogger('koji.scheduler')
+
+
+def drop_from_queue(task_id):
+    """Delete scheduled run without checking its existence"""
+    delete = DeleteProcessor(
+        table='scheduler_task_runs',
+        clauses=['task_id = %(task_id)i'],
+        values={'task_id': task_id},
+    )
+    delete.execute()
+
+
+def get_host_data(hostID=None):
+    """Return actual builder data
+
+    :param int hostID: Return data for given host (otherwise for all)
+    :returns list[dict]: list of host_id/data dicts
+    """
+    clauses = []
+    columns = ['host_id', 'data']
+    if hostID is not None:
+        clauses.append('host_id = %(hostID)i')
+    query = QueryProcessor(
+        tables=['scheduler_host_data'],
+        clauses=clauses,
+        columns=columns,
+        values=locals(),
+        opts={'order': 'id'}
+    )
+
+    return query.execute()
+
+
+def get_task_runs(taskID=None, hostID=None, states=None):
+    """Return content of scheduler queue
+
+    :param int taskID: filter by task
+    :param int hostID: filter by host
+    :param list[int] states: filter by states
+    :returns list[dict]: list of dicts
+    """
+
+    columns = ['task_id', 'host_id', 'state', 'create_time', 'start_time', 'end_time']
+    clauses = []
+    if taskID is not None:
+        clauses.append('task_id = %(taskID)i')
+    if hostID is not None:
+        clauses.append('host_id = %(hostID)i')
+    if states is not None:
+        clauses.append('states IN %(states)s')
+
+    query = QueryProcessor(
+        tables=['scheduler_task_runs'], columns=columns,
+        clauses=clauses, values=locals()
+    )
+    return query.execute()
+
+
+def schedule(task_id=None):
+    """Run scheduler"""
+
+    # stupid for now, just add new task to first builder
+    query = QueryProcessor(
+        tables=['host'],
+        columns=['id'],
+        joins=['host_config ON host.id=host_config.host_id'],
+        clauses=['enabled IS TRUE'],
+        opts={'limit': 1}
+    )
+    logger.error('xxxxxxxxxxxxxxx %s', str(query))
+    host = query.executeOne()
+    if not host:
+        return
+
+    insert = InsertProcessor(
+        table='scheduler_task_runs',
+        data={
+            'task_id': task_id,
+            'host_id': host['id'],
+            'state': koji.TASK_STATES['SCHEDULED'],
+        }
+    )
+    insert.execute()
 
 
 class SchedulerExports():
+    getTaskRuns = staticmethod(get_task_runs)
+    getHostData = staticmethod(get_host_data)
+
     def getLogs(self, taskID=None, hostID=None, level=None,
                 from_ts=None, to_ts=None, logger_name=None):
         """Return all related log messages
