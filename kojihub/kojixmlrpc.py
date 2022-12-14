@@ -42,6 +42,8 @@ from koji.context import context
 from koji.server import ServerError, BadRequest, RequestTimeout
 from koji.xmlrpcplus import ExtendedMarshaller, Fault, dumps, getparser
 
+from . import scheduler
+
 
 class Marshaller(ExtendedMarshaller):
 
@@ -845,8 +847,10 @@ def get_registry(opts, plugins):
     registry = HandlerRegistry()
     functions = kojihub.RootExports()
     hostFunctions = kojihub.HostExports()
+    schedulerFunctions = scheduler.SchedulerExports()
     registry.register_instance(functions)
     registry.register_module(hostFunctions, "host")
+    registry.register_module(schedulerFunctions, "scheduler")
     registry.register_function(koji.auth.login)
     registry.register_function(koji.auth.sslLogin)
     registry.register_function(koji.auth.logout)
