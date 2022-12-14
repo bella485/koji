@@ -92,6 +92,7 @@ from koji.db import (  # noqa: F401
     nextval,
     currval,
 )
+from . import scheduler
 
 
 logger = logging.getLogger('koji.hub')
