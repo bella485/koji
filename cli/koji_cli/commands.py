@@ -7744,6 +7744,62 @@ def anon_handle_userinfo(goptions, session, args):
         print('')
 
 
+def anon_handle_scheduler_info(goptions, session, args):
+    """[monitor] Show information about scheduling"""
+    usage = "usage: %prog schedulerinfo [options]"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("-t", "--task", action="store", type=int, default=None,
+                      help="Limit data to given task id")
+    parser.add_option("--host", action="store", default=None,
+                      help="Limit data to given builder (name/id)")
+    parser.add_option("--state", action="store", type='str', default=None,
+                      choices=[x for x in koji.TASK_STATES.keys()],
+                      help="Limit data to task state")
+    (options, args) = parser.parse_args(args)
+    if len(args) > 0:
+        parser.error("This command takes no arguments")
+
+    ensure_connection(session, goptions)
+
+    host_id = None
+    if options.host:
+        try:
+            host_id = int(options.host)
+        except ValueError:
+            host_id = session.getHost(options.host, strict=True)['id']
+
+    if options.state:
+        state = koji.TASK_STATES[options.state]
+    else:
+        state = None
+
+    # get the data
+    runs = session.scheduler.getTaskRuns(taskID=options.task, hostID=host_id, state=state)
+    mask = '%(task_id)s\t%(host_id)s\t%(state)s\t%(create_time)s\t%(start_time)s\t%(end_time)s'
+    if not goptions.quiet:
+        header = mask % {
+            'task_id': 'Task',
+            'host_name': 'Host',
+            'state': 'State',
+            'create_time': 'Created',
+            'start_time': 'Started',
+            'end_time': 'Ended'
+        }
+        print(header)
+        print('-' * len(header))
+    for run in runs:
+        run['state'] = koji.TASK_STATES[runs['state']]
+        print(mask % run)
+
+    if host_id:
+        print('Host data for %s:' % options.host)
+        host_data = session.scheduler.getHostData(hostID=host_id)
+        if len(host_data) > 0:
+            print(host_data[0]['data'])
+        else:
+            print('-')
+
+                      
 def handle_scheduler_logs(goptions, session, args):
     "[monitor] Query scheduler logs"
     usage = "usage: %prog scheduler-logs <options>"
@@ -7801,3 +7857,4 @@ def handle_scheduler_logs(goptions, session, args):
 
     for log in logs:
         print(mask % log)
+
