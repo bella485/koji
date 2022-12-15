@@ -1024,7 +1024,8 @@ class TaskManager(object):
         if not self.ready:
             self.logger.info("Not ready for task")
             return False
-        tasks = self.session.scheduler.getTaskRuns(hostID=self.hostdata['id'])
+        tasks = self.session.scheduler.getTaskRuns(hostID=self.hostdata['id'],
+                                                   states=[koji.TASK_STATES['SCHEDULED']])
         if not tasks:
             return False
         task = self.session.getTaskInfo(tasks[0]['task_id'])

@@ -2,7 +2,13 @@ import functools
 import logging
 
 import koji
-from koji.db import InsertProcessor, QueryProcessor, DeleteProcessor
+from koji.db import (
+    BulkInsertProcessor,
+    DeleteProcessor,
+    InsertProcessor,
+    QueryProcessor,
+    UpdateProcessor,
+)
 
 logger = logging.getLogger('koji.scheduler')
 
@@ -47,18 +53,18 @@ def get_task_runs(taskID=None, hostID=None, states=None):
     :returns list[dict]: list of dicts
     """
 
-    columns = ['task_id', 'host_id', 'state', 'create_time', 'start_time', 'end_time']
+    columns = ['id', 'task_id', 'host_id', 'state', 'create_time', 'start_time', 'end_time']
     clauses = []
     if taskID is not None:
         clauses.append('task_id = %(taskID)i')
     if hostID is not None:
         clauses.append('host_id = %(hostID)i')
     if states is not None:
-        clauses.append('states IN %(states)s')
+        clauses.append('state IN %(states)s')
 
     query = QueryProcessor(
         tables=['scheduler_task_runs'], columns=columns,
-        clauses=clauses, values=locals()
+        clauses=clauses, values=locals(), opts={'order': 'id'},
     )
     return query.execute()
 
@@ -67,26 +73,65 @@ def schedule(task_id=None):
     """Run scheduler"""
 
     # stupid for now, just add new task to first builder
+    logger.error("SCHEDULER RUN")
     query = QueryProcessor(
         tables=['host'],
         columns=['id'],
         joins=['host_config ON host.id=host_config.host_id'],
         clauses=['enabled IS TRUE'],
-        opts={'limit': 1}
+        opts={'asList': True},
     )
-    logger.error('xxxxxxxxxxxxxxx %s', str(query))
-    host = query.executeOne()
-    if not host:
+    hosts = [x[0] for x in query.execute()]
+    if not hosts:
         return
 
-    insert = InsertProcessor(
-        table='scheduler_task_runs',
-        data={
-            'task_id': task_id,
-            'host_id': host['id'],
-            'state': koji.TASK_STATES['SCHEDULED'],
-        }
+    # FAIL inconsistent runs
+    query = QueryProcessor(
+        tables=['scheduler_task_runs', 'task'],
+        columns=['scheduler_task_runs.id'],
+        clauses=[
+            'task.id = scheduler_task_runs.task_id',
+            'scheduler_task_runs.state = %(state)s',
+            'scheduler_task_runs.state != task.state',
+        ],
+        values={'state': koji.TASK_STATES['OPEN']},
+        opts={'asList': True},
     )
+    run_ids = [x[0] for x in query.execute()]
+    if run_ids:
+        update = UpdateProcessor(
+            table='scheduler_task_runs',
+            clauses=['id IN %(run_ids)s'],
+            values={'run_ids': run_ids},
+            data={'state': koji.TASK_STATES['FAILED']},
+            rawdata={'end_time': 'NOW()'},
+        )
+        update.execute()
+
+    # add unscheduled tasks
+    data = []
+    if not task_id:
+        query = QueryProcessor(
+            columns=['id'],
+            tables=['task'],
+            clauses=[
+                'state IN %(states)s',
+                'id NOT IN (SELECT task_id FROM scheduler_task_runs WHERE state = 6)'
+            ],
+            values={'states': [koji.TASK_STATES['FREE'], koji.TASK_STATES['ASSIGNED']]},
+            opts={'asList': True}
+        )
+        task_ids = [x[0] for x in query.execute()]
+    else:
+        task_ids = [task_id]
+
+    for task in task_ids:
+        data.append({
+            'host_id': host['id'],
+            'task_id': task[0],
+            'state': koji.TASK_STATES['SCHEDULED'],
+        })
+    insert = BulkInsertProcessor(table='scheduler_task_runs', data=data)
     insert.execute()
 
 

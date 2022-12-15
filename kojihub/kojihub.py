@@ -291,7 +291,11 @@ class Task(object):
 
         update = UpdateProcessor(
             table='scheduler_task_runs',
-            clauses=['task_id = %(task_id)i', 'host_id = %(host_id)i'],
+            clauses=[
+                'task_id = %(task_id)i',
+                'host_id = %(host_id)i',
+                'id = max(id)',
+            ],
             values={'task_id': task_id, 'host_id': host_id},
             data={'state': state},
         )
@@ -399,6 +403,12 @@ class Task(object):
                                  values={'task_id': self.id},
                                  data={'result': info['result'], 'state': state},
                                  rawdata={'completion_time': 'NOW()'})
+        update.execute()
+        update = UpdateProcessor('scheduler_task_runs',
+                                 clauses=['task_id = %(task_id)i', 'host_id = %(host_id)i'],
+                                 data={'state': state},
+                                 rawdata={'end_time': 'NOW()'},
+                                 values={'task_id': self.id, 'host_id': info['host_id']})
         update.execute()
         self.runCallbacks('postTaskStateChange', info, 'state', state)
         self.runCallbacks('postTaskStateChange', info, 'completion_ts', now)
@@ -14123,6 +14133,7 @@ class HostExports(object):
         host = Host()
         host.verify()
         host.updateHost(task_load, ready)
+        scheduler.schedule()
 
     def getLoadData(self):
         host = Host()
