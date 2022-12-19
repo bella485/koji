@@ -1,5 +1,6 @@
 import functools
 import logging
+import random
 
 import koji
 from koji.db import (
@@ -125,10 +126,10 @@ def schedule(task_id=None):
     else:
         task_ids = [task_id]
 
-    for task in task_ids:
+    for task_id in task_ids:
         data.append({
-            'host_id': host['id'],
-            'task_id': task[0],
+            'host_id': random.choice(hosts),
+            'task_id': task_id,
             'state': koji.TASK_STATES['SCHEDULED'],
         })
     insert = BulkInsertProcessor(table='scheduler_task_runs', data=data)

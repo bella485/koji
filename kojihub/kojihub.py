@@ -289,12 +289,12 @@ class Task(object):
             update.rawset(start_time='NOW()')
         update.execute()
 
+        # update last task run
         update = UpdateProcessor(
             table='scheduler_task_runs',
             clauses=[
-                'task_id = %(task_id)i',
-                'host_id = %(host_id)i',
-                'id = max(id)',
+                'id = (SELECT MAX(id) FROM scheduler_task_runs '
+                'WHERE task_id = %(task_id)i AND host_id = %(host_id)i)',
             ],
             values={'task_id': task_id, 'host_id': host_id},
             data={'state': state},
