@@ -7808,7 +7808,6 @@ def handle_scheduler_logs(goptions, session, args):
     parser.add_option("--host", type="str", action="store",
                       help="Filter by host (name/ID)")
     parser.add_option("--level", type="str", action="store",
-                      choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                       help="Filter by message level")
     parser.add_option("--from", type="float", action="store", dest="from_ts",
                       help="Logs from given timestamp")

@@ -38,8 +38,8 @@ class TestDBLogger(unittest.TestCase):
             'host_id': None,
             'logger_name': 'koji.scheduler',
             'level': 'NOTSET',
-            'location': None,
-            'text': 'text',
+            'location': 'test_basic',
+            'msg': 'text',
         })
 
     def test_all(self):
@@ -54,7 +54,7 @@ class TestDBLogger(unittest.TestCase):
             'logger_name': 'logger_name',
             'level': 'ERROR',
             'location': 'location',
-            'text': 'text',
+            'msg': 'text',
         })
 
     def test_levels(self):
@@ -65,3 +65,43 @@ class TestDBLogger(unittest.TestCase):
             insert = self.inserts[0]
             self.assertEqual(insert.data['level'], level)
             self.inserts = []
+
+
+class TestHostHashTable(unittest.TestCase):
+    def test_get(self):
+        hosts = [
+            {
+                'id': 1,
+                'arches': ['i386', 'x86_64', 'noarch'],
+                'channels': [1],
+                'capacity': 2.0,
+                'task_load': 0.0,
+            },
+            {
+                'id': 2,
+                'arches': ['i386'],
+                'channels': [1, 2],
+                'capacity': 2.0,
+                'task_load': 0.0,
+            },
+            {
+                'id': 3,
+                'arches': ['x86_64', 'noarch'],
+                'channels': [2],
+                'capacity': 3.0,
+                'task_load': 0.0,
+            }
+        ]
+        ht = scheduler.HostHashTable(hosts)
+
+        result = ht.get({'arch': 'noarch'})
+        self.assertEqual(result['id'], 3)
+
+        result = ht.get({'arch': 'x86_64'})
+        self.assertEqual(result['id'], 3)
+
+        result = ht.get({'channel_id': 2})
+        self.assertEqual(result['id'], 3)
+
+        result = ht.get({'channel_id': 2, 'arch': 'i386'})
+        self.assertEqual(result['id'], 2)

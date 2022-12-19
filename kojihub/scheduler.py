@@ -1,6 +1,6 @@
 import functools
+import inspect
 import logging
-import random
 
 import koji
 from koji.db import (
@@ -12,6 +12,57 @@ from koji.db import (
 )
 
 logger = logging.getLogger('koji.scheduler')
+
+
+class HostHashTable(object):
+    """multiindexed host table for fast filtering"""
+    def __init__(self, hosts=None):
+        self.arches = {}
+        self.channels = {}
+        self.hosts = {}
+        self.host_ids = set()
+        if hosts is None:
+            hosts = get_ready_hosts()
+        for hostinfo in hosts:
+            self.add_host(hostinfo)
+
+    def add_host(self, hostinfo):
+        host_id = hostinfo['id']
+        # priority is based on available capacity
+        hostinfo['priority'] = hostinfo['capacity'] - hostinfo['task_load']
+        # but builders running zero tasks should be always better fit
+        if hostinfo['task_load'] == 0:
+            # TODO: better heuristic?
+            hostinfo['priority'] += 100
+
+        self.hosts[host_id] = hostinfo
+        self.host_ids.add(host_id)
+        for arch in hostinfo['arches']:
+            self.arches.setdefault(arch, set()).add(host_id)
+        for channel in hostinfo['channels']:
+            self.channels.setdefault(channel, set()).add(host_id)
+
+    def get(self, task):
+        # filter by requirements
+        host_ids = set(self.host_ids)
+        if task.get('arch') is not None:
+            host_ids &= self.arches[task['arch']]
+        if task.get('channel_id') is not None:
+            host_ids &= self.channels[task['channel_id']]
+
+        # select best from filtered
+        hosts = [self.hosts[host_id] for host_id in host_ids]
+        hosts = sorted(hosts, key=lambda x: -x['priority'])
+        if not hosts:
+            return None
+
+        host = hosts[0]
+        # TODO: lower capacity by some heuritics
+        # TODO: reduce resources (reserved memory, cpus)
+        # TODO: reduce capacity by ?, placeholder 1.5 as for buildArch,
+        # otherwise it is high chance that it could be overcomitted
+        self.hosts[host['id']]['task_load'] += 1.5
+        return host
 
 
 def drop_from_queue(task_id):
@@ -70,23 +121,57 @@ def get_task_runs(taskID=None, hostID=None, states=None):
     return query.execute()
 
 
-def schedule(task_id=None):
-    """Run scheduler"""
+def get_ready_hosts():
+    """Return information about hosts that are ready to build.
 
-    # stupid for now, just add new task to first builder
-    logger.error("SCHEDULER RUN")
+    Hosts set the ready flag themselves
+    Note: We ignore hosts that are late checking in (even if a host
+        is busy with tasks, it should be checking in quite often).
+
+    host dict contains:
+      - id
+      - name
+      - list(arches)
+      - task_load
+      - capacity
+      - list(channels) (ids)
+      - [resources]
+    """
     query = QueryProcessor(
         tables=['host'],
-        columns=['id'],
-        joins=['host_config ON host.id=host_config.host_id'],
-        clauses=['enabled IS TRUE'],
-        opts={'asList': True},
+        columns=['host.id', 'name', 'arches', 'task_load', 'capacity'],
+        aliases=['id', 'name', 'arches', 'task_load', 'capacity'],
+        clauses=[
+            'enabled IS TRUE',
+            'ready IS TRUE',
+            'expired IS FALSE',
+            'master IS NULL',
+            'active IS TRUE',
+            "update_time > NOW() - '5 minutes'::interval"
+        ],
+        joins=[
+            'sessions USING (user_id)',
+            'host_config ON host.id = host_config.host_id'
+        ]
     )
-    hosts = [x[0] for x in query.execute()]
-    if not hosts:
-        return
+    hosts = query.execute()
+    for host in hosts:
+        query = QueryProcessor(
+            tables=['host_channels'],
+            columns=['channel_id'],
+            clauses=['host_id=%(id)s', 'active IS TRUE', 'enabled IS TRUE'],
+            joins=['channels ON host_channels.channel_id = channels.id'],
+            values=host,
+            opts={'asList': True},
+        )
+        rows = query.execute()
+        host['channels'] = [row[0] for row in rows]
+        host['arches'] = host['arches'].split() + ['noarch']
+    return hosts
 
-    # FAIL inconsistent runs
+
+def clean_scheduler_queue():
+    # FAIL inconsistent runs, but not tasks
     query = QueryProcessor(
         tables=['scheduler_task_runs', 'task'],
         columns=['scheduler_task_runs.id'],
@@ -99,6 +184,20 @@ def schedule(task_id=None):
         opts={'asList': True},
     )
     run_ids = [x[0] for x in query.execute()]
+    # FAIL (timeout) also runs which are scheduled for too long and were not picked
+    # by their respective workers, try to find new builders for them
+    query = QueryProcessor(
+        tables=['scheduler_task_runs'],
+        columns=['id'],
+        clauses=[
+            "create_time < NOW() + '5 minutes'::interval",
+            "state = %(state)i",
+        ],
+        values={'state': koji.TASK_STATES['SCHEDULED']},
+        opts={'asList': True},
+    )
+    # TODO: does it make sense to have TIMEOUTED state for runs?
+    run_ids += [x[0] for x in query.execute()]
     if run_ids:
         update = UpdateProcessor(
             table='scheduler_task_runs',
@@ -109,30 +208,53 @@ def schedule(task_id=None):
         )
         update.execute()
 
-    # add unscheduled tasks
-    data = []
+
+def schedule(task_id=None):
+    """Run scheduler"""
+
+    # stupid for now, just add new task to random builder
+    logger.error("SCHEDULER RUN")
+    hosts = HostHashTable()
+    if not hosts.hosts:
+        # early fail if there is nothing available
+        return
+
+    # find unscheduled tasks
+    columns = ['id', 'arch', 'method', 'channel_id', 'priority']
     if not task_id:
+        clean_scheduler_queue()
         query = QueryProcessor(
-            columns=['id'],
-            tables=['task'],
+            tables=['task'], columns=columns,
             clauses=[
                 'state IN %(states)s',
                 'id NOT IN (SELECT task_id FROM scheduler_task_runs WHERE state = 6)'
             ],
             values={'states': [koji.TASK_STATES['FREE'], koji.TASK_STATES['ASSIGNED']]},
-            opts={'asList': True}
+            opts={'order': '-priority'},
         )
-        task_ids = [x[0] for x in query.execute()]
     else:
-        task_ids = [task_id]
+        query = QueryProcessor(
+            tables=['task'], columns=columns,
+            clauses=['id = %(id)i'], values={'id': task_id},
+            opts={'order': '-priority'},
+        )
+    tasks = list(query.execute())
 
-    for task_id in task_ids:
-        data.append({
-            'host_id': random.choice(hosts),
-            'task_id': task_id,
+    # assign them to random builders fulfiling criteria in priority order
+    runs = []
+    for task in tasks:
+        host = hosts.get(task)
+        if not host:
+            # TODO: log that there is not available builder
+            dblogger.warning("Can't find adequate builder", task_id=task['id'])
+            continue
+        runs.append({
+            'host_id': host['id'],
+            'task_id': task['id'],
             'state': koji.TASK_STATES['SCHEDULED'],
         })
-    insert = BulkInsertProcessor(table='scheduler_task_runs', data=data)
+        dblogger.info("Scheduling", task_id=task['id'], host_id=host['id'])
+    insert = BulkInsertProcessor(table='scheduler_task_runs', data=runs)
     insert.execute()
 
 
@@ -161,7 +283,7 @@ class SchedulerExports():
             ('level', 'level'),
             ('location', 'location'),
             ('msg', 'msg'),
-            ('hosts.name', 'host_name'),
+            ('host.name', 'host_name'),
         )
         clauses = []
         values = {}
@@ -187,7 +309,7 @@ class SchedulerExports():
         columns, aliases = zip(*fields)
         query = QueryProcessor(tables=['scheduler_log_messages'],
                                columns=columns, aliases=aliases,
-                               joins=['hosts ON host_id = hosts.id'],
+                               joins=['host ON host_id = host.id'],
                                clauses=clauses, values=values,
                                opts={'order': 'msg_time'})
         return query.execute()
@@ -207,6 +329,11 @@ class DBLogger(object):
             task_id=None, host_id=None, location=None):
         if not logger_name:
             logger_name = self.logger
+        if location is None:
+            frame = inspect.currentframe()
+            frames = inspect.getouterframes(frame)
+            frame = frames[1]
+            location = frame.function
         # log to regular log
         text = f"task: {task_id}, host: {host_id}, location: {location}, message: {msg}"
         logging.getLogger(logger_name).log(level, text)
@@ -229,3 +356,6 @@ class DBLogger(object):
     warning = functools.partialmethod(log, level=logging.WARNING)
     error = functools.partialmethod(log, level=logging.ERROR)
     critical = functools.partialmethod(log, level=logging.CRITICAL)
+
+
+dblogger = DBLogger()
