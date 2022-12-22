@@ -475,6 +475,7 @@ def load_config(environ):
         ['LogFormat', 'string',
          '%(asctime)s [%(levelname)s] m=%(method)s u=%(user_name)s p=%(process)s r=%(remoteaddr)s '
          '%(name)s: %(message)s'],
+        ['SchedulerLogLevel', 'string', 'WARNING'],
 
         ['MissingPolicyOk', 'boolean', True],
         ['EnableMaven', 'boolean', False],

@@ -3,6 +3,7 @@ import inspect
 import logging
 
 import koji
+from koji.context import context
 from koji.db import (
     BulkInsertProcessor,
     DeleteProcessor,
@@ -326,6 +327,7 @@ class DBLogger(object):
     as both logging parts do this per se (loggind + DB handler via context)"""
 
     def __init__(self, logger_name=None):
+        self.log_level = None
         if logger_name:
             self.logger = logger_name
         else:
@@ -333,6 +335,15 @@ class DBLogger(object):
 
     def log(self, msg, logger_name=None, level=logging.NOTSET,
             task_id=None, host_id=None, location=None):
+        if self.log_level is None:
+            # can't be done in constructor, as config is not loaded in that time
+            log_level = context.opts.get('SchedulerLogLevel')
+            valid_levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+            if log_level not in valid_levels:
+                raise koji.GenericError(f"Invalid log level: {log_level}")
+            self.log_level = logging.getLevelName(log_level)
+        if level < self.log_level:
+            return
         if not logger_name:
             logger_name = self.logger
         if location is None:
