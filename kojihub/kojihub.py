@@ -14192,21 +14192,27 @@ class HostExports(object):
           - available task methods
           - maxjobs
           - host readiness
+
+        obsoletes updateHost
         """
         host = Host()
         host.verify()
+        if 'task_load' in hostdata and 'ready' in hostdata:
+            self.updateHost(hostdata['task_load'], hostdata['ready'])
+            # TODO: maybe obsolete it completely and put this data into scheduler_host_data
+        hostdata = hostdata
         clauses = ['host_id = %(host_id)i']
         values = {'host_id': host.id}
         table = 'scheduler_host_data'
         query = QueryProcessor(tables=[table], clauses=clauses, values=values,
                                opts={'countOnly': True})
         if query.singleValue() > 0:
-            update = UpdateProcessor(table=table, data={'data': hostdata},
-                                     clauses=clauses, values=values)
+            update = UpdateProcessor(table=table, clauses=clauses, values=values,
+                                     data={'data': json.dumps(hostdata)})
             update.execute()
         else:
-            insert = InsertProcessor(table=table, data={'data': hostdata},
-                                     clauses=clauses, values=values)
+            insert = InsertProcessor(table=table,
+                                     data={'host_id': host.id, 'data': json.dumps(hostdata)})
             insert.execute()
         sched_logger.debug(f"Updating host data with: {hostdata}",
                            host_id=host.id, location='setHostData')

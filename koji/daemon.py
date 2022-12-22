@@ -1018,28 +1018,51 @@ class TaskManager(object):
                 else:
                     self.logger.info("Lingering task %r (pid %r)" % (id, pid))
 
+    def setHostData(self):
+        """Report all runtime data to scheduler"""
+        hostdata = {
+            'task_load': self.task_load,
+            'ready': self.ready,
+            'methods': list(self.handlers.keys()),
+            'maxjobs': self.options.maxjobs,
+            # kernel
+            # cpu_total
+            # cpu_available (total - reserved)
+            # memory_total
+            # memory_available (total - reserved)
+        }
+        self.session.host.setHostData(hostdata)
+        self.logger.debug("Reported hostdata %s", hostdata)
+
     def getNextTask(self):
         self.ready = self.readyForTask()
         self.session.host.updateHost(self.task_load, self.ready)
+        self.setHostData()
         if not self.ready:
             self.logger.info("Not ready for task")
             return False
-        tasks = self.session.scheduler.getTaskRuns(hostID=self.hostdata['id'],
-                                                   states=[koji.TASK_STATES['SCHEDULED']])
-        if not tasks:
-            return False
-        task = self.session.getTaskInfo(tasks[0]['task_id'])
-        if task['method'] not in self.handlers:
-            self.logger.warning("Skipping task %(id)i, no handler for method %(method)s", task)
-            return False
-        if task['id'] in self.tasks:
-            # we were running this task, but it apparently has been
-            # freed or reassigned. We can't do anything with it until
-            # updateTasks notices this and cleans up.
-            self.logger.debug("Task %(id)s freed or reassigned", task)
-            return False
-        self.takeTask(task)
-        return True
+        scheduled = self.session.scheduler.getTaskRuns(hostID=self.hostdata['id'],
+                                                       states=[koji.TASK_STATES['SCHEDULED']])
+        with self.session.multicall() as m:
+            tasks = [m.getTaskInfo(task['task_id']) for task in scheduled]
+
+        taken = False
+        for task in tasks:
+            self.ready = self.readyForTask()
+            if not self.ready:
+                self.logger.info("Not ready for task")
+                break
+            task = task.result
+            # last check - it should be already filtered by updateHost
+            if task['method'] not in self.handlers:
+                self.logger.warning("Skipping task %(id)i, no handler for method %(method)s", task)
+            if task['id'] in self.tasks:
+                # we were running this task, but it apparently has been
+                # freed or reassigned. We can't do anything with it until
+                # updateTasks notices this and cleans up.
+                self.logger.debug("Task %(id)s freed or reassigned", task)
+            self.takeTask(task)
+        return taken
 
     def _waitTask(self, task_id, pid=None):
         """Wait (nohang) on the task, return true if finished"""
