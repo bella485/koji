@@ -34,6 +34,10 @@ class HostHashTable(object):
         if hostinfo['task_load'] == 0:
             # TODO: better heuristic?
             hostinfo['priority'] += 100
+        # TODO: one query for all hosts
+        query = QueryProcessor(tables=['task'], clauses=['host_id = %(host_id)i'],
+                               values={'host_id': host_id}, opts={'countOnly': True})
+        hostinfo['tasks'] = query.executeOne()
 
         self.hosts[host_id] = hostinfo
         self.host_ids.add(host_id)
@@ -139,19 +143,21 @@ def get_ready_hosts():
     """
     query = QueryProcessor(
         tables=['host'],
-        columns=['host.id', 'name', 'arches', 'task_load', 'capacity'],
-        aliases=['id', 'name', 'arches', 'task_load', 'capacity'],
+        columns=['host.id', 'name', 'arches', 'task_load', 'capacity', 'data'],
+        aliases=['id', 'name', 'arches', 'task_load', 'capacity', 'data'],
         clauses=[
             'enabled IS TRUE',
             'ready IS TRUE',
             'expired IS FALSE',
             'master IS NULL',
             'active IS TRUE',
-            "update_time > NOW() - '5 minutes'::interval"
+            "update_time > NOW() - '5 minutes'::interval",
+            'capacity > task_load',
         ],
         joins=[
             'sessions USING (user_id)',
-            'host_config ON host.id = host_config.host_id'
+            'host_config ON host.id = host_config.host_id',
+            'scheduler_host_data ON host.id = scheduler_host_data.host_id',
         ]
     )
     hosts = query.execute()
@@ -240,7 +246,7 @@ def schedule(task_id=None):
         )
     tasks = list(query.execute())
 
-    # assign them to random builders fulfiling criteria in priority order
+    # assign them to builders fulfiling criteria in priority order
     runs = []
     for task in tasks:
         host = hosts.get(task)
