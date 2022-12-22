@@ -110,7 +110,19 @@ def get_task_runs(taskID=None, hostID=None, states=None):
     :returns list[dict]: list of dicts
     """
 
-    columns = ['id', 'task_id', 'host_id', 'state', 'create_time', 'start_time', 'end_time']
+    fields = (
+        ('id', 'id'),
+        ('task_id', 'task_id'),
+        ('host_id', 'host_id'),
+        ('state', 'state'),
+        ('create_time', 'create_time'),
+        ("date_part('epoch', create_time)", 'create_ts'),
+        ('start_time', 'start_time'),
+        ("date_part('epoch', start_time)", 'start_ts'),
+        ('end_time', 'end_time'),
+        ("date_part('epoch', end_time)", 'end_ts'),
+    )
+    columns, aliases = zip(*fields)
     clauses = []
     if taskID is not None:
         clauses.append('task_id = %(taskID)i')
@@ -120,7 +132,7 @@ def get_task_runs(taskID=None, hostID=None, states=None):
         clauses.append('state IN %(states)s')
 
     query = QueryProcessor(
-        tables=['scheduler_task_runs'], columns=columns,
+        tables=['scheduler_task_runs'], columns=columns, aliases=aliases,
         clauses=clauses, values=locals(), opts={'order': 'id'},
     )
     return query.execute()
@@ -286,6 +298,7 @@ class SchedulerExports():
             ('task_id', 'task_id'),
             ('host_id', 'host_id'),
             ('msg_time', 'msg_time'),
+            ("date_part('epoch', msg_time)", 'msg_ts'),
             ('logger_name', 'logger_name'),
             ('level', 'level'),
             ('location', 'location'),

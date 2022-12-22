@@ -22,6 +22,11 @@ import six
 import six.moves.xmlrpc_client
 from six.moves import filter, map, range, zip
 
+from rich.console import Console
+from rich.style import Style
+from rich.table import Table, Column
+from rich.theme import Theme
+
 import koji
 from koji.util import base64encode, md5_constructor, to_list
 from koji_cli.lib import (
@@ -7774,6 +7779,7 @@ def anon_handle_scheduler_info(goptions, session, args):
 
     # get the data
     runs = session.scheduler.getTaskRuns(taskID=options.task, hostID=host_id, states=states)
+    '''
     mask = '%(task_id)s\t%(host_id)s\t%(state)s\t%(create_time)s\t%(start_time)s\t%(end_time)s'
     if not goptions.quiet:
         header = mask % {
@@ -7789,6 +7795,42 @@ def anon_handle_scheduler_info(goptions, session, args):
     for run in runs:
         run['state'] = koji.TASK_STATES[run['state']]
         print(mask % run)
+    '''
+
+    theme = Theme({
+        'free': Style(color="#00030c"),
+        'scheduled': Style(color="#00030c"),
+        'open': Style(color="#ff8c00"),
+        'closed': Style(color="#008000"),
+        'assigned': Style(color="#000c0f"),
+        'canceled': Style(color="#000c90"),
+        'failed': Style(color="#ff0000"),
+    })
+
+    table = Table(
+        Column("Task", justify="right"),
+        "Host",
+        "State",
+        "Created",
+        "Started",
+        "Ended",
+    )
+    for run in runs:
+        run['state'] = koji.TASK_STATES[run['state']]
+        for ts in ('create_ts', 'start_ts', 'end_ts'):
+            if run[ts] is not None:
+                run[ts] = time.asctime(time.localtime(run[ts]))
+            else:
+                run[ts] = ''
+        table.add_row(
+            str(run["task_id"]),
+            str(run["host_id"]),
+            f'[{run["state"].lower()}]{run["state"]}[/{run["state"].lower()}]',
+            run["create_ts"],
+            run["start_ts"],
+            run["end_ts"])
+    Console(theme=theme).print(table)
+    #print(datetime.fromtimestamp(run['create_time']).isoformat(' '))
 
     if host_id:
         print('Host data for %s:' % options.host)
@@ -7838,6 +7880,7 @@ def handle_scheduler_logs(goptions, session, args):
 
     logs = session.scheduler.getLogs(**kwargs)
 
+    """
     mask = ("%(task_id)s\t%(host_name)s\t%(msg_time)s\t%(logger_name)s"
             "\t%(level)s\t%(location)s\t%(msg)s")
     if not goptions.quiet:
@@ -7856,3 +7899,33 @@ def handle_scheduler_logs(goptions, session, args):
     for log in logs:
         print(mask % log)
 
+    """
+    table = Table(
+        "Time",
+        Column("Task", justify="right"),
+        "Host",
+        "Logger",
+        "Level",
+        "Location",
+        "Message",
+    )
+    for log in logs:
+        if log['task_id']:
+            log['task_id'] = str(log['task_id'])
+        else:
+            log['task_id'] = ''
+        if log['msg_ts']:
+            log['msg_ts'] = time.asctime(time.localtime(log['msg_ts']))
+        else:
+            log['msg_ts'] = ''
+        table.add_row(
+            log['msg_ts'],
+            str(log['task_id']),
+            log['host_name'],
+            log['logger_name'],
+            log['level'],
+            log['location'],
+            log['msg'],
+            style=f"logging.level.{log['level'].lower()}",
+        )
+    Console().print(table)

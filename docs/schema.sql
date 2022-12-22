@@ -977,7 +977,7 @@ CREATE TABLE scheduler_task_runs (
         task_id INTEGER REFERENCES task (id) NOT NULL,
         host_id INTEGER REFERENCES host (id) NOT NULL,
         state INTEGER NOT NULL,
-        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        create_time TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
         start_time TIMESTAMPTZ,
         end_time TIMESTAMPTZ
 ) WITHOUT OIDS;
