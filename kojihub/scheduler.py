@@ -308,10 +308,10 @@ class SchedulerExports():
         clauses = []
         values = {}
         if taskID is not None:
-            clauses.append("taskID = %(taskID)")
+            clauses.append("task_id = %(taskID)i")
             values['taskID'] = taskID
         if hostID is not None:
-            clauses.append("hostID = %(hostID)")
+            clauses.append("host_id = %(hostID)i")
             values['hostID'] = hostID
         if level is not None:
             clauses.append("level = %(level)s")
