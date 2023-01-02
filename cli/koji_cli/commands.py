@@ -7904,24 +7904,36 @@ def handle_scheduler_logs(goptions, session, args):
     table = Table(
         "Time",
         Column("Task", justify="right"),
+        "Method",
         "Host",
         "Logger",
         "Level",
         "Location",
         "Message",
     )
+    result = []
+    task_ids = set([log['task_id'] for log in logs if log['task_id']])
+    with session.multicall() as m:
+        for task_id in task_ids:
+            result.append(m.getTaskInfo(task_id))
+    tasks = {}
+    for task in result:
+        tinfo = task.result
+        tasks[str(tinfo['id'])] = tinfo
+
     for log in logs:
         if log['task_id']:
-            log['task_id'] = str(log['task_id'])
+            task = str(log['task_id'])
         else:
-            log['task_id'] = ''
+            task = ''
         if log['msg_ts']:
-            log['msg_ts'] = time.asctime(time.localtime(log['msg_ts']))
+            msg_ts = time.asctime(time.localtime(log['msg_ts']))
         else:
-            log['msg_ts'] = ''
+            msg_ts = ''
         table.add_row(
-            log['msg_ts'],
-            str(log['task_id']),
+            msg_ts,
+            task,
+            tasks.get(task, {}).get('method', ''),
             log['host_name'],
             log['logger_name'],
             log['level'],
