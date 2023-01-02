@@ -7760,6 +7760,8 @@ def anon_handle_scheduler_info(goptions, session, args):
                       help="Limit data to given builder (name/id)")
     parser.add_option("--state", action="store", type='str', default=None,
                       help="Limit data to task state")
+    parser.add_option("-c", "--children", action="store_true", default=False,
+                      help="If --task is given, also display its children")
     (options, args) = parser.parse_args(args)
     if len(args) > 0:
         parser.error("This command takes no arguments")
@@ -7778,8 +7780,19 @@ def anon_handle_scheduler_info(goptions, session, args):
     else:
         states = None
 
+    if options.children:
+        if not options.task:
+            parser.error("--children makes sense only with --task")
+        tasks = sorted([int(x) for x in session.getTaskDescendents(options.task).keys()])
+    else:
+        tasks = [options.task]
+
     # get the data
-    runs = session.scheduler.getTaskRuns(taskID=options.task, hostID=host_id, states=states)
+    result = []
+    with session.multicall() as m:
+        for task in tasks:
+            result.append(m.scheduler.getTaskRuns(taskID=task, hostID=host_id, states=states))
+    runs = itertools.chain(*[x.result for x in result])
     '''
     mask = '%(task_id)s\t%(host_id)s\t%(state)s\t%(create_time)s\t%(start_time)s\t%(end_time)s'
     if not goptions.quiet:
@@ -7815,9 +7828,19 @@ def anon_handle_scheduler_info(goptions, session, args):
         "Created",
         "Started",
         "Ended",
+        "Waited",
     )
     for run in runs:
         run['state'] = koji.TASK_STATES[run['state']]
+        if run['start_ts']:
+            diff = run['start_ts'] - run['create_ts']
+            s = diff % 60
+            diff = (diff - s) / 60
+            m = diff % 60
+            h = (diff - s) / 60
+            run['waited'] = '%02d:%02d:%02d' % (h, m, s)
+        else:
+            run['waited'] = ''
         for ts in ('create_ts', 'start_ts', 'end_ts'):
             if run[ts] is not None:
                 run[ts] = time.asctime(time.localtime(run[ts]))
@@ -7829,7 +7852,9 @@ def anon_handle_scheduler_info(goptions, session, args):
             f'[{run["state"].lower()}]{run["state"]}[/{run["state"].lower()}]',
             run["create_ts"],
             run["start_ts"],
-            run["end_ts"])
+            run["end_ts"],
+            str(run["waited"]),
+        )
     Console(theme=theme).print(table)
     #print(datetime.fromtimestamp(run['create_time']).isoformat(' '))
 

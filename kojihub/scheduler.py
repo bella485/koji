@@ -249,7 +249,7 @@ def clean_scheduler_queue():
         tables=['scheduler_task_runs'],
         columns=['id'],
         clauses=[
-            "create_time < NOW() + '5 minutes'::interval",
+            "create_time < NOW() - '5 minutes'::interval",
             "state = %(state)i",
         ],
         values={'state': koji.TASK_STATES['SCHEDULED']},
