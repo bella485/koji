@@ -86,6 +86,9 @@ class HostHashTable(object):
                     f"Higher weight {task_weight} than available capacity {hostinfo['capacity']}",
                     task_id=task['id'], host_id=host_id)
                 continue
+            if hostinfo['data']['maxjobs'] < 1:
+                dblogger.debug("Host has no free job slot", task_id=task['id'], host_id=host_id)
+                continue
             hosts.append(hostinfo)
 
         hosts = sorted(hosts, key=lambda x: -x['priority'])
@@ -94,7 +97,8 @@ class HostHashTable(object):
 
         host = hosts[0]
         # TODO: reduce resources (reserved memory, cpus)
-        self.hosts[host['id']]['task_load'] += self.hosts[host['id']]['data']['methods'][task['method']]
+        host['task_load'] += host['data']['methods'][task['method']]
+        host['data']['maxjobs'] -= 1
         return host
 
 
