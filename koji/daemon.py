@@ -1020,10 +1020,13 @@ class TaskManager(object):
 
     def setHostData(self):
         """Report all runtime data to scheduler"""
+        methods = {}
+        for method in self.handlers:
+            methods[method] = self.handlers[method]._taskWeight
         hostdata = {
             'task_load': self.task_load,
             'ready': self.ready,
-            'methods': list(self.handlers.keys()),
+            'methods': methods,
             'maxjobs': self.options.maxjobs,
             # kernel
             # cpu_total

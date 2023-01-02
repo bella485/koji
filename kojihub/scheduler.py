@@ -20,6 +20,7 @@ class HostHashTable(object):
     def __init__(self, hosts=None):
         self.arches = {}
         self.channels = {}
+        self.methods = {}
         self.hosts = {}
         self.host_ids = set()
         if hosts is None:
@@ -36,6 +37,7 @@ class HostHashTable(object):
             # TODO: better heuristic?
             hostinfo['priority'] += 100
         # TODO: one query for all hosts
+        # TODO: add only hosts which checked in in last X minutes
         query = QueryProcessor(tables=['task'], clauses=['host_id = %(host_id)i'],
                                values={'host_id': host_id}, opts={'countOnly': True})
         hostinfo['tasks'] = query.executeOne()
@@ -46,27 +48,53 @@ class HostHashTable(object):
             self.arches.setdefault(arch, set()).add(host_id)
         for channel in hostinfo['channels']:
             self.channels.setdefault(channel, set()).add(host_id)
+        for method in hostinfo['data']['methods']:
+            self.methods.setdefault(method, set()).add(host_id)
+
+        # know about refused tasks
+        query = QueryProcessor(tables=['scheduler_task_runs'], columns=['task_id'],
+                               clauses=['host_id = %(host_id)i', 'state = %(state)i'],
+                               values={'host_id': host_id, 'state': koji.TASK_STATES['REFUSED']},
+                               opts={'asList': True})
+        self.hosts[host_id]['refused_tasks'] = set(query.execute())
 
     def get(self, task):
         # filter by requirements
         host_ids = set(self.host_ids)
+        # assigned task
+        if task['host_id']:
+            host_ids &= {task['host_id']}
+        # filter by architecture
         if task.get('arch') is not None:
             host_ids &= self.arches[task['arch']]
+        # filter by method
+        host_ids &= self.methods[task['method']]
+        # filter by channel
         if task.get('channel_id') is not None:
             host_ids &= self.channels[task['channel_id']]
 
-        # select best from filtered
-        hosts = [self.hosts[host_id] for host_id in host_ids]
+        # select best from filtered and remove hosts which already refused this task
+        hosts = []
+        for host_id in host_ids:
+            hostinfo = self.hosts[host_id]
+            if task['id'] in hostinfo['refused_tasks']:
+                dblogger.debug("Task already refused", task_id=task['id'], host_id=host_id)
+                continue
+            task_weight = hostinfo['data']['methods'][task['method']]
+            if task_weight > hostinfo['capacity'] - hostinfo['task_load']:
+                dblogger.debug(
+                    f"Higher weight {task_weight} than available capacity {hostinfo['capacity']}",
+                    task_id=task['id'], host_id=host_id)
+                continue
+            hosts.append(hostinfo)
+
         hosts = sorted(hosts, key=lambda x: -x['priority'])
         if not hosts:
             return None
 
         host = hosts[0]
-        # TODO: lower capacity by some heuritics
         # TODO: reduce resources (reserved memory, cpus)
-        # TODO: reduce capacity by ?, placeholder 1.5 as for buildArch,
-        # otherwise it is high chance that it could be overcomitted
-        self.hosts[host['id']]['task_load'] += 1.5
+        self.hosts[host['id']]['task_load'] += self.hosts[host['id']]['data']['methods'][task['method']]
         return host
 
 
@@ -95,7 +123,7 @@ def get_host_data(hostID=None):
         clauses=clauses,
         columns=columns,
         values=locals(),
-        opts={'order': 'id'}
+        opts={'order': 'host_id'}
     )
 
     return query.execute()
@@ -231,6 +259,10 @@ def clean_scheduler_queue():
 def schedule(task_id=None):
     """Run scheduler"""
 
+    # TODO: locking so, only one scheduler runs in a time
+    # TODO: don't run it too often (configurable)
+    # TODO: run only reasonably, now we trigger it on every updateHost + makeTask
+
     # stupid for now, just add new task to random builder
     logger.error("SCHEDULER RUN")
     hosts = HostHashTable()
@@ -239,7 +271,7 @@ def schedule(task_id=None):
         return
 
     # find unscheduled tasks
-    columns = ['id', 'arch', 'method', 'channel_id', 'priority']
+    columns = ['id', 'arch', 'method', 'channel_id', 'priority', 'host_id']
     if not task_id:
         clean_scheduler_queue()
         query = QueryProcessor(
