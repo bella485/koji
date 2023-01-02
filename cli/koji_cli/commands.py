@@ -26,6 +26,7 @@ from rich.console import Console
 from rich.style import Style
 from rich.table import Table, Column
 from rich.theme import Theme
+from rich import print
 
 import koji
 from koji.util import base64encode, md5_constructor, to_list
