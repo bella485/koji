@@ -56,7 +56,7 @@ class HostHashTable(object):
                                clauses=['host_id = %(host_id)i', 'state = %(state)i'],
                                values={'host_id': host_id, 'state': koji.TASK_STATES['REFUSED']},
                                opts={'asList': True})
-        self.hosts[host_id]['refused_tasks'] = set(query.execute())
+        self.hosts[host_id]['refused_tasks'] = set([x[0] for x in query.execute()])
 
     def get(self, task):
         # filter by requirements
@@ -96,7 +96,7 @@ class HostHashTable(object):
             return None
 
         host = hosts[0]
-        # TODO: reduce resources (reserved memory, cpus)
+        # reduce resources (reserved memory, cpus)
         host['task_load'] += host['data']['methods'][task['method']]
         host['data']['maxjobs'] -= 1
         return host
