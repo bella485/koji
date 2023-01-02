@@ -23,6 +23,7 @@ class HostHashTable(object):
         self.methods = {}
         self.hosts = {}
         self.host_ids = set()
+        self.old_hosts = set()
         if hosts is None:
             hosts = get_ready_hosts()
         for hostinfo in hosts:
@@ -48,8 +49,11 @@ class HostHashTable(object):
             self.arches.setdefault(arch, set()).add(host_id)
         for channel in hostinfo['channels']:
             self.channels.setdefault(channel, set()).add(host_id)
-        for method in hostinfo['data']['methods']:
-            self.methods.setdefault(method, set()).add(host_id)
+        if not hostinfo['data']:
+            self.old_hosts.add(host_id)
+        else:
+            for method in hostinfo['data']['methods']:
+                self.methods.setdefault(method, set()).add(host_id)
 
         # know about refused tasks
         query = QueryProcessor(tables=['scheduler_task_runs'], columns=['task_id'],
@@ -66,27 +70,30 @@ class HostHashTable(object):
             host_ids &= {task['host_id']}
         # filter by architecture
         if task.get('arch') is not None:
-            host_ids &= self.arches[task['arch']]
-        # filter by method
-        host_ids &= self.methods[task['method']]
+            host_ids &= self.arches.get(task['arch'], set())
+        # filter by method (unknown for old builders)
+        host_ids &= self.methods.get(task['method'], set()) | self.old_hosts
         # filter by channel
         if task.get('channel_id') is not None:
-            host_ids &= self.channels[task['channel_id']]
+            host_ids &= self.channels.get(task['channel_id'], set())
 
         # select best from filtered and remove hosts which already refused this task
         hosts = []
+        # for old builder just heurstic of 1.5
+        task_weight = 1.5
         for host_id in host_ids:
             hostinfo = self.hosts[host_id]
             if task['id'] in hostinfo['refused_tasks']:
                 dblogger.debug("Task already refused", task_id=task['id'], host_id=host_id)
                 continue
-            task_weight = hostinfo['data']['methods'][task['method']]
+            if host_id not in self.old_hosts:
+                task_weight = hostinfo['data']['methods'][task['method']]
             if task_weight > hostinfo['capacity'] - hostinfo['task_load']:
                 dblogger.debug(
                     f"Higher weight {task_weight} than available capacity {hostinfo['capacity']}",
                     task_id=task['id'], host_id=host_id)
                 continue
-            if hostinfo['data']['maxjobs'] < 1:
+            if host_id not in self.old_hosts and hostinfo['data']['maxjobs'] < 1:
                 dblogger.debug("Host has no free job slot", task_id=task['id'], host_id=host_id)
                 continue
             hosts.append(hostinfo)
@@ -97,8 +104,9 @@ class HostHashTable(object):
 
         host = hosts[0]
         # reduce resources (reserved memory, cpus)
-        host['task_load'] += host['data']['methods'][task['method']]
-        host['data']['maxjobs'] -= 1
+        host['task_load'] += task_weight
+        if host['id'] not in self.old_hosts:
+            host['data']['maxjobs'] -= 1
         return host
 
 
@@ -202,7 +210,7 @@ def get_ready_hosts():
         joins=[
             'sessions USING (user_id)',
             'host_config ON host.id = host_config.host_id',
-            'scheduler_host_data ON host.id = scheduler_host_data.host_id',
+            'LEFT JOIN scheduler_host_data ON host.id = scheduler_host_data.host_id',
         ]
     )
     hosts = query.execute()
@@ -272,6 +280,7 @@ def schedule(task_id=None):
     hosts = HostHashTable()
     if not hosts.hosts:
         # early fail if there is nothing available
+        dblogger.debug("Hosts not found")
         return
 
     # find unscheduled tasks
@@ -365,7 +374,7 @@ class SchedulerExports():
         columns, aliases = zip(*fields)
         query = QueryProcessor(tables=['scheduler_log_messages'],
                                columns=columns, aliases=aliases,
-                               joins=['host ON host_id = host.id'],
+                               joins=['LEFT JOIN host ON host_id = host.id'],
                                clauses=clauses, values=values,
                                opts={'order': 'msg_time'})
         return query.execute()

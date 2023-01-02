@@ -14057,15 +14057,24 @@ class Host(object):
     def getLoadData(self):
         """Get load balancing data
 
-        This data is relatively small and the necessary load analysis is
-        relatively complex, so we let the host machines crunch it."""
+        Compatibility version for older builders.
+        """
         host = get_host(self.id)
         query = QueryProcessor(tables=['host_channels'], columns=['channel_id'],
                                clauses=['host_id = %(id)s', 'active IS TRUE'],
                                values={'id': self.id},
                                opts={'asList': True})
         host['channels'] = [x[0] for x in query.execute()]
-        tasks = scheduler.get_task_runs(hostID=self.id)
+        task_runs = scheduler.get_task_runs(hostID=self.id, states=[koji.TASK_STATES['ASSIGNED'],
+                                                                    koji.TASK_STATES['SCHEDULED']])
+        if task_runs:
+            query = QueryProcessor(tables=['task'], clauses=['id = %(id)s'],
+                                   columns=['id', 'state', 'channel_id', 'host_id', 'arch',
+                                            'method', 'priority', 'create_time'],
+                                   values={'id': task_runs[0]['task_id']})
+            tasks = query.execute()
+        else:
+            tasks = []
         return [[host], tasks]
 
     def getTask(self):

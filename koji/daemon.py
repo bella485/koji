@@ -1024,8 +1024,8 @@ class TaskManager(object):
         for method in self.handlers:
             methods[method] = self.handlers[method]._taskWeight
         hostdata = {
-            'task_load': self.task_load,
-            'ready': self.ready,
+            # 'task_load': self.task_load,
+            # 'ready': self.ready,
             'methods': methods,
             'maxjobs': self.options.maxjobs,
             # kernel
