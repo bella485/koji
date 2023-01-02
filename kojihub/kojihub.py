@@ -404,8 +404,11 @@ class Task(object):
                                  data={'result': info['result'], 'state': state},
                                  rawdata={'completion_time': 'NOW()'})
         update.execute()
-        update = UpdateProcessor('scheduler_task_runs',
-                                 clauses=['task_id = %(task_id)i', 'host_id = %(host_id)i'],
+        update = UpdateProcessor(table='scheduler_task_runs',
+                                 clauses=[
+                                     'id = (SELECT MAX(id) FROM scheduler_task_runs '
+                                     'WHERE task_id = %(task_id)i AND host_id = %(host_id)i)',
+                                 ],
                                  data={'state': state},
                                  rawdata={'end_time': 'NOW()'},
                                  values={'task_id': self.id, 'host_id': info['host_id']})
