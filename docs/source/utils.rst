@@ -154,6 +154,24 @@ GC runs all of the following actions (if they are not overriden via
      unknown key. (Note, that you can always remove trashcan tag
      from any build - it is normal tag as any other)
 
+``work``
+     Prunes work directory files not touched for given period of
+     time. It will be mostly scratch builds and failed tasks.
+     There are two limits in config's ``work`` section.
+     ``partial_limit`` which deletes most of the content except
+     symlinks and directories. ``limit`` is for final removal. All
+     values are in seconds.
+
+``scratch``
+     Deleting ``/mnt/koji/scratch`` content and symlinks pointing
+     to work directory. Behaviour is driven by ``prune_limit``
+     config option (in ``scratch`` section) which gives the top
+     limit for deletion of content. ``partial_prune_limit`` holds
+     for first deletion round of files not covered by
+     ``partial_prune_list`` glob mask. Finally,
+     ``empty_userdir_limit`` handles deleting empty directories.
+     All values are in seconds.
+
 Prune Policy
 ............
 

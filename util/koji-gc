@@ -7,8 +7,10 @@
 #       Mike McLean <mikem@redhat.com>
 
 import datetime
+import errno
 import fcntl
 import fnmatch
+import glob
 import optparse
 import os
 import pprint
@@ -23,7 +25,9 @@ import requests
 
 import koji
 import koji.policy
-from koji.util import LazyDict, LazyValue, to_list
+from koji.util import LazyDict, LazyValue, to_list, rmtree, multi_fnmatch
+
+ACTIONS = ('prune', 'trash', 'delete', 'salvage', 'work', 'scratch')
 
 
 def get_options():
@@ -68,7 +72,7 @@ def get_options():
                       action="append", metavar="EMAIL_ADDRESS")
     parser.add_option("--email-template", default="/etc/koji-gc/email.tpl",
                       help="notification template")
-    parser.add_option("--action", help="action(s) to take")
+    parser.add_option("--action", help=f"action(s) to take: {', '.join(ACTIONS)}", choices=ACTIONS)
     parser.add_option("--delay", metavar="INTERVAL", default='5 days',
                       help="time before eligible builds are placed in trashcan")
     parser.add_option("--grace-period", default='4 weeks', metavar="INTERVAL",
@@ -143,6 +147,7 @@ def get_options():
         ['timeout', None, 'integer'],
         ['lock_file', None, 'string'],
         ['exit_on_lock', None, 'boolean'],
+        ['topdir', None, 'string'],
     ]
     for name, alias, type in cfgmap:
         if alias is None:
@@ -166,13 +171,12 @@ def get_options():
     options.config = config
 
     # figure out actions
-    actions = ('prune', 'trash', 'delete', 'salvage')
     if options.action:
         if not isinstance(options.action, str):
             raise koji.ParameterError('Invalid type of action: %s' % type(options.action))
         options.action = options.action.lower().replace(',', ' ').split()
         for x in options.action:
-            if x not in actions:
+            if x not in ACTIONS:
                 parser.error("Invalid action: %s" % x)
     else:
         options.action = ('delete', 'prune', 'trash')
@@ -1041,6 +1045,173 @@ def handle_prune():
                     print("Warning: deletion failed: %s" % e)
                     # server issue
                     pass
+
+
+def delete_file_or_dir(fpath, dir=False):
+    if options.test:
+        print(f'Would have deleted {fpath}')
+    else:
+        if options.debug:
+            print(f'Deleting {fpath}')
+        if dir:
+            os.rmdir(fpath)
+        else:
+            os.unlink(fpath)
+
+
+def handle_scratch():
+    """Cleanup of scratch directory
+
+    config options:
+    - prune_limit
+    - partial_prune_list
+    - partial_prune_limit
+    - empty_userdir_limit
+    """
+    scratch_dir = koji.PathInfo(topdir=options.topdir).scratch()
+    if not os.access(scratch_dir, os.R_OK | os.W_OK | os.X_OK):
+        raise koji.ConfigurationError(
+            f"Can't have RW access to scratch dir {scratch_dir}")
+
+    now = time.time()
+    if options.config.has_option('scratch', 'prune_limit'):
+        prune_limit = now - int(options.config.get('scratch', 'prune_limit'))
+    else:
+        prune_limit = now - 21 * 24 * 60 * 60
+    if options.config.has_option('scratch', 'partial_prune_limit'):
+        partial_prune_limit = now - int(options.config.get('scratch', 'partial_prune_limit'))
+    else:
+        partial_prune_limit = now - 14 * 24 * 60 * 60
+    if options.config.has_option('scratch', 'empty_userdir_limit'):
+        empty_userdir_limit = now - int(options.config.get('scratch', 'empty_userdir_limit'))
+    else:
+        empty_userdir_limit = now - 24 * 60 * 60
+    if options.config.has_option('scratch', 'prune_limit'):
+        prune_limit = now - int(options.config.get('scratch', 'prune_limit'))
+    else:
+        prune_limit = now - 21 * 24 * 60 * 60
+    if options.config.has_option('scratch', 'partial_prune_list'):
+        partial_prune_list = options.config.get('scratch', 'partial_prune_list').split()
+    else:
+        partial_prune_list = ['*.src.rpm', '*.log', '*.pom']
+
+    # we completely remove those that are old enough
+    # scratch directories are /mnt/brew/scratch/$username/task_$taskid/
+    # note that $username might contain a slash (e.g. host principals)
+    for userdir in os.listdir(scratch_dir):
+        fuserdir = os.path.join(scratch_dir, userdir)
+        empty_userdir = True
+        for taskdir in os.listdir(fuserdir):
+            empty_userdir = False
+            if not taskdir.startswith('task_'):
+                # skip anything not produced by kojid
+                pass
+            ftaskdir = os.path.join(fuserdir, taskdir)
+            mtime = os.path.getmtime(ftaskdir)
+            if mtime < prune_limit:
+                # delete old task directories
+                rmtree(ftaskdir)
+            elif mtime < partial_prune_limit:
+                # delete most of the content except srpms, logs, ...
+                for root, _, files in os.walk(ftaskdir):
+                    for f in [f for f in files if multi_fnmatch(f, partial_prune_list)]:
+                        fpath = os.path.join(root, f)
+                        if os.path.getmtime(fpath) < partial_prune_limit:
+                            delete_file_or_dir(fpath)
+        # remove userdir if it is empty for some time
+        if empty_userdir and os.path.getmtime(fuserdir) < empty_userdir_limit:
+            try:
+                delete_file_or_dir(fuserdir, dir=True)
+            except OSError as ex:
+                # there could be a race condition that some scratch build is being created
+                if ex.errno != errno.ENOTEMPTY:
+                    raise
+
+
+def delete_files(tasks_glob, limit, dev, rm_files=True, rm_symlinks=False, rm_dirs=False):
+    for taskdir in glob.glob(tasks_glob):
+        for root, dirs, files in os.walk(taskdir):
+            # time check is based on task directory, not on files inside
+            stat = os.lstat(root)
+            if stat.st_mtime > limit:
+                continue
+            if rm_files:
+                for file in files:
+                    fpath = os.path.join(root, file)
+                    if not rm_symlinks and os.path.islink(fpath):
+                        continue
+                    stat = os.lstat(fpath)
+                    if stat.st_dev != dev:
+                        continue
+                    delete_file_or_dir(fpath)
+            if rm_dirs:
+                for dir in dirs:
+                    print(dir)
+                    fpath = os.path.join(root, dir)
+                    stat = os.lstat(fpath)
+                    if stat.st_dev != dev:
+                        continue
+                    delete_file_or_dir(fpath, dir=True)
+
+
+def handle_work():
+    """Cleanup of work directory
+
+    never traverse to another device
+
+    config:
+    limit - after this time all files get removed
+    partial_limit - symlinks and directories stays, everything else is deleted
+    """
+    work_dir = koji.PathInfo(topdir=options.topdir).work()
+    if not os.access(work_dir, os.R_OK | os.W_OK | os.X_OK):
+        raise koji.ConfigurationError(
+            f"Can't have RW access to work dir {work_dir}")
+
+    # get options
+    now = time.time()
+    if options.config.has_option('work', 'limit'):
+        limit = now - int(options.config.get('work', 'limit'))
+    else:
+        limit = now - 21 * 24 * 60 * 60
+    if options.config.has_option('work', 'partial_limit'):
+        partial_limit = now - int(options.config.get('work', 'partial_limit'))
+    else:
+        partial_limit = now - 7 * 24 * 60 * 60
+
+    tasks_dir = os.path.join(work_dir, 'tasks')
+    dev = os.stat(tasks_dir).st_dev
+    tasks_glob = f'{tasks_dir}/*/*'
+    # 1) for tasks, remove old stuff which is not symlink/dir in shorter time
+    delete_files(tasks_glob, partial_limit, dev)
+
+    # 2) for tasks, try to remove as a unit on final date
+    delete_files(tasks_glob, limit, dev, rm_symlinks=True)
+    delete_files(tasks_glob, limit, dev, rm_dirs=True)
+
+    # 3) for anything else just remove old stuff
+    # but don't remove the top level dirs (e.g. cli-build)
+    for root, dirs, files in os.walk(f'{work_dir}/*', topdown=False):
+        if root == tasks_dir:
+            # ignore tasks directory handled above
+            continue
+        for file in files:
+            # remove all partial_limit old files
+            fpath = os.path.join(root, file)
+            stat = os.stat(fpath)
+            if stat.st_dev != dev:
+                continue
+            if stat.st_mtime > partial_limit:
+                continue
+            delete_file_or_dir(fpath)
+        if root != work_dir:
+            # leave top-level directories (e.g. /mnt/koji/work/cli-build)
+            for dir in dirs:
+                # remove all empty directories
+                fpath = os.path.join(root, dir)
+                if os.listdir(fpath):
+                    continue
+                delete_file_or_dir(fpath, dir=True)
 
 
 if __name__ == "__main__":
