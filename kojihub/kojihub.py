@@ -12599,6 +12599,8 @@ class RootExports(object):
         if perm['name'] not in koji.auth.get_user_perms(user_id):
             raise koji.GenericError('user %s does not have permission: %s' %
                                     (userinfo, perm['name']))
+        if (user_id == self.getLoggedInUser()['id']) and permission == 'admin':
+            raise koji.GenericError('Admin user cannot revoke admin permission by self')
         update = UpdateProcessor('user_perms', values=locals(),
                                  clauses=["user_id = %(user_id)i", "perm_id = %(perm_id)i"])
         update.make_revoke()
