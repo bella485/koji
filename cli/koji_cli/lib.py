@@ -12,6 +12,7 @@ import sys
 import time
 from contextlib import closing
 from copy import copy
+from datetime import datetime
 
 import requests
 import six
@@ -607,6 +608,12 @@ def download_file(url, relpath, quiet=False, noprogress=False, size=None,
                     _download_progress(length, pos, filesize)
             if not length and not (quiet or noprogress):
                 _download_progress(pos, pos, filesize)
+            last_modified = response.headers.get('last-modified')
+            if last_modified:
+                last_modified_pattern = "%a, %d %b %Y %H:%M:%S %Z"
+                mtime = int(datetime.strptime(last_modified, last_modified_pattern).timestamp())
+                if mtime:
+                    os.utime(relpath, (os.stat(relpath).st_atime, mtime))
     finally:
         f.close()
         if pos == 0:
