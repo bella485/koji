@@ -32,8 +32,9 @@ from configparser import ConfigParser, RawConfigParser
 from optparse import Values
 from datetime import datetime
 from typing import (
-    Any, Dict, List, Optional, Tuple, TypeAlias, TypedDict, Union, Set,
-    Callable, Self, Collection, Sequence, IO, Generator, Iterable
+    Any, Callable, Collection, Dict, Generator, IO, Iterable, List,
+    Optional, Self, Sequence, Set, Tuple, TypeAlias, TypedDict,
+    Union, overload
 )
 from xmlrpc.client import DateTime
 
@@ -1834,12 +1835,22 @@ class ClientSession:
             incl_blocked: bool = False) -> _TagGroups:
         ...
 
+    @overload
     def getTaskInfo(
             self,
-            task_id: Union[int, List[int]],
+            task_id: int,
             request: bool = False,
-            strict: bool = False) -> Union[_TaskInfo, _TaskInfos]:
+            strict: bool = False) -> _TaskInfo:
         ...
+
+    @overload
+    def getTaskInfo(
+            self,
+            task_id: List[int],
+            request: bool = False,
+            strict: bool = False) -> _TaskInfos:
+        ...
+
 
     def getTaskChildren(
             self,
