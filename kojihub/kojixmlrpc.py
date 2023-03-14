@@ -560,14 +560,6 @@ _default_policies = {
     'build_rpm': '''
             all :: allow
             ''',
-    'build_from_srpm': '''
-            has_perm admin :: allow
-            all :: deny Only admin can do this via default policy
-            ''',
-    'build_from_repo_id': '''
-            has_perm admin :: allow
-            all :: deny Only admin can do this via default policy
-            ''',
     'build_from_scm': '''
             has_perm admin :: allow
             # match scm_type CVS CVS+SSH && match scm_host scm.example.com && match scm_repository /cvs/example :: allow

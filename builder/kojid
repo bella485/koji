@@ -1046,13 +1046,6 @@ class BuildTask(BaseTaskHandler):
             policy_data['target'] = target_info['name']
         if not self.opts.get('skip_tag'):
             policy_data['tag'] = dest_tag  # id
-        # backward-compatible deprecated policies (TODO: remove in 1.33)
-        if not SCM.is_scm_url(src) and not opts.get('scratch'):
-            # let hub policy decide
-            self.session.host.assertPolicy('build_from_srpm', policy_data)
-        if opts.get('repo_id') is not None:
-            # use of this option is governed by policy
-            self.session.host.assertPolicy('build_from_repo_id', policy_data)
         self.session.host.assertPolicy('build_rpm', policy_data)
         if not repo_info:
             repo_info = self.getRepo(build_tag, builds=opts.get('wait_builds'),

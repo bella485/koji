@@ -131,11 +131,7 @@ Available policies
 The system currently looks for the following policies
 
 * ``tag``: checked during tag/untag/move operations
-* ``build_from_srpm``: checked when a build from srpm (not an SCM reference) is
-  requested.
 * ``build_from_scm``: checked when a build task from SCM is executing on builder
-* ``build_from_repo_id``: checked when a build from a specified repo id is
-  requested
 * ``package_list``: checked when the package list for a tag is modified
 * ``channel``: consulted when a task is created
 * ``cg_import``: consulted during content generator imports

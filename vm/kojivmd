@@ -400,7 +400,6 @@ class WinBuildTask(MultiPlatformTask):
             }
             if not opts.get('skip_tag'):
                 policy_data['tag'] = dest_tag['id']
-            self.session.host.assertPolicy('build_from_repo_id', policy_data)
         else:
             repo_info = self.getRepo(build_tag['id'])
             repo_id = repo_info['id']
