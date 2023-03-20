@@ -68,7 +68,8 @@ setup(
         'koji_cli_plugins': 'plugins/cli',
     },
     package_data={
-        '': ['README.md'],
+        '': ['README.md', 'py.typed'],
+        'koji': ["*.pyi"],
     },
     # doesn't make sense, as we have only example config
     # data_files=[

@@ -5,10 +5,12 @@ PYSCRIPTS =
 SUBDIRS =
 PKGDIR = $(shell $(PYTHON) ../devtools/get_site_packages.py )/$(PACKAGE)
 
-ifeq ($(PYVER_MAJOR),2)
-	PYFILES=$(filter-out db.py,$(PYFILES_ALL))
+ifeq ($(PYVER_MAJOR), 2)
+	PYFILES=$(filter-out db.py, $(PYFILES_ALL))
+	PYIFILES=
 else
 	PYFILES=$(PYFILES_ALL)
+	PYIFILES=$(wildcard *.pyi)
 endif
 
 _default:
@@ -21,6 +23,9 @@ clean:
 install:
 	mkdir -p $(DESTDIR)/$(PKGDIR)
 	for p in $(PYFILES) ; do \
+		install -p -m 644 $$p $(DESTDIR)/$(PKGDIR)/$$p; \
+	done
+	for p in $(PYIFILES) ; do \
 		install -p -m 644 $$p $(DESTDIR)/$(PKGDIR)/$$p; \
 	done
 	for p in $(PYSCRIPTS) ; do \
