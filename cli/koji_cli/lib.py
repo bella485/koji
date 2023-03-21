@@ -142,16 +142,16 @@ def ensure_connection(session, options=None):
         activate_session(session, options)
         return
     try:
-        ret = session.getAPIVersion()
+        session.hub_version = session.getAPIVersion()
     except requests.exceptions.ConnectionError as ex:
         warn("Error: Unable to connect to server")
         if options and getattr(options, 'debug', False):
             error(str(ex))
         else:
             error()
-    if ret != koji.API_VERSION:
+    if session.hub_version != koji.API_VERSION:
         warn("WARNING: The server is at API version %d and "
-             "the client is at %d" % (ret, koji.API_VERSION))
+             "the client is at %d" % (session.hub_version, koji.API_VERSION))
 
 
 def print_task_headers():
