@@ -23,12 +23,26 @@ class TestRawHeaderFields(unittest.TestCase):
 
             rh = koji.RawHeader(koji.rip_rpm_hdr(fn))
             hdr = koji.get_rpm_header(fn)
-
             for key in rh.index:
                 if key in (63, 1141):
                     continue
                 ours = rh.get(key, decode=True)
-                theirs = hdr[key]
+                if isinstance(hdr[key], bytes) and not isinstance(ours, bytes):
+                    if isinstance(ours, list):
+                        ours = ours[0].encode('utf-8')
+                    else:
+                        ours = ours.encode('utf-8')
+                    theirs = hdr[key]
+                else:
+                    if isinstance(hdr[key], list):
+                        theirs = []
+                        for i in hdr[key]:
+                            if isinstance(i, bytes):
+                                theirs.append(i.decode('utf-8'))
+                            else:
+                                theirs.append(i)
+                    else:
+                        theirs = hdr[key]
                 if type(ours) != type(theirs):
                     if isinstance(ours, list) and len(ours) == 1 and ours[0] == theirs:
                         # rpm is presenting as a scalar
