@@ -218,6 +218,23 @@ class CompareTest(BaseSimpleTest):
         return self.func(data[self.field], self.value)
 
 
+class FlaggedTest(BaseSimpleTest):
+    '''True if flag has been set by a flag action. False otherwise'''
+
+    name = 'flagged'
+
+    def __init__(self, str):
+        self.str = str
+        self.key = self.get_key(self.str.split()[1])
+
+    @staticmethod
+    def get_key(name):
+        return '__policyflag__%s' % name
+
+    def run(self, data):
+        return bool(data.get(self.key))
+
+
 class BaseAction(object):
     '''Abstract base class for actions'''
 
@@ -248,6 +265,20 @@ class StopAction(BaseAction):
 
     def __str__(self):
         return 'stop'
+
+
+class FlagAction(BaseAction):
+    '''Set a named flag
+
+    Named flags can be checked with the flag test
+    '''
+
+    def __init__(self, name):
+        self.name = name
+        self.key = FlaggedTest.get_key(name)
+
+    def __str__(self):
+        return 'flag %s' % self.name
 
 
 class SimpleRuleSet(object):
@@ -371,6 +402,9 @@ class SimpleRuleSet(object):
             if args:
                 raise koji.GenericError('Invalid stop action: %s' % action)
             return StopAction()
+        elif name == 'flag':
+            flagname = action.split()[1]
+            return FlagAction(flagname)
         else:
             return PolicyAction(action, name)
 
@@ -503,6 +537,8 @@ class RuleChecker(object):
                     if trace:
                         yield StopAction()
                     return
+                elif isinstance(action, FlagAction):
+                    self.data[action.key] = True
                 else:
                     self.logger.debug("matched: action=%s", action)
                     yield (action, next_trace)
