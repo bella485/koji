@@ -127,6 +127,7 @@ class TestDiscovery(unittest.TestCase):
             'none': koji.policy.NoneTest,
             'target': koji.policy.TargetTest,
             'true': koji.policy.TrueTest,
+            'flagged': koji.policy.FlaggedTest,
         }
         self.assertDictEqual(expected, actual)
 
@@ -427,6 +428,21 @@ all :: {
         policy = '''true :: stop that bus!'''
         with self.assertRaises(koji.GenericError):
             obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+
+    def test_flag_action(self):
+        tests = koji.policy.findSimpleTests(koji.policy.__dict__)
+        data = {}
+
+        policy = '''
+        true :: flag foo
+        false :: flag bar
+        flagged bar :: BAD
+        flagged foo :: OK
+        flagged baz :: BAD
+        '''
+        obj = koji.policy.SimpleRuleSet(policy.splitlines(), tests)
+        action = obj.apply(data)
+        self.assertEqual(action, 'OK')
 
     def test_complex_policy(self):
         tests = koji.policy.findSimpleTests(koji.policy.__dict__)
