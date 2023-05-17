@@ -42,6 +42,18 @@ import koji.util
 from koji_cli.commands import *  # noqa: F401, F403
 from koji_cli.lib import categories, get_epilog_str, greetings, warn
 
+try:
+    from otel_extensions import TelemetryOptions, init_telemetry_provider
+
+    # Configure OpenTelemetry tracing wrapper.
+    otel_options = TelemetryOptions(
+            OTEL_SERVICE_NAME="koji-cli",
+            OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318",
+            OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf",
+        )
+    init_telemetry_provider(otel_options)
+except ImportError:
+    print("Cannot import OpenTelemetry dependencies, skipping OpenTelemetry initialization")
 
 def register_plugin(plugin):
     """Scan a given plugin for handlers

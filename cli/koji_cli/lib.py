@@ -25,6 +25,12 @@ from koji import _  # noqa: F401
 from koji.util import md5_constructor, to_list
 from koji.xmlrpcplus import xmlrpc_client
 
+try:
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+    RequestsInstrumentor().instrument()
+except ImportError:
+    print("Cannot import RequestsInstrumentor, skipping 'requests' instrumentation")
 
 # for compatibility with plugins based on older version of lib
 # Use optparse imports directly in new code.
