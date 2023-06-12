@@ -275,7 +275,9 @@ class KiwiCreateImageTask(BaseBuildTask):
                     found = True
         if not found:
             raise koji.LiveCDError('No repos found in yum cache!')
-        return list(hdrlist.values())
+        # Sort on return deterministically (key is ~nevra) to not cause race conditions on import
+        return sorted(hdrlist.values(),
+                      key=lambda x: {x['name'], x['epoch'], x['version'], x['release'], x['arch']})
 
     def getImagePackages(self, result):
         """Proper handler for getting rpminfo from result list,
@@ -299,7 +301,9 @@ class KiwiCreateImageTask(BaseBuildTask):
                 'buildtime': 0,
             })
 
-        return hdrlist
+        # Sort on return deterministically (key is ~nevra) to not cause race conditions on import
+        return sorted(hdrlist,
+                      key=lambda x: {x['name'], x['epoch'], x['version'], x['release'], x['arch']})
 
     def handler(self, name, version, release, arch,
                 target_info, build_tag, repo_info,
