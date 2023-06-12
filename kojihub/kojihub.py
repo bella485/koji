@@ -7162,9 +7162,6 @@ def add_external_rpm(rpminfo, external_repo, strict=True):
 
     # [!] Calling function should perform access checks
 
-    # lock table because of concurrent inserts
-    _dml('LOCK TABLE rpminfo IN SHARE ROW EXCLUSIVE MODE', {})
-
     # sanity check rpminfo
     dtypes = (
         ('name', str),
@@ -7211,7 +7208,17 @@ def add_external_rpm(rpminfo, external_repo, strict=True):
     data['build_id'] = None
     data['buildroot_id'] = None
     insert = InsertProcessor('rpminfo', data=data)
-    insert.execute()
+    savepoint = Savepoint('pre_insert')
+    try:
+        insert.execute()
+    except Exception:
+        # if this failed, it likely duplicates one just inserted
+        # see: https://pagure.io/koji/issue/788
+        savepoint.rollback()
+        previous = check_dup()
+        if previous:
+            return previous
+        raise
 
     return get_rpm(data['id'])
 
