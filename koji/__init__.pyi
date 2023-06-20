@@ -15,10 +15,9 @@
 """
 Koji - type stubs
 
-Typing annotations stub for the parts of koji used by koji smoky
-dingo. In particular there are annotations for the virtual XMLRPC
-methods on the ClientSession class which should help check that the
-calls are being used correctly.
+Typing annotations stub for the parts of koji. In particular there
+are annotations for the virtual XMLRPC methods on the ClientSession
+class which should help check that the calls are being used correctly.
 
 :author: Christopher O'Brien <obriencj@gmail.com>
 :license: GPL v3
