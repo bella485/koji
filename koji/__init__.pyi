@@ -32,7 +32,7 @@ from configparser import ConfigParser, RawConfigParser
 from optparse import Values
 from datetime import datetime
 from typing import (
-    Any, Callable, Collection, Dict, Generator, IO, Iterable, List,
+    Any, Callable, Dict, Generator, IO, Iterable, List,
     Optional, Self, Sequence, Set, Tuple, TypeAlias, TypedDict,
     Union, overload
 )
@@ -124,8 +124,8 @@ class _ArchiveInfo(TypedDict):
     """ Only present on Image archives """
 
 
-_ArchiveInfos = Collection[_ArchiveInfo]
-""" An Collection of _ArchiveInfo dicts """
+_ArchiveInfos = List[_ArchiveInfo]
+""" An List of _ArchiveInfo dicts """
 
 
 class _ArchiveTypeInfo(TypedDict):
@@ -262,9 +262,9 @@ class _BuildInfo(TypedDict):
     """ only present in listTagged output"""
 
 
-_BuildInfos: TypeAlias = Collection[_BuildInfo]
+_BuildInfos: TypeAlias = List[_BuildInfo]
 """
-An Collection of _BuildInfo dicts
+An List of _BuildInfo dicts
 """
 
 
@@ -312,7 +312,7 @@ class _BuildrootInfo(TypedDict):
     workdir: str
 
 
-_BuildRootInfos: TypeAlias = Collection[_BuildrootInfo]
+_BuildRootInfos: TypeAlias = List[_BuildrootInfo]
 
 
 class _BuildTarget(TypedDict):
@@ -332,7 +332,7 @@ class _ChannelInfo(TypedDict):
     """ channel name """
 
 
-_ChannelInfos: TypeAlias = Collection[_ChannelInfo]
+_ChannelInfos: TypeAlias = List[_ChannelInfo]
 
 
 class _CGInfo(TypedDict):
@@ -361,7 +361,7 @@ class _ExternalRepo(TypedDict):
     url: str
 
 
-_ExternalRepos: TypeAlias = Collection[_ExternalRepo]
+_ExternalRepos: TypeAlias = List[_ExternalRepo]
 
 
 class _HostInfo(TypedDict):
@@ -563,7 +563,7 @@ class _RPMInfo(TypedDict):
     """ The RPM's version field """
 
 
-_RPMInfos = Collection[_RPMInfo]
+_RPMInfos = List[_RPMInfo]
 
 
 class _RPMSignature(TypedDict):
@@ -586,7 +586,7 @@ class _SearchResult(TypedDict):
     name: str
     """ result name """
 
-_SearchResults: TypeAlias = Collection[_SearchResult]
+_SearchResults: TypeAlias = List[_SearchResult]
 
 
 class _TagGroupPackage(TypedDict):
@@ -649,7 +649,7 @@ class _TagInfo(TypedDict):
     or None """
 
 
-_TagInfos = Collection[_TagInfo]
+_TagInfos = List[_TagInfo]
 
 
 class _TagInheritanceEntry(TypedDict):
@@ -708,7 +708,7 @@ class _TagInheritanceEntry(TypedDict):
     priorities are processed first. """
 
 
-_TagInheritance: TypeAlias = Collection[_TagInheritanceEntry]
+_TagInheritance: TypeAlias = List[_TagInheritanceEntry]
 """
 As returned by the ``getInheritanceData`` and
 ``getFullInheritance`` XMLRPC calls. A list of inheritance elements
@@ -772,7 +772,7 @@ class _TargetInfo(TypedDict):
     """ name of this build target """
 
 
-_TargetInfos = Collection[_TargetInfo]
+_TargetInfos = List[_TargetInfo]
 
 
 class _TaskInfo(TypedDict):
@@ -854,7 +854,7 @@ class _TaskInfo(TypedDict):
     function does set that parameter to True. """
 
 
-_TaskInfos: TypeAlias = Collection[_TaskInfo]
+_TaskInfos: TypeAlias = List[_TaskInfo]
 
 
 class _UserInfo(TypedDict):
@@ -889,7 +889,7 @@ class _UserInfo(TypedDict):
     """ type of the account """
 
 
-_UserInfos: TypeAlias = Collection[_UserInfo]
+_UserInfos: TypeAlias = List[_UserInfo]
 
 
 class _Volume(TypedDict):
@@ -897,7 +897,7 @@ class _Volume(TypedDict):
     name: str
 
 
-_Volumes: TypeAlias = Collection[_Volume]
+_Volumes: TypeAlias = List[_Volume]
 
 
 class _BuildReferences(TypedDict, total=False):
@@ -928,7 +928,7 @@ class _TagGroup(TypedDict):
     uservisible: bool
 
 
-_TagGroups: TypeAlias = Collection[_TagGroup]
+_TagGroups: TypeAlias = List[_TagGroup]
 
 
 # specs
@@ -1639,17 +1639,17 @@ class ClientSession:
     def getBuildNotification(
             self,
             id: int,
-            strict: bool = False) -> Collection[_StrDict]:
+            strict: bool = False) -> List[_StrDict]:
         ...
 
     def getBuildNotifications(
             self,
-            userID: Optional[int] = None) -> Collection[_StrDict]:
+            userID: Optional[int] = None) -> List[_StrDict]:
         ...
 
     def getBuildNotificationBlocks(
             self,
-            userID: Optional[int] = None) -> Collection[_StrDict]:
+            userID: Optional[int] = None) -> List[_StrDict]:
         ...
 
     def getBuildTarget(
@@ -2451,7 +2451,7 @@ class ClientSession:
     def getExternalRepoList(
             self,
             tag_info: _TagSpec,
-            event: Optional[int] = None) -> Collection[Dict]:
+            event: Optional[int] = None) -> List[Dict]:
         ...
 
     def createExternalRepo(
