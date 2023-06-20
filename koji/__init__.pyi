@@ -430,6 +430,16 @@ class _ListTaskOpts(TypedDict, total=False):
     completeAfter: Union[float, str]
 
 
+class _NVRInfo(TypedDict):
+    name: str
+    version: str
+    release: str
+
+
+class _NVRAInfo(_NVRInfo):
+    arch: str
+
+
 class _PackageInfo(TypedDict):
     """
     ``getPackage`` XMLRPC call.
@@ -1084,12 +1094,12 @@ class PathInfo:
 
     def build(
             self,
-            build: _BuildInfo) -> str:
+            build: _NVRInfo) -> str:
         ...
 
     def build_logs(
             self,
-            build: _BuildInfo) -> str:
+            build: _NVRInfo) -> str:
         ...
 
     def distrepo(
@@ -1101,12 +1111,12 @@ class PathInfo:
 
     def imagebuild(
             self,
-            build: _BuildInfo) -> str:
+            build: _NVRInfo) -> str:
         ...
 
     def mavenbuild(
             self,
-            build: _BuildInfo) -> str:
+            build: _NVRInfo) -> str:
         ...
 
     def mavenfile(
@@ -1132,7 +1142,7 @@ class PathInfo:
 
     def rpm(
             self,
-            rpminfo: _RPMInfo) -> str:
+            rpminfo: _NVRAInfo) -> str:
         ...
 
     def scratch(self) -> str:
@@ -1140,13 +1150,13 @@ class PathInfo:
 
     def sighdr(
             self,
-            rinfo: _RPMInfo,
+            rinfo: _NVRAInfo,
             sigkey: str) -> str:
         ...
 
     def signed(
             self,
-            rpminfo: _RPMInfo,
+            rpminfo: _NVRAInfo,
             sigkey: str) -> str:
         ...
 
@@ -1168,7 +1178,7 @@ class PathInfo:
 
     def typedir(
             self,
-            build: _BuildInfo,
+            build: _NVRInfo,
             btype: str) -> str:
         ...
 
@@ -1179,7 +1189,7 @@ class PathInfo:
 
     def winbuild(
             self,
-            build: _BuildInfo) -> str:
+            build: _NVRInfo) -> str:
         ...
 
     def winfile(
@@ -1318,7 +1328,7 @@ class ClientSession:
 
     def applyVolumePolicy(
             self,
-            build: _BuildInfo,
+            build: _BuildSpec,
             strict: bool = False) -> None:
         ...
 
