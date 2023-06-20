@@ -1,4 +1,4 @@
-from kojismokydingo.types import TaskInfo
+import optparse
 from typing import Any, Optional, List, Union, Dict, TypedDict
 
 
@@ -37,6 +37,29 @@ class _TagInfo(TypedDict):
     name: str
     perm: str
     perm_id: int
+
+
+class _TaskInfo(TypedDict):
+    arch: str
+    awaited: Union[bool, None]
+    channel_id: int
+    completion_time: str
+    completion_ts: float
+    create_time: str
+    create_ts: float
+    host_id: int
+    id: int
+    label: str
+    method: str
+    owner: int
+    parent: int
+    priority: int
+    start_time: str
+    start_ts: float
+    state: int
+    waiting: Union[bool, None]
+    weight: float
+    request: List[Any]
 
 
 def scan_mounts(topdir: str) -> List[str]:
@@ -88,7 +111,7 @@ class BaseTaskHandler:
             method: str,
             params: list,
             session: Any,
-            options: dict,
+            options: optparse.Values,
             workdir: Optional[str] = ...) -> None:
         ...
 
@@ -182,16 +205,16 @@ class BaseTaskHandler:
     def run_callbacks(
             self,
             plugin: str,
-            *args: list,
-            **kwargs: dict) -> None:
+            *args: Any,
+            **kwargs: Any) -> None:
         ...
 
     @property
-    def taskinfo(self) -> TaskInfo:
+    def taskinfo(self) -> _TaskInfo:
         ...
 
     @taskinfo.setter
-    def taskinfo(self, taskinfo: TaskInfo) -> None:
+    def taskinfo(self, taskinfo: _TaskInfo) -> None:
         ...
 
 

@@ -517,8 +517,7 @@ class _RepoInfo(TypedDict):
 class _RPMInfo(TypedDict):
     """
     Data representing a koji RPM. These are typically obtained via the
-    ``listRPMs`` XMLRPC call, or from the `kojismokydingo.as_rpminfo`
-    function
+    ``listRPMs`` XMLRPC call.
     """
 
     arch: str
@@ -622,8 +621,7 @@ class _TagGroupReq(TypedDict):
 class _TagInfo(TypedDict):
     """
     Data representing a koji tag. Typically obtained via the
-    ``getTag`` XMLRPC call, or the `kojismokydingo.as_taginfo` and
-    `kojismokydingo.bulk_load_tags` functions.
+    ``getTag`` XMLRPC call.
     """
 
     arches: str
@@ -759,8 +757,7 @@ class _TagPackageInfo(TypedDict):
 class _TargetInfo(TypedDict):
     """
     Data representing a koji build target. Typically obtained via the
-    ``getBuildTarget`` or ``getBuildTargets`` XMLRPC calls, or the
-    `kojismokydingo.as_targetinfo` function.
+    ``getBuildTarget`` or ``getBuildTargets`` XMLRPC calls.
     """
 
     build_tag: int
@@ -787,7 +784,7 @@ _TargetInfos = List[_TargetInfo]
 
 class _TaskInfo(TypedDict):
     """
-    ``getTaskInfo`` XMLRPC call or `kojismokydingo.as_taskinfo` function
+    ``getTaskInfo`` XMLRPC call
     """
 
     arch: str
@@ -870,8 +867,7 @@ _TaskInfos: TypeAlias = List[_TaskInfo]
 class _UserInfo(TypedDict):
     """
     Data representing a koji user account. These are typically
-    obtained via the ``getUser`` or ``getLoggedInUser`` XMLRPC calls,
-    or the ``kojismokydingo.as_userinfo`` function.
+    obtained via the ``getUser`` or ``getLoggedInUser`` XMLRPC calls.
     """
 
     authtype: int
@@ -1379,7 +1375,7 @@ class ClientSession:
 
     def buildReferences(
             self,
-            build: _BuildInfo,
+            build: _BuildSpec,
             limit: Optional[int] = None,
             lazy: bool = False) -> _BuildReferences:
         ...
@@ -1395,7 +1391,7 @@ class ClientSession:
 
     def chainMaven(
             self,
-            builds: _BuildInfos,
+            builds: _BuildSpecs,
             target: str,
             opts: _Options = None,
             priority: Optional[int] = None,
@@ -2623,7 +2619,7 @@ def genMockConfig(
 
 
 def buildLabel(
-        buildInfo: _BuildInfo,
+        buildInfo: _NVRInfo,
         showEpoch: bool = False) -> str:
     ...
 
