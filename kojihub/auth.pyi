@@ -5,7 +5,6 @@ from .db import (
     QueryProcessor as QueryProcessor,
     UpdateProcessor as UpdateProcessor,
     nextval as nextval)
-from _typeshed import Incomplete
 from typing import Any, Tuple, TypeAlias
 
 RetryWhitelist: list[str]
