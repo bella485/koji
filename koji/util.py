@@ -515,6 +515,10 @@ def _rmtree(dev, logger):
                 # For now, we ignore this and proceed, but we'll still fail at
                 # the top level rmdir
                 logger.error("Unable to remove directory %s: %s" % (empty_dir, e))
+                if e.errno == errno.ENOTEMPTY:
+                    # try to find what is there (it could be deleted meanwhile, so it could
+                    # be empty)
+                    logger.error("Found these entries: %s", ', '.join(os.listdir()))
                 pass
 
         if not dirs:
