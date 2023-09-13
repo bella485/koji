@@ -270,11 +270,14 @@ class BuildRoot(object):
         self.internal_dev_setup = internal_dev_setup
         self._writeMockConfig()
 
+    def getConfigPath(self):
+        configdir = '/etc/mock/koji'
+        return "%s/%s.cfg" % (configdir, self.name)
+
     def _writeMockConfig(self):
         # mock config
-        configdir = '/etc/mock/koji'
-        configfile = "%s/%s.cfg" % (configdir, self.name)
         self.mockcfg = "koji/%s" % self.name
+        configfile = self.getConfigPath()
 
         opts = {}
         for k in ('repoid', 'tag_name'):
@@ -1478,13 +1481,16 @@ class BuildArchTask(BaseBuildTask):
 
         # extract results
         resultdir = broot.resultdir()
+        # copy mock config there to be gathered as log file
+        shutil.copy(broot.getConfigPath(), resultdir)
+        self.logger.debug("Copied mock config %s to resultdir." % broot.getConfigPath())
         rpm_files = []
         srpm_files = []
         log_files = []
         unexpected = []
         for f in os.listdir(resultdir):
             # files here should have one of two extensions: .log and .rpm
-            if f[-4:] == ".log":
+            if f[-4:] in (".cfg", ".log"):
                 log_files.append(f)
             elif f[-8:] == ".src.rpm":
                 srpm_files.append(f)
@@ -1519,6 +1525,7 @@ class BuildArchTask(BaseBuildTask):
 
         # upload files to storage server
         uploadpath = broot.getUploadPath()
+        self.uploadFile(broot.getConfigPath())
         for f in rpm_files:
             self.uploadFile("%s/%s" % (resultdir, f))
         self.logger.debug("keep srpm %i %s %s" % (self.id, keep_srpm, opts))
