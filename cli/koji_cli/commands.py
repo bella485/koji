@@ -5242,7 +5242,7 @@ def handle_edit_tag_inheritance(goptions, session, args):
 
 def handle_remove_tag_inheritance(goptions, session, args):
     """[admin] Remove a tag inheritance link"""
-    usage = "usage: %prog remove-tag-inheritance <tag> <parent> <priority>"
+    usage = "usage: %prog remove-tag-inheritance <tag> <parent>"
     parser = OptionParser(usage=get_usage_str(usage))
     (options, args) = parser.parse_args(args)
 
@@ -6531,7 +6531,7 @@ def handle_make_task(goptions, session, args):
 
 def handle_tag_build(opts, session, args):
     "[bind] Apply a tag to one or more builds"
-    usage = "usage: %prog tag-build [options] <tag> <pkg> [<pkg> ...]"
+    usage = "usage: %prog tag-build [options] <tag> <n-v-r> [<n-v-r> ...]"
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--force", action="store_true", help="force operation")
     parser.add_option("--wait", action="store_true",
@@ -6609,7 +6609,7 @@ def handle_move_build(opts, session, args):
 
 def handle_untag_build(goptions, session, args):
     "[bind] Remove a tag from one or more builds"
-    usage = "usage: %prog untag-build [options] <tag> <pkg> [<pkg> ...]"
+    usage = "usage: %prog untag-build [options] <tag> <n-v-r> [<n-v-r> ...]"
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--all", action="store_true",
                       help="untag all versions of the package in this tag, pkg is package name")
