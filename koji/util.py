@@ -475,6 +475,10 @@ def rmtree(path, logger=None):
     try:
         os.rmdir(path)
     except OSError as e:
+        if e.errno == errno.ENOTEMPTY:
+            # try to find what is there (it could be deleted meanwhile, so it could
+            # be empty)
+            logger.error("Found these entries: %s", ', '.join(os.listdir(path)))
         if e.errno != errno.ENOENT:
             raise
 
@@ -518,7 +522,7 @@ def _rmtree(dev, logger):
                 if e.errno == errno.ENOTEMPTY:
                     # try to find what is there (it could be deleted meanwhile, so it could
                     # be empty)
-                    logger.error("Found these entries: %s", ', '.join(os.listdir()))
+                    logger.error("Found these entries: %s", ', '.join(os.listdir(empty_dir)))
                 pass
 
         if not dirs:
