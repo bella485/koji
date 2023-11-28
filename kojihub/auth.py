@@ -790,6 +790,13 @@ def get_user_perms(user_id):
     result = query.execute()
     return [r['name'] for r in result]
 
+def get_users_with_perm(perm_id):
+    query = QueryProcessor(tables=['user_perms'], columns=['name'],
+                           clauses=['active = TRUE', 'perm_id=%(perm_id)s'],
+                           joins=['users ON user_id = users.id'],
+                           values={'perm_id': perm_id})
+    result = query.execute()
+    return [r['name'] for r in result]
 
 def get_user_data(user_id):
     query = QueryProcessor(tables=['users'], columns=['name', 'status', 'usertype'],

@@ -74,7 +74,7 @@ from koji.util import (
     multi_fnmatch,
     safer_move,
 )
-from .auth import get_user_perms, get_user_groups
+from .auth import get_user_perms, get_user_groups, get_users_with_perm
 from .db import (  # noqa: F401
     BulkInsertProcessor,
     DeleteProcessor,
@@ -13389,6 +13389,13 @@ class RootExports(object):
                   permissions will be listed."""
         user_info = get_user(userID, strict=True)
         return get_user_perms(user_info['id'])
+
+    def getPermsUser(self, perm=None):
+        """Get a list of users with the given permission.
+        Options:
+        - perm: Permission name."""
+        perm_id = get_perm_id(perm)
+        return get_users_with_perm(perm_id)
 
     def getAllPerms(self):
         """Get a list of all permissions in the system.  Returns a list of maps.  Each

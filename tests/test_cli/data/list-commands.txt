@@ -115,6 +115,7 @@ info commands:
         list-targets              List the build targets
         list-tasks                Print the list of tasks
         list-untagged             List untagged builds
+        list-users                List users with a given permission
         list-volumes              List storage volumes
         mock-config               Create a mock config
         repoinfo                  Print basic information about a repo

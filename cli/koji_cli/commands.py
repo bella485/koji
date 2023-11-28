@@ -2154,6 +2154,29 @@ def anon_handle_list_volumes(goptions, session, args):
     for volinfo in session.listVolumes():
         print(volinfo['name'])
 
+def handle_list_users(goptions, session, args):
+    "[info] List of users with given a permission"
+    usage = "usage: %prog list-users [options]"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--perm", help="List users that have a given permission")
+    (options, args) = parser.parse_args(args)
+    if len(args) > 0:
+        parser.error("This command takes no arguments")
+    activate_session(session, goptions)
+    if not session.hasPerm('admin'):
+        parser.error("This action requires admin privileges")
+    users = []
+    if options.perm:
+        users_list = session.getPermsUser(options.perm)
+        if users_list:
+            for p in users_list:
+                users.append({'name': p})
+        else:
+            parser.error("No such permission: %s" % options.perm)
+    else:
+        parser.error("Please provide a permission with --perm")
+    for user in users:
+        print(user['name'])
 
 def handle_list_permissions(goptions, session, args):
     "[info] List user permissions"
