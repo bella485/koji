@@ -134,8 +134,11 @@ The system currently looks for the following policies
 * ``build_rpm``: control whether builds are allowed, this is superceding older
                  ``build_from_srpm`` to handle all task types. ``build_from_srpm``
                  and ``build_from_repo_id`` are now deprecated and will be removed
-                 when py2 support will be dropped (rhel6 builders).
-                 Default policy allows everything.
+                 when py2 support will be dropped (rhel6 builders). In the interim
+                 set up them as ``allow :: all`` and all requested logic place
+                 into build_rpm policy instead. The first two policies can disappear
+                 in some new release, so it is not good practice to rely on them.
+                 Default ``build_rpm`` policy allows everything.
 * ``build_from_srpm``: checked when a build from srpm (not an SCM reference) is
   requested.
 * ``build_from_scm``: checked when a build task from SCM is executing on builder
