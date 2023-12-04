@@ -45,22 +45,6 @@ class TestListUsers(utils.CliTestCase):
         self.session.getPermsUser.assert_not_called()
     
 
-    def test_handle_list_users_notadmin_error(self):
-        """Test handle_list_users using a non admin user"""
-        expected = self.format_error_message("This action requires admin privileges")
-        self.session.hasPerm.return_value = False
-        self.assert_system_exit(
-            handle_list_users,
-            self.options,
-            self.session,
-            ['--perm', self.perm],
-            stderr=expected,
-            activate_session=None,
-            exit_code=2
-        )
-        self.activate_session_mock.assert_called_once()
-        self.session.getPermsUser.assert_not_called()
-
     def test_handle_list_users_perm_not_exist(self):
         """Test handle_list_users when perm does not exist"""
         self.session.getPermsUser.return_value = []
@@ -85,7 +69,7 @@ class TestListUsers(utils.CliTestCase):
             handle_list_users,
             self.options,
             self.session,
-            ['--'],
+            [],
             stderr=expected,
             activate_session=None,
             exit_code=2

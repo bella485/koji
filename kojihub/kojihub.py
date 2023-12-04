@@ -13394,7 +13394,11 @@ class RootExports(object):
         """Get a list of users with the given permission.
         Options:
         - perm: Permission name."""
+        if not context.session.hasPerm('admin'):
+            raise koji.ActionNotAllowed("This action requires admin privileges")
         perm_id = get_perm_id(perm)
+        if not perm_id:
+            raise koji.GenericError('Permission %s not available' % perm)
         return get_users_with_perm(perm_id)
 
     def getAllPerms(self):

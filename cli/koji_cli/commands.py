@@ -2163,8 +2163,6 @@ def handle_list_users(goptions, session, args):
     if len(args) > 0:
         parser.error("This command takes no arguments")
     activate_session(session, goptions)
-    if not session.hasPerm('admin'):
-        parser.error("This action requires admin privileges")
     users = []
     if options.perm:
         users_list = session.getPermsUser(options.perm)
