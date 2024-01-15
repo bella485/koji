@@ -6,3 +6,4 @@ python-multilib
 python-qpid-proton<0.38.0;python_version < '3.0'
 python-qpid-proton;python_version >= '3.0'
 rpm-py-installer
+defusedxml
