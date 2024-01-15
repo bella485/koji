@@ -665,7 +665,7 @@ class QueryProcessor(object):
     def __str__(self):
         query = \
             """
-SELECT %(col_str)s
+SELECT %(distinct)s%(col_str)s
   FROM %(table_str)s
 %(join_str)s
 %(clause_str)s
@@ -688,6 +688,12 @@ SELECT %(col_str)s
                 col_str = 'count(*)'
         else:
             col_str = self._seqtostr(self.columns)
+        if self.opts.get('distinct') and not self.opts.get('countOnly'):
+            distinct = 'DISTINCT '
+        elif self.opts.get('distinct') and self.opts.get('countOnly'):
+            koji.GenericError('DISTINCT cannot be used with countOnly.')
+        else:
+            distinct = ''
         table_str = self._seqtostr(self.tables, sort=True)
         join_str = self._joinstr()
         clause_str = self._seqtostr(self.clauses, sep=')\n   AND (')

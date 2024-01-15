@@ -139,3 +139,13 @@ class TestQueryProcessor(unittest.TestCase):
         results = proc.execute()
         self.assertEqual(
             results, [['result_1_col_1', 'result_1_col_2'], ['result_2_col_1', 'result_2_col_2']])
+
+    def test_distinct_and_count(self):
+        proc = kojihub.QueryProcessor(
+            columns=['something'],
+            tables=['awesome'],
+            opts={'distinct': True}
+        )
+        actual = " ".join([token for token in str(proc).split() if token])
+        expected = "SELECT DISTINCT something FROM awesome"
+        self.assertEqual(actual, expected)
