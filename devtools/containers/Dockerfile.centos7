@@ -21,6 +21,7 @@ RUN \
     yum-utils && \
   yum install -y epel-release && \
   yum install -y \
+    python-defusedxml \
     python-flake8 \
     python-multilib \
     python-pip \

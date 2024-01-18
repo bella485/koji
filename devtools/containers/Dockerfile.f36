@@ -13,6 +13,7 @@ RUN \
   libxml2-devel \
   make \
   openssl-devel \
+  python3-defusedxml \
   python3-devel \
   python3-pip \
   python3-pytest \
