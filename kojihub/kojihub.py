@@ -9833,7 +9833,7 @@ class IsDraftTest(koji.policy.BaseSimpleTest):
 
     def run(self, data):
         if 'draft' in data:
-            return data['draft']
+            return bool(data['draft'])
         if 'build' in data:
             build = get_build(data['build'])
             return build.get('draft', False)
