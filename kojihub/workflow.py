@@ -25,6 +25,51 @@ Starting with basic tasks, e.g.
 """
 
 
+class WorkQueueQuery(QueryView):
+
+    tables = ['work_queue']
+    #joinmap = {
+    #    'workflow': 'workflow ON work_queue.workflow_id = workflow.id',
+    #}
+    fieldmap = {
+        'id': ['work_queue.id', None],
+        'workflow_id': ['work_queue.workflow_id', None],
+        'create_time': ['work_queue.create_time', None],
+        'create_ts': ["date_part('epoch', work_queue.create_time)", None],
+        'completion_time': ['work_queue.completion_time', None],
+        'completion_ts': ["date_part('epoch', work_queue.create_time)", None],
+        'completed': ['work_queue.completed', None],
+        'error': ['work_queue.error', None],
+    }
+    default_fields = ('id', 'workflow_id', 'create_ts', 'completion_ts', 'completed', 'error')
+
+
+def handle_work_queue(force=False):
+    # This is called regularly by kojira to keep the work flowing
+    if not db_lock('work_queue', wait=force):
+        # already running elsewhere
+        return {}
+
+    # TODO maybe move this to scheduler and use that logging mechanism
+    start = time.time()
+
+    # first come, first served
+    maxjobs = 10  # XXX config
+    maxtime = 30  # XXX config
+    query = WorkQueueQuery(clauses=[['completed', 'IS', False]], opts={'order':'id'})
+    for n, job in enumerate(query.iterate()):
+        handle_job(job)
+        if n >= maxjobs:
+            break
+        if time.time() - start >= maxtime:
+            break
+
+
+def handle_job(job):
+    # TODO
+
+
+
 def step(order):
     """Decorator to mark a step and indicate order"""
     def decorator(func):
@@ -34,12 +79,15 @@ def step(order):
     return decorator
 
 
-class NewRepoWorkFlow:
+class BaseWorkflow:
 
     def __init__(self, params):
-        # XXX probably want to inherit our init, but for now, let's put it here
-        self.params = params  # dict
+        self.params = params
         # TODO: maybe a callback?
+
+    
+
+class NewRepoWorkflow(BaseWorkflow):
 
     @step(1)
     def startup(self):
