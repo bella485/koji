@@ -5735,7 +5735,9 @@ class NewRepoTask(BaseTaskHandler):
         # generate debuginfo repo if requested or if specified in sidetag's extra
         if debuginfo or tinfo['extra'].get('with_debuginfo'):
             kwargs['with_debuginfo'] = True
+
         repo_id, event_id = self.session.host.repoInit(tinfo['id'], task_id=self.id, **kwargs)
+
         path = koji.pathinfo.repo(repo_id, tinfo['name'])
         if not os.path.isdir(path):
             raise koji.GenericError("Repo directory missing: %s" % path)
@@ -5769,6 +5771,7 @@ class NewRepoTask(BaseTaskHandler):
                     oldrepo_path = koji.pathinfo.repo(oldrepo['id'], parenttag['name'])
                     oldrepo['tag_id'] = parenttag['id']
                     break
+
         newrepo_path = koji.pathinfo.repo(repo_id, tinfo['name'])
         newrepo = {'tag_id': tinfo['id'], 'create_event': event_id}
         if self.options.copy_old_repodata:
@@ -5776,6 +5779,7 @@ class NewRepoTask(BaseTaskHandler):
                                                 oldrepo, newrepo, kwargs)
         else:
             possibly_clonable = False
+
         subtasks = {}
         data = {}
         cloned_archs = []
