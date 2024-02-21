@@ -1045,6 +1045,44 @@ CREATE TABLE scheduler_log_messages (
 ) WITHOUT OIDS;
 
 
+CREATE TABLE workflow (
+        id SERIAL NOT NULL PRIMARY KEY,
+        started BOOLEAN NOT NULL DEFAULT FALSE,
+        completed BOOLEAN NOT NULL DEFAULT FALSE,
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        start_time TIMESTAMPTZ,
+        completion_time TIMESTAMPTZ,
+        -- parent INTEGER REFERENCES workflow(id),  -- ???
+        owner INTEGER REFERENCES users(id) NOT NULL,
+        method TEXT,
+        params JSONB,
+        result TEXT,
+        data JSONB
+) WITHOUT OIDS;
+
+
+CREATE TABLE workflow_wait (
+        id SERIAL NOT NULL PRIMARY KEY,
+        workflow_id INTEGER REFERENCES workflow(id),
+        wait_type TEXT,
+        params JSONB,
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        fulfilled BOOLEAN NOT NULL DEFAULT FALSE,  -- wait condition fulfilled?
+        handled BOOLEAN NOT NULL DEFAULT FALSE     -- workflow informed?
+        -- more ???
+) WITHOUT OIDS;
+
+
+CREATE TABLE work_queue (
+        id SERIAL NOT NULL PRIMARY KEY,
+        workflow_id INTEGER REFERENCES workflow(id),
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        completion_time TIMESTAMPTZ,
+        completed BOOLEAN NOT NULL DEFAULT FALSE,
+        error TEXT
+) WITHOUT OIDS;
+
+
 -- this table is used for locking, see db_lock()
 CREATE TABLE locks (
         name TEXT NOT NULL PRIMARY KEY
