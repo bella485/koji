@@ -84,9 +84,9 @@ class WorkflowQuery(QueryView):
         'owner': ['workflow.owner', None],
         'owner_name': ['users.name', 'users'],
         'method': ['workflow.method', None],
-        'params', ['workflow.params', None],
-        'result', ['workflow.result', None],
-        'data', ['workflow.data', None],
+        'params': ['workflow.params', None],
+        'result': ['workflow.result', None],
+        'data': ['workflow.data', None],
     }
 
 
@@ -94,7 +94,24 @@ def handle_job(job):
     wf = WorkflowQuery(clauses=[['id'], '=', job['workflow_id']]).executeOne(strict=True)
     cls = registry.get(wf['method'])
     handler = cls(wf)
-    handler.run()
+    try:
+        handler.run()
+    except Exception as err:
+        handle_error(job, err)
+    update = UpdateProcessor('work_queue', clauses='id=%(id)s', values=job)
+    update.set(completed=True)
+    update.rawset(completion_time='NOW()')
+    update.execute()
+
+
+def handle_error(job, err):
+    # for now we mark it completed but include the error
+    # TODO retries?
+    update = UpdateProcessor('work_queue', clauses='id=%(id)s', values=job)
+    update.set(completed=True)
+    update.set(error=str(err))
+    update.rawset(completion_time='NOW()')
+    update.execute()
 
 
 class WorkflowRegistry:
@@ -158,3 +175,7 @@ class NewRepoWorkflow(BaseWorkflow):
         # TODO fetch params from self/tasks
         repo_done(...)
 
+
+class WorkflowExports:
+    # TODO: would be nice to mimic our registry approach in kojixmlrpc
+    handleWorkQueue = staticmethod(handle_work_queue)
