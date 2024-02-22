@@ -133,27 +133,63 @@ class WorkflowRegistry:
 registry = WorkflowRegistry()
 
 
-def step(order):
-    """Decorator to mark a step and indicate order"""
-    def decorator(func):
-        func.is_step = True
-        func.order = order
-        return func
-    return decorator
-
-
 class BaseWorkflow:
 
-    def __init__(self, params):
-        self.params = params
-        # TODO: maybe a callback?
+    def __init__(self, info):
+        self.info = info
+        self.params = info['params']
+        self.data = info['data']
+
+    def run(self):
+        if self.data is None:
+            self.setup()
+            # no steps taken yet
+            func = self.start
+        else:
+            # TODO error handling
+            step = self.data['steps'].pop(0)
+            func = getattr(self, step)
+
+        # call the next step
+        func()
+
+        # update the db
+        self.update()
+
+    def setup(self):
+        """Called to set up the workflow run"""
+        self.data = {'steps': self.get_steps()}
+
+    def get_steps(self):
+        """Get the initial list of steps
+
+        Classes can define STEPS, or provide a start method.
+        The steps queue can be also be modified at runtime.
+        """
+        steps = getattr(self, 'STEPS')
+        if not steps:
+            steps = ['start']
+        return steps
+
+    def set_next(self, step):
+        self.data['steps'].insert(0, step)
+
+    def start(self):
+        raise NotImplementedError('start method not defined')
+
+    def update(self):
+        update = UpdateProcessor('workflow', clauses='id=%(id)s', values=self.info)
+        update.set(data=json.dumps(self.data))
+        update.rawset(update_time='NOW()')
+        update.execute()
 
 
 @registry.add('new-repo')
 class NewRepoWorkflow(BaseWorkflow):
 
-    @step(1)
-    def startup(self):
+    STEPS = ['start', 'repos', 'finalize']
+
+    def start(self):
         # TODO validate params
         kw = self.params
         # ??? should we call repo_init ourselves?
@@ -161,7 +197,6 @@ class NewRepoWorkflow(BaseWorkflow):
         self.wait_task(task_id)
         # TODO mechanism for task_id value to persist to next step
 
-    @step(2)
     def repos(self):
         # TODO fetch archlist from task
         repo_tasks = []
@@ -170,7 +205,6 @@ class NewRepoWorkflow(BaseWorkflow):
             repo_tasks[arch] = self.task('createrepo', *args)
             self.wait_task(repo_tasks[arch])
 
-    @step(3)
     def finalize(self):
         # TODO fetch params from self/tasks
         repo_done(...)
