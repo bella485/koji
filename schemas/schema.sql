@@ -1089,5 +1089,6 @@ CREATE TABLE locks (
 ) WITHOUT OIDS;
 INSERT INTO locks(name) VALUES('protonmsg-plugin');
 INSERT INTO locks(name) VALUES('scheduler');
+INSERT INTO locks(name) VALUES('work_queue');
 
 COMMIT WORK;
