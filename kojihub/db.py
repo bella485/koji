@@ -928,7 +928,7 @@ class QueryView:
             elif len(clause) == 3:
                 field, op, value = clause
                 op = op.upper()
-                if op not in ('IN', '=', '!=', '>', '<', '>=', '<='):
+                if op not in ('IN', '=', '!=', '>', '<', '>=', '<=', 'IS'):
                     raise koji.ParameterError(f'Invalid operator: {op}')
             else:
                 raise koji.ParameterError(f'Invalid clause: {clause}')
