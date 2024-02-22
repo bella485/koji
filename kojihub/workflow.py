@@ -37,7 +37,7 @@ class WorkQueueQuery(QueryView):
         'create_time': ['work_queue.create_time', None],
         'create_ts': ["date_part('epoch', work_queue.create_time)", None],
         'completion_time': ['work_queue.completion_time', None],
-        'completion_ts': ["date_part('epoch', work_queue.create_time)", None],
+        'completion_ts': ["date_part('epoch', work_queue.completion_time)", None],
         'completed': ['work_queue.completed', None],
         'error': ['work_queue.error', None],
     }
@@ -65,9 +65,55 @@ def handle_work_queue(force=False):
             break
 
 
-def handle_job(job):
-    # TODO
+class WorkflowQuery(QueryView):
 
+    tables = ['workflow']
+    joinmap = {
+        'users': 'users ON users.id = workflow.owner',
+    }
+    fieldmap = {
+        'id': ['workflow.id', None],
+        'started': ['workflow.started', None],
+        'completed': ['workflow.completed', None],
+        'create_time': ['workflow.create_time', None],
+        'start_time': ['workflow.start_time', None],
+        'completion_time': ['workflow.completion_time', None],
+        'create_ts': ["date_part('epoch', workflow.create_time)", None],
+        'start_ts': ["date_part('epoch', workflow.start_time)", None],
+        'completion_ts': ["date_part('epoch', workflow.completion_time)", None],
+        'owner': ['workflow.owner', None],
+        'owner_name': ['users.name', 'users'],
+        'method': ['workflow.method', None],
+        'params', ['workflow.params', None],
+        'result', ['workflow.result', None],
+        'data', ['workflow.data', None],
+    }
+
+
+def handle_job(job):
+    wf = WorkflowQuery(clauses=[['id'], '=', job['workflow_id']]).executeOne(strict=True)
+    cls = registry.get(wf['method'])
+    handler = cls(wf)
+    handler.run()
+
+
+class WorkflowRegistry:
+
+    def __init__(self):
+        self.handlers = {}
+
+    def add(self, name):
+        # used as a decorator
+        def func(handler):
+            self.handlers[name] = handler
+            # don't error on duplicates in case a plugin needs to override
+        return func
+
+    def get(self, name):
+        return self.handlers[name]
+
+
+registry = WorkflowRegistry()
 
 
 def step(order):
@@ -85,8 +131,8 @@ class BaseWorkflow:
         self.params = params
         # TODO: maybe a callback?
 
-    
 
+@registry.add('new-repo')
 class NewRepoWorkflow(BaseWorkflow):
 
     @step(1)
