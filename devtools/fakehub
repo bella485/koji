@@ -35,6 +35,17 @@ def handle_rpc(self, environ):
         raise
 
 
+def override_load_config(opts):
+    original_load_config = kojixmlrpc.load_config
+
+    def my_load_config(environ):
+        oldopts = original_load_config(environ)
+        oldopts.update(opts)
+        return oldopts
+
+    kojixmlrpc.load_config = my_load_config
+
+
 # Fake session for authenticated calls
 class FakeSession(auth.Session):
 
@@ -104,6 +115,8 @@ def get_options():
     parser.add_option('--user', '-u', help='execute as user')
     parser.add_option('--exclusive', '-x', action='store_true',
                       help='emulate an exclusive session')
+    parser.add_option('-o', '--config-option', help='override config option',
+                      action='append', metavar='NAME=VALUE')
     opts, args = parser.parse_args()
 
     # parse request from args
@@ -119,6 +132,13 @@ def get_options():
             callargs.append(nice_literal(s))
     callargs = koji.encode_args(*callargs, **kwargs)
     opts.request = koji.xmlrpcplus.dumps(callargs, method, allow_none=1)
+    if opts.config_option:
+        overrides = {}
+        for s in opts.config_option:
+            k, v = s.split('=', 1)
+            v = nice_literal(v)
+            overrides[k] = v
+        opts.config_option = overrides
 
     return opts
 
@@ -151,6 +171,8 @@ def main():
     options = get_options()
     if options.pdb:
         kojixmlrpc.ModXMLRPCRequestHandler.handle_rpc = handle_rpc
+    if options.config_option:
+        override_load_config(options.config_option)
 
     environ = {}
     environ['SCRIPT_FILENAME'] = kojixmlrpc.__file__
