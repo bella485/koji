@@ -70,20 +70,21 @@ class WorkflowQuery(QueryView):
     tables = ['workflow']
     joinmap = {
         'users': 'users ON users.id = workflow.owner',
+        'task': 'task ON task.id = workflow.task_id',
     }
     fieldmap = {
         'id': ['workflow.id', None],
-        'started': ['workflow.started', None],
+        'task_id': ['workflow.task_id', None],
         'completed': ['workflow.completed', None],
-        'create_time': ['workflow.create_time', None],
-        'start_time': ['workflow.start_time', None],
-        'completion_time': ['workflow.completion_time', None],
-        'create_ts': ["date_part('epoch', workflow.create_time)", None],
-        'start_ts': ["date_part('epoch', workflow.start_time)", None],
-        'completion_ts': ["date_part('epoch', workflow.completion_time)", None],
-        'owner': ['workflow.owner', None],
-        'owner_name': ['users.name', 'users'],
-        'method': ['workflow.method', None],
+        'create_time': ['task.create_time', 'task'],
+        'start_time': ['task.start_time', 'task'],
+        'completion_time': ['task.completion_time', 'task'],
+        'create_ts': ["date_part('epoch', task.create_time)", 'task'],
+        'start_ts': ["date_part('epoch', task.start_time)", 'task'],
+        'completion_ts': ["date_part('epoch', task.completion_time)", 'task'],
+        'owner': ['task.owner', 'task'],
+        'owner_name': ['users.name', 'users'],  # XXX requires both joins
+        'method': ['task.method', 'task'],
         'params': ['workflow.params', None],
         'result': ['workflow.result', None],
         'data': ['workflow.data', None],
@@ -215,6 +216,10 @@ def add_workflow(method, params, queue=True):
         raise koji.GenericError(f'Unknown workflow method: {method}')
     params = kojihub.convert_value(params, cast=dict)
     queue = kojihub.convert_value(queue, cast=bool)
+
+    # first make our task entry
+
+
     # TODO more validation?
     # TODO policy hook
     # TODO callbacks

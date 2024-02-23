@@ -219,6 +219,7 @@ CREATE TABLE host_channels (
 --   failover to prevent duplication of work.
 CREATE TABLE task (
 	id SERIAL NOT NULL PRIMARY KEY,
+        is_workflow BOOLEAN DEFAULT FALSE,
 	state INTEGER,
 	create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	start_time TIMESTAMPTZ,
@@ -1047,16 +1048,10 @@ CREATE TABLE scheduler_log_messages (
 
 CREATE TABLE workflow (
         id SERIAL NOT NULL PRIMARY KEY,
-        started BOOLEAN NOT NULL DEFAULT FALSE,
+        task_id INTEGER UNIQUE NOT NULL REFERENCES task (id),
         completed BOOLEAN NOT NULL DEFAULT FALSE,
-        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        start_time TIMESTAMPTZ,
-        completion_time TIMESTAMPTZ,
-        -- parent INTEGER REFERENCES workflow(id),  -- ???
-        owner INTEGER REFERENCES users(id) NOT NULL,
-        method TEXT,
-        params JSONB,
-        result TEXT,
+        params JSONB,  -- TODO move?
+        result TEXT,   -- TODO move? jsonb?
         data JSONB
 ) WITHOUT OIDS;
 
