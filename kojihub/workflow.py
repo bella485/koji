@@ -73,14 +73,15 @@ class WorkflowQuery(QueryView):
     }
     fieldmap = {
         'id': ['workflow.id', None],
+        'task_id': ['task_id', None],
         'started': ['workflow.started', None],
         'completed': ['workflow.completed', None],
         'create_time': ['workflow.create_time', None],
         'start_time': ['workflow.start_time', None],
-        'completion_time': ['workflow.completion_time', None],
+        'update_time': ['workflow.update_time', None],
         'create_ts': ["date_part('epoch', workflow.create_time)", None],
         'start_ts': ["date_part('epoch', workflow.start_time)", None],
-        'completion_ts': ["date_part('epoch', workflow.completion_time)", None],
+        'update_ts': ["date_part('epoch', workflow.update_time)", None],
         'owner': ['workflow.owner', None],
         'owner_name': ['users.name', 'users'],
         'method': ['workflow.method', None],
@@ -193,7 +194,7 @@ class BaseWorkflow:
         opts['parent'] = self.info['task_id']  # XXX
         # we only pass by name
         args = koji.encode_args(**params)
-        task_id = kojihub.make_task(method, arglist, **opts)
+        task_id = kojihub.make_task(method, args, **opts)
         if wait:
             self.wait_task(task_id)
 
@@ -201,7 +202,7 @@ class BaseWorkflow:
         raise NotImplementedError('start method not defined')
 
     def update(self):
-        update = UpdateProcessor('workflow', clauses='id=%(id)s', values=self.info)
+        update = UpdateProcessor('workflow', clauses=['id=%(id)s'], values=self.info)
         update.set(data=json.dumps(self.data))
         update.rawset(update_time='NOW()')
         update.execute()
@@ -215,11 +216,17 @@ def add_workflow(method, params, queue=True):
         raise koji.GenericError(f'Unknown workflow method: {method}')
     params = kojihub.convert_value(params, cast=dict)
     queue = kojihub.convert_value(queue, cast=bool)
+
+    # Make our stub task entry
+    args = koji.encode_args(method, params)
+    task_id = kojihub.make_task('workflow', args, workflow=True)
+
     # TODO more validation?
     # TODO policy hook
     # TODO callbacks
     data = {
         'id': nextval('workflow_id_seq'),
+        'task_id': task_id,
         'owner': context.session.user_id,
         'method': method,
         'params': json.dumps(params),

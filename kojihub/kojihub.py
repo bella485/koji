@@ -607,6 +607,7 @@ def make_task(method, arglist, **opts):
         arch: the arch for the task
         priority: the priority of the task
         assign: a host_id to assign the task to
+        workflow: (boolean) create a task entry for a workflow
     """
     convert_value(method, cast=str, check_only=True)
     if 'parent' in opts:
@@ -628,13 +629,16 @@ def make_task(method, arglist, **opts):
         # for subtasks, we use some of the parent's options as defaults
         query = QueryProcessor(
             tables=['task'],
-            columns=['state', 'owner', 'channel_id', 'priority', 'arch'],
+            columns=['state', 'owner', 'channel_id', 'priority', 'arch', 'is_workflow'],
             clauses=['id = %(parent)i'],
             values={'parent': opts['parent']})
         pdata = query.executeOne()
         if not pdata:
             raise koji.GenericError("Invalid parent task: %(parent)s" % opts)
-        if pdata['state'] != koji.TASK_STATES['OPEN']:
+        if pdata['is_workflow']:
+            # TODO anything special here?
+            pass
+        elif pdata['state'] != koji.TASK_STATES['OPEN']:
             raise koji.GenericError("Parent task (id %(parent)s) is not open" % opts)
         # default to a higher priority than parent
         opts.setdefault('priority', pdata['priority'] - 1)
@@ -651,6 +655,39 @@ def make_task(method, arglist, **opts):
             opts['owner'] = context.session.user_id
         opts['label'] = None
         opts['parent'] = None
+
+    if opts.get('workflow'):
+        # channels are irrelevant for workflows
+        opts['channel_id'] = get_channel_id('default', strict=True)
+    else:
+        handle_channel_policy(method, arglist, opts, pdata)  # modifies opts
+
+    # encode xmlrpc request
+    opts['request'] = koji.xmlrpcplus.dumps(tuple(arglist), methodname=method)
+    opts['state'] = koji.TASK_STATES['FREE']
+    opts['method'] = method
+    koji.plugin.run_callbacks(
+        'preTaskStateChange', attribute='state', old=None, new='FREE', info=opts)
+    # stick it in the database
+
+    idata = dslice(opts, ['state', 'owner', 'method', 'request', 'priority', 'parent', 'label',
+                          'channel_id', 'arch'])
+    if opts.get('assign'):
+        idata['state'] = koji.TASK_STATES['ASSIGNED']
+        idata['host_id'] = opts['assign']
+    if opts.get('workflow'):
+        idata['is_workflow'] = True
+    insert = InsertProcessor('task', data=idata)
+    insert.execute()
+    task_id = currval('task_id_seq')
+    opts['id'] = task_id
+    koji.plugin.run_callbacks(
+        'postTaskStateChange', attribute='state', old=None, new='FREE', info=opts)
+    return task_id
+
+
+def handle_channel_policy(method, arglist, opts, pdata):
+    """Apply channel policy for task. Modifies opts in place."""
     # determine channel from policy
     policy_data = {}
     policy_data['method'] = method
@@ -724,27 +761,6 @@ def make_task(method, arglist, **opts):
         except (IndexError, ValueError):
             logger.error("Invalid result from priority policy: %s", ruleset.last_rule())
             raise koji.GenericError("invalid priority policy")
-
-    # encode xmlrpc request
-    opts['request'] = koji.xmlrpcplus.dumps(tuple(arglist), methodname=method)
-    opts['state'] = koji.TASK_STATES['FREE']
-    opts['method'] = method
-    koji.plugin.run_callbacks(
-        'preTaskStateChange', attribute='state', old=None, new='FREE', info=opts)
-    # stick it in the database
-
-    idata = dslice(opts, ['state', 'owner', 'method', 'request', 'priority', 'parent', 'label',
-                          'channel_id', 'arch'])
-    if opts.get('assign'):
-        idata['state'] = koji.TASK_STATES['ASSIGNED']
-        idata['host_id'] = opts['assign']
-    insert = InsertProcessor('task', data=idata)
-    insert.execute()
-    task_id = currval('task_id_seq')
-    opts['id'] = task_id
-    koji.plugin.run_callbacks(
-        'postTaskStateChange', attribute='state', old=None, new='FREE', info=opts)
-    return task_id
 
 
 def eventCondition(event, table=None):
