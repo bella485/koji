@@ -58,11 +58,21 @@ def handle_work_queue(force=False):
     maxtime = 30  # XXX config
     query = WorkQueueQuery(clauses=[['completed', 'IS', False]], opts={'order':'id'})
     for n, job in enumerate(query.iterate()):
+        # TODO transaction isolation
         handle_job(job)
         if n >= maxjobs:
             break
         if time.time() - start >= maxtime:
             break
+
+    # clean up old entries
+    lifetime = 3600  # XXX config
+    delete = DeleteProcessor(
+            table='work_queue',
+            values={'age': f'{lifetime} seconds'},
+            clauses=['completed IS TRUE', "completion_time < NOW() - %(age)s::interval"],
+    )
+    delete.execute()
 
 
 class WorkflowQuery(QueryView):
