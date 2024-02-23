@@ -103,9 +103,12 @@ class WorkflowQuery(QueryView):
 
 def handle_job(job):
     wf = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).executeOne(strict=True)
-    cls = registry.get(wf['method'])
+    cls = workflows.get(wf['method'])
     handler = cls(wf)
     try:
+        if not handler.check_waits():
+            return
+            # XXX this doesn't seem like the right place
         handler.run()
     except Exception as err:
         handle_error(job, err)
@@ -127,7 +130,7 @@ def handle_error(job, err):
     update.execute()
 
 
-class WorkflowRegistry:
+class SimpleRegistry:
 
     def __init__(self):
         self.handlers = {}
@@ -143,7 +146,7 @@ class WorkflowRegistry:
         return self.handlers[name]
 
 
-registry = WorkflowRegistry()
+workflows = SimpleRegistry()
 
 
 class BaseWorkflow:
@@ -187,6 +190,29 @@ class BaseWorkflow:
     def set_next(self, step):
         self.data['steps'].insert(0, step)
 
+    def check_waits(self):
+        query = WaitsQuery(
+            clauses=[
+                ['workflow_id', '=', self.info['id']],
+                ['handled', 'IS', False],
+            ]
+        )
+        incomplete = []
+        for info in query.execute():
+            cls = waits.get(info['method'])
+            wait = cls(info)
+            if info['fulfilled']:
+                # ok, we've been notified
+                wait.set_handled()
+            elif wait.check():
+                # XXX this logic might belong elsewhere
+                wait.set_handled()
+                # XXX also set fulfilled, but avoid double update
+            else:
+                incomplete.append(wait)
+
+        return not bool(incomplete)
+
     def wait_task(self, task_id):
         params = {'task_id': task_id}
         data = {
@@ -222,7 +248,7 @@ def add_workflow(method, params, queue=True):
     context.session.assertLogin()
     # TODO adjust access check?
     method = kojihub.convert_value(method, cast=str)
-    if not registry.get(method):
+    if not workflows.get(method):
         raise koji.GenericError(f'Unknown workflow method: {method}')
     params = kojihub.convert_value(params, cast=dict)
     queue = kojihub.convert_value(queue, cast=bool)
@@ -253,7 +279,61 @@ def add_workflow(method, params, queue=True):
     return data['id']
 
 
-@registry.add('new-repo')
+waits = SimpleRegistry()
+
+
+class WaitsQuery(QueryView):
+
+    tables = ['workflow_waits']
+    fieldmap = {
+        'id': ['workflow_wait.id', None],
+        'workflow_id': ['workflow_wait.workflow_id', None],
+        'wait_type': ['workflow_wait.wait_type', None],
+        'params': ['workflow_wait.params', None],
+        'create_time': ['workflow_wait.create_time', None],
+        'create_ts': ["date_part('epoch', workflow_wait.create_time)", None],
+        'fulfilled': ['workflow_wait.fulfilled', None],
+        'handled': ['workflow_wait.handled', None],
+    }
+
+
+class BaseWait:
+
+    def __init__(self, info):
+        self.info = info
+        self.params = info['params']
+
+    def check(self):
+        raise NotImplementedError('wait check not defined')
+
+    # XXX does it make sense to update state here?
+    def set_fulfilled(self):
+        update = UpdateProcessor('workflow_wait', clauses=['id = %(id)s'], values=self.info)
+        update.set(fulfilled=True)
+        update.execute()
+
+    # XXX does it make sense to update state here?
+    def set_handled(self):
+        # TODO what should we do if not fulfilled yet?
+        update = UpdateProcessor('workflow_wait', clauses=['id = %(id)s'], values=self.info)
+        update.set(handled=True)
+        update.execute()
+
+
+class TaskWait:
+
+    END_STATES = {koji.TASK_STATES[s] for s in ('CLOSED', 'CANCELED', 'FAILED')}
+
+    def check(self):
+        # we also have triggers to update these, but this is a fallback
+        params = self.info['params']
+        query = QueryProcessor(tables=['task'], columns=['state'],
+                               clauses=['id = %(task_id)s'], values=params)
+        state = query.singleValue()
+        return (state in self.END_STATES)
+
+
+@workflows.add('new-repo')
 class NewRepoWorkflow(BaseWorkflow):
 
     STEPS = ['start', 'repos', 'finalize']
