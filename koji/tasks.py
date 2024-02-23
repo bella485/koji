@@ -282,6 +282,9 @@ LEGACY_SIGNATURES = {
     'winbuild': [
         [['name', 'source_url', 'target', 'opts'], None, None, None],
     ],
+    'workflow': [
+        [['method', 'params'], None, None, None],
+    ],
 }
 
 
