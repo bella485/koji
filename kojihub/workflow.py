@@ -6,7 +6,7 @@ import koji
 from koji.context import context
 from . import kojihub
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
-    DeleteProcessor, QueryView, db_lock
+    DeleteProcessor, QueryView, db_lock, nextval
 
 
 logger = logging.getLogger('koji.scheduler')
@@ -91,14 +91,15 @@ class WorkflowQuery(QueryView):
 
 
 def handle_job(job):
-    wf = WorkflowQuery(clauses=[['id'], '=', job['workflow_id']]).executeOne(strict=True)
+    wf = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).executeOne(strict=True)
     cls = registry.get(wf['method'])
     handler = cls(wf)
     try:
         handler.run()
     except Exception as err:
         handle_error(job, err)
-    update = UpdateProcessor('work_queue', clauses='id=%(id)s', values=job)
+        return
+    update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
     update.set(completed=True)
     update.rawset(completion_time='NOW()')
     update.execute()
@@ -107,7 +108,8 @@ def handle_job(job):
 def handle_error(job, err):
     # for now we mark it completed but include the error
     # TODO retries?
-    update = UpdateProcessor('work_queue', clauses='id=%(id)s', values=job)
+    # XXX what do we do about the workflow?
+    update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
     update.set(completed=True)
     update.set(error=str(err))
     update.rawset(completion_time='NOW()')
@@ -164,7 +166,7 @@ class BaseWorkflow:
         """Get the initial list of steps
 
         Classes can define STEPS, or provide a start method.
-        The steps queue can be also be modified at runtime.
+        The steps queue can be also be modified at runtime, e.g. by set_next()
         """
         steps = getattr(self, 'STEPS')
         if not steps:
@@ -174,6 +176,16 @@ class BaseWorkflow:
     def set_next(self, step):
         self.data['steps'].insert(0, step)
 
+    def wait_task(self, task_id):
+        params = {'task_id': task_id}
+        data = {
+            'workflow_id': self.info['id'],
+            'wait_type': 'task',
+            'params': json.dumps(params),
+        }
+        insert = InsertProcessor('workflow_wait', data=data)
+        insert.execute()
+
     def start(self):
         raise NotImplementedError('start method not defined')
 
@@ -182,6 +194,35 @@ class BaseWorkflow:
         update.set(data=json.dumps(self.data))
         update.rawset(update_time='NOW()')
         update.execute()
+
+
+def add_workflow(method, params, queue=True):
+    context.session.assertLogin()
+    # TODO adjust access check?
+    method = kojihub.convert_value(method, cast=str)
+    if not registry.get(method):
+        raise koji.GenericError(f'Unknown workflow method: {method}')
+    params = kojihub.convert_value(params, cast=dict)
+    queue = kojihub.convert_value(queue, cast=bool)
+    # TODO more validation?
+    # TODO policy hook
+    # TODO callbacks
+    data = {
+        'id': nextval('workflow_id_seq'),
+        'owner': context.session.user_id,
+        'method': method,
+        'params': json.dumps(params),
+    }
+    insert = InsertProcessor('workflow', data=data)
+    insert.execute()
+
+    if queue:
+        # also add it to the work queue so it will start
+        insert = InsertProcessor('work_queue', data={'workflow_id': data['id']})
+        insert.execute()
+
+    # TODO return full info?
+    return data['id']
 
 
 @registry.add('new-repo')
@@ -213,3 +254,4 @@ class NewRepoWorkflow(BaseWorkflow):
 class WorkflowExports:
     # TODO: would be nice to mimic our registry approach in kojixmlrpc
     handleWorkQueue = staticmethod(handle_work_queue)
+    addWorkflow = staticmethod(add_workflow)
