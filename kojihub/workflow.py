@@ -98,7 +98,7 @@ def handle_job(job):
         handler.run()
     except Exception as err:
         handle_error(job, err)
-        return
+        raise  # XXX
     update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
     update.set(completed=True)
     update.rawset(completion_time='NOW()')
@@ -186,6 +186,17 @@ class BaseWorkflow:
         insert = InsertProcessor('workflow_wait', data=data)
         insert.execute()
 
+    def task(self, method, params, opts=None, wait=True):
+        if opts is None:
+            opts = {}
+        # TODO limit opts?
+        opts['parent'] = self.info['task_id']  # XXX
+        # we only pass by name
+        args = koji.encode_args(**params)
+        task_id = kojihub.make_task(method, arglist, **opts)
+        if wait:
+            self.wait_task(task_id)
+
     def start(self):
         raise NotImplementedError('start method not defined')
 
@@ -234,17 +245,15 @@ class NewRepoWorkflow(BaseWorkflow):
         # TODO validate params
         kw = self.params
         # ??? should we call repo_init ourselves?
-        task_id = self.task('initRepo', **kw)
-        self.wait_task(task_id)
+        task_id = self.task('initRepo', kw)
         # TODO mechanism for task_id value to persist to next step
 
     def repos(self):
         # TODO fetch archlist from task
         repo_tasks = []
         for arch in self.needed_arches:
-            args = [repo_id, arch, oldrepo]
-            repo_tasks[arch] = self.task('createrepo', *args)
-            self.wait_task(repo_tasks[arch])
+            params = {'repo_id': repo_id, 'arch': arch, 'oldrepo': oldrepo}
+            repo_tasks[arch] = self.task('createrepo', params)
 
     def finalize(self):
         # TODO fetch params from self/tasks
