@@ -221,6 +221,8 @@ CREATE TABLE task (
 	id SERIAL NOT NULL PRIMARY KEY,
         is_workflow BOOLEAN DEFAULT FALSE,  -- true for workflow stub
         workflow_id INTEGER REFERENCES workflow (id),
+        CONSTRAINT workflow_sane CHECK (is_workflow IS FALSE OR workflow_id IS NULL),
+        -- we don't set workflow_id for stubs to avoid circular reference
 	state INTEGER,
 	create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	start_time TIMESTAMPTZ,
@@ -1049,7 +1051,7 @@ CREATE TABLE scheduler_log_messages (
 
 CREATE TABLE workflow (
         id SERIAL NOT NULL PRIMARY KEY,
-        task_id INTEGER UNIQUE NOT NULL REFERENCES task (id),
+        stub_id INTEGER UNIQUE NOT NULL REFERENCES task (id),
         started BOOLEAN NOT NULL DEFAULT FALSE,
         completed BOOLEAN NOT NULL DEFAULT FALSE,
         create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -168,7 +168,7 @@ class WorkflowQuery(QueryView):
     }
     fieldmap = {
         'id': ['workflow.id', None],
-        'task_id': ['task_id', None],
+        'stub_id': ['stub_id', None],
         'started': ['workflow.started', None],
         'completed': ['workflow.completed', None],
         'create_time': ['workflow.create_time', None],
@@ -269,7 +269,7 @@ class BaseWorkflow:
         self.data = {'steps': self.get_steps()}
         # also open our stub task
         # we don't worry about checks here because the entry is just a stub
-        update = UpdateProcessor('task', clauses=['id = %(task_id)s'], values=self.info)
+        update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
         update.set(state=koji.TASK_STATES['OPEN'])
         update.execute()
 
@@ -304,7 +304,8 @@ class BaseWorkflow:
         if opts is None:
             opts = {}
         # TODO limit opts?
-        opts['parent'] = self.info['task_id']  # XXX
+        opts['parent'] = self.info['stub_id']
+        opts['workflow_id'] = self.info['id']
         # we only pass by name
         args = koji.encode_args(**params)
         task_id = kojihub.make_task(method, args, **opts)
@@ -333,9 +334,9 @@ class BaseWorkflow:
 
         # also close our stub task
         # we don't worry about checks here because the entry is just a stub
-        logger.info('Closing workflow task %(task_id)i', self.info)
+        logger.info('Closing workflow task %(stub_id)i', self.info)
         # we shouldn't have any waits but...
-        update = UpdateProcessor('task', clauses=['id = %(task_id)s'], values=self.info)
+        update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
         if result == 'canceled':
             # XXX this is a dumb check
             update.set(state=koji.TASK_STATES['CANCELED'])
@@ -371,14 +372,14 @@ def add_workflow(method, params, queue=True):
     # Make our stub task entry
     workflow_id = nextval('workflow_id_seq')
     args = koji.encode_args(method, params, workflow_id=workflow_id)
-    task_id = kojihub.make_task('workflow', args, workflow=True)
+    stub_id = kojihub.make_task('workflow', args, workflow=True)
 
     # TODO more validation?
     # TODO policy hook
     # TODO callbacks
     data = {
         'id': workflow_id,
-        'task_id': task_id,
+        'stub_id': stub_id,
         'owner': context.session.user_id,
         'method': method,
         'params': json.dumps(params),

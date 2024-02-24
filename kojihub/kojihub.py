@@ -607,11 +607,20 @@ def make_task(method, arglist, **opts):
         arch: the arch for the task
         priority: the priority of the task
         assign: a host_id to assign the task to
-        workflow: (boolean) create a task entry for a workflow
+        workflow: (boolean) create a stub task entry for a workflow
+        workflow_id: connect the task to a workflow
     """
     convert_value(method, cast=str, check_only=True)
     if 'parent' in opts:
         opts['parent'] = convert_value(opts['parent'], cast=int)
+    if 'workflow_id' in opts:
+        if opts.get('workflow'):
+            raise koji.GenericError('Stub tasks should not have a direct workflow_id ref')
+        if not opts.get('parent'):
+            raise koji.GenericError('Workflow task missing stub as parent')
+        opts['workflow_id'] = convert_value(opts['workflow_id'], cast=int)
+    else:
+        opts['workflow_id'] = None
     if 'label' in opts:
         convert_value(opts['label'], cast=str, check_only=True)
     if 'owner' in opts:
@@ -626,6 +635,7 @@ def make_task(method, arglist, **opts):
         if not isinstance(opts['assign'], int):
             opts['assign'] = get_host(opts['assign'], strict=True)['id']
     if 'parent' in opts:
+        # TODO -- probably need to customize this in workflow case
         # for subtasks, we use some of the parent's options as defaults
         query = QueryProcessor(
             tables=['task'],
@@ -671,7 +681,7 @@ def make_task(method, arglist, **opts):
     # stick it in the database
 
     idata = dslice(opts, ['state', 'owner', 'method', 'request', 'priority', 'parent', 'label',
-                          'channel_id', 'arch'])
+                          'channel_id', 'arch', 'workflow_id'])
     if opts.get('assign'):
         idata['state'] = koji.TASK_STATES['ASSIGNED']
         idata['host_id'] = opts['assign']
