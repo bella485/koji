@@ -283,7 +283,8 @@ LEGACY_SIGNATURES = {
         [['name', 'source_url', 'target', 'opts'], None, None, None],
     ],
     'workflow': [
-        [['method', 'params'], None, None, None],
+        # these are stub tasks created by workflows
+        [['method', 'params', 'workflow_id'], None, None, (None,)],
     ],
 }
 

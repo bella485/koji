@@ -267,6 +267,11 @@ class BaseWorkflow:
         """Called to set up the workflow run"""
         logger.debug('Setting up workflow: %r', self.info)
         self.data = {'steps': self.get_steps()}
+        # also open our stub task
+        # we don't worry about checks here because the entry is just a stub
+        update = UpdateProcessor('task', clauses=['id = %(task_id)s'], values=self.info)
+        update.set(state=koji.TASK_STATES['OPEN'])
+        update.execute()
 
     def get_steps(self):
         """Get the initial list of steps
@@ -326,10 +331,22 @@ class BaseWorkflow:
         update.set(result=result)
         update.execute()
 
+        # also close our stub task
+        # we don't worry about checks here because the entry is just a stub
+        logger.info('Closing workflow task %(task_id)i', self.info)
+        # we shouldn't have any waits but...
+        update = UpdateProcessor('task', clauses=['id = %(task_id)s'], values=self.info)
+        if result == 'canceled':
+            # XXX this is a dumb check
+            update.set(state=koji.TASK_STATES['CANCELED'])
+        else:
+            update.set(state=koji.TASK_STATES['CLOSED'])
+        # TODO handle failure
+        update.execute()
+
     def cancel(self):
         # TODO we need to do more here, but for now
         self.close(result='canceled')
-
 
     def requeue(self):
         insert = InsertProcessor('work_queue', data={'workflow_id': self.info['id']})
@@ -353,7 +370,7 @@ def add_workflow(method, params, queue=True):
 
     # Make our stub task entry
     workflow_id = nextval('workflow_id_seq')
-    args = koji.encode_args(method, workflow_id, params)
+    args = koji.encode_args(method, params, workflow_id=workflow_id)
     task_id = kojihub.make_task('workflow', args, workflow=True)
 
     # TODO more validation?
