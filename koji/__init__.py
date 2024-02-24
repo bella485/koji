@@ -3752,10 +3752,14 @@ def _taskLabel(taskInfo):
         # for external hub plugins which are not known
         # at this place (e.g. client without knowledge of such signatures)
         # it should still display at least "method (arch)"
-        params = None
+        return '%s (%s)' % (method, arch)
 
     extra = ''
-    if method in ('build', 'maven'):
+    if method == 'workflow':
+        wf_method = params.get('method', 'malformed')
+        wf_id = params.get('workflow_id', None)
+        extra = '%s, %s' % (wf_method, wf_id)
+    elif method in ('build', 'maven'):
         src = params.get('src') or params.get('url')
         if '://' in src:
             module_info = _module_info(src)
