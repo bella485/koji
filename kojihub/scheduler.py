@@ -455,6 +455,7 @@ class TaskScheduler(object):
         query = QueryProcessor(
             columns=fields, aliases=aliases, tables=['task'],
             clauses=('task.state IN %(states)s',
+                     'NOT is_workflow',
                      'task.host_id IS NOT NULL',  # should always be set, but...
                      ),
             values=values,
@@ -464,7 +465,7 @@ class TaskScheduler(object):
         values = {'state': koji.TASK_STATES['FREE']}
         query = QueryProcessor(
             columns=fields, aliases=aliases, tables=['task'],
-            clauses=('task.state = %(state)s',),
+            clauses=('task.state = %(state)s', 'NOT is_workflow'),
             values=values,
             opts={'order': 'priority,create_ts', 'limit': 1000},  # TODO config
             # scheduler order
