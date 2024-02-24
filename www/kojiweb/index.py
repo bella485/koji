@@ -651,7 +651,7 @@ def taskinfo(environ, taskID):
 
     try:
         params = parse_task_params(task['method'], task['request'])
-    except TypeError:
+    except (TypeError, koji.ParameterError):
         # unknown tasks/plugins
         params = {'args': task['request']}
     values['task'] = task
