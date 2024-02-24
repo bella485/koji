@@ -3758,7 +3758,7 @@ def _taskLabel(taskInfo):
     if method == 'workflow':
         wf_method = params.get('method', 'malformed')
         wf_id = params.get('workflow_id', None)
-        extra = '%s, %s' % (wf_method, wf_id)
+        extra = '%s, id=%s' % (wf_method, wf_id)
     elif method in ('build', 'maven'):
         src = params.get('src') or params.get('url')
         if '://' in src:
