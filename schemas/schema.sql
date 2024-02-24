@@ -219,7 +219,8 @@ CREATE TABLE host_channels (
 --   failover to prevent duplication of work.
 CREATE TABLE task (
 	id SERIAL NOT NULL PRIMARY KEY,
-        is_workflow BOOLEAN DEFAULT FALSE,
+        is_workflow BOOLEAN DEFAULT FALSE,  -- true for workflow stub
+        workflow_id INTEGER REFERENCES workflow (id),
 	state INTEGER,
 	create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	start_time TIMESTAMPTZ,
