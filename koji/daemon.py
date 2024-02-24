@@ -1070,6 +1070,7 @@ class TaskManager(object):
             self.logger.debug("task: %r" % task)
             if task['method'] not in self.handlers:
                 self.logger.warning("Skipping task %(id)i, no handler for method %(method)s", task)
+                self.session.host.refuseTask(task['id'], soft=False, msg="no handler for method")
                 continue
             if task['id'] in self.tasks:
                 # we were running this task, but it apparently has been
