@@ -243,11 +243,9 @@ class BaseWorkflow:
     def run(self):
         if self.data is None:
             self.setup()
-            # no steps taken yet
-            step = 'start'
-        else:
-            # TODO error handling
-            step = self.data['steps'].pop(0)
+
+        # TODO error handling
+        step = self.data['steps'].pop(0)
 
         logger.debug('Running %s step for workflow %s', step, self.info['id'])
         func = getattr(self, step)
