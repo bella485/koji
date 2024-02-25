@@ -279,10 +279,42 @@ class BaseWorkflow:
         Classes can define STEPS, or provide a start method.
         The steps queue can be also be modified at runtime, e.g. by set_next()
         """
-        steps = getattr(self, 'STEPS')
+        steps = getattr(self, 'STEPS', None)
         if not steps:
             steps = ['start']
         return steps
+
+    @classmethod
+    def get_param_spec(cls):
+        """Get the rules about params"""
+        spec = getattr(cls, 'PARAMS', None)
+        if isinstance(spec, (list,tuple)):
+            spec = {k: None for k in spec}
+        return spec
+
+    @classmethod
+    def check_params(cls, params):
+        if not isinstance(params, dict):
+            raise koji.ParameterError('Workflow parameters must be given as a dictionary')
+        spec = cls.get_param_spec()
+        if spec is None:
+            continue
+        for key in params:
+            if key not in spec:
+                raise koji.ParameterError('Invalid parameter name for workflow %s: %s',
+                                          self.info['method'], key)
+        for key in spec:
+            pspec = spec[key]
+            if key in params:
+                if not pspec.check(params[key]):
+                    raise koji.ParameterError('Invalid type for workflow %s parameter %s: '
+                                              'expected %s',
+                                              self.info['method'], key, str(pspec))
+            if pspec.required and key not in params:
+                raise koji.ParameterError('Missing required parameter for workflow %s: %s',
+                                          self.info['method'], key)
+            if check:
+                check(params[key])
 
     def set_next(self, step):
         self.data['steps'].insert(0, step)
@@ -364,9 +396,10 @@ def add_workflow(method, params, queue=True):
     context.session.assertLogin()
     # TODO adjust access check?
     method = kojihub.convert_value(method, cast=str)
-    if not workflows.get(method):
+    cls = workflows.get(method)
+    if cls:
         raise koji.GenericError(f'Unknown workflow method: {method}')
-    params = kojihub.convert_value(params, cast=dict)
+    cls.check_params(params)
     queue = kojihub.convert_value(queue, cast=bool)
 
     # Make our stub task entry
