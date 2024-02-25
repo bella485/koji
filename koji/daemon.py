@@ -746,6 +746,10 @@ class TaskManager(object):
         if isinstance(entry, type(koji.tasks.BaseTaskHandler)) and \
                 issubclass(entry, koji.tasks.BaseTaskHandler):
             for method in entry.Methods:
+                if getattr(self.options, 'methods', None) is not None:
+                    if not fnmatch(method, self.options.methods):
+                        self.logger.debug('Ignoring %s method handler due to options', method)
+                        continue
                 self.handlers[method] = entry
 
     def registerCallback(self, entry):

@@ -39,6 +39,12 @@ General
       Set the maximum number of times that an individual hub call can be
       retried.
 
+   methods=*
+      Restrict which task methods the host will accept. This space-separated
+      list of glob patterns is matched against the available method handlers.
+      Only the matching handlers are enabled. By default, all available handlers
+      are enabled.
+
    minspace=8192
       The minimum amount of free space (in MBs) required for each build root.
       If this amount of space is not available, no new jobs will be taken.

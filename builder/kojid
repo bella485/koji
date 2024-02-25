@@ -6698,7 +6698,9 @@ def get_options():
                 'cert': None,
                 'serverca': None,
                 'allow_noverifyssl': False,
-                'allow_password_in_scm_url': False}
+                'allow_password_in_scm_url': False,
+                'methods': None,
+               }
     if config.has_section('kojid'):
         for name, value in config.items('kojid'):
             if name in ['sleeptime', 'maxjobs', 'minspace', 'retry_interval',
