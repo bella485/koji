@@ -333,7 +333,7 @@ class BaseWorkflow:
     def wait(self, wait_type, params):  # TODO maybe **params?
         data = {
             'workflow_id': self.info['id'],
-            'wait_type': 'task',
+            'wait_type': wait_type,
             'params': json.dumps(params),
         }
         insert = InsertProcessor('workflow_wait', data=data)
@@ -534,6 +534,20 @@ class TaskWait(BaseWait):
                                clauses=['id = %(task_id)s'], values=params)
         state = query.singleValue()
         return (state in self.END_STATES)
+
+    @classmethod
+    def task_done(cls, task_id):
+        # TODO catch errors?
+        update = UpdateProcessor(
+            'workflow_wait',
+            clauses=[
+                "wait_type = 'task'",
+                'fulfilled IS FALSE',
+                "params->'task_id' = %(task_id)s",
+            ],
+            values = {'task_id': task_id})
+        update.set(fulfilled=True)
+        update.execute()
 
 
 @workflows.add('test')

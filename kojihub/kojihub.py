@@ -75,6 +75,7 @@ from koji.util import (
     safer_move,
 )
 from . import scheduler
+from . import workflow
 from .auth import get_user_perms, get_user_groups
 from .db import (  # noqa: F401
     BulkInsertProcessor,
@@ -390,6 +391,8 @@ class Task(object):
                                  rawdata={'completion_time': 'NOW()'})
         update.execute()
 
+        workflow.TaskWait.task_done(self.id)
+
         self.runCallbacks('postTaskStateChange', info, 'state', state)
         self.runCallbacks('postTaskStateChange', info, 'completion_ts', now)
 
@@ -440,6 +443,9 @@ class Task(object):
         update = UpdateProcessor('task', clauses=['id = %(task_id)i'], values={'task_id': self.id},
                                  data={'state': st_canceled}, rawdata={'completion_time': 'NOW()'})
         update.execute()
+
+        workflow.TaskWait.task_done(self.id)
+
         self.runCallbacks('postTaskStateChange', info, 'state', koji.TASK_STATES['CANCELED'])
         self.runCallbacks('postTaskStateChange', info, 'completion_ts', now)
         # cancel associated builds (only if state is 'BUILDING')
