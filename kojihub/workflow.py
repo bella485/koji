@@ -356,7 +356,7 @@ class BaseWorkflow:
     def start(self):
         raise NotImplementedError('start method not defined')
 
-    def close(self, result='complete'):
+    def close(self, result='complete', stub_state='CLOSED'):
         # TODO - the result field needs to be handled better
         logger.info('Closing %(method)s workflow %(id)i', self.info)
         # we shouldn't have any waits but...
@@ -378,17 +378,13 @@ class BaseWorkflow:
         logger.info('Closing workflow task %(stub_id)i', self.info)
         # we shouldn't have any waits but...
         update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
-        if result == 'canceled':
-            # XXX this is a dumb check
-            update.set(state=koji.TASK_STATES['CANCELED'])
-        else:
-            update.set(state=koji.TASK_STATES['CLOSED'])
+        update.set(state=koji.TASK_STATES[stub_state])
         # TODO handle failure
         update.execute()
 
     def cancel(self):
         # TODO we need to do more here, but for now
-        self.close(result='canceled')
+        self.close(result='canceled', stub_state='CANCELED')
 
     def requeue(self):
         insert = InsertProcessor('work_queue', data={'workflow_id': self.info['id']})
