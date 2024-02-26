@@ -548,6 +548,26 @@ class TaskWait(BaseWait):
         update.execute()
 
 
+@waits.add('slot')
+class SlotWait(BaseWait):
+
+    def check(self):
+        # we also have triggers to update these, but this is a fallback
+        params = self.info['params']
+        query = QueryProcessor(
+                tables=['workflow_slots'],
+                columns=['count(id)'],
+                clauses=['name = %(name)s'],
+                values=self.info,
+                opts={'rowlock': True},  # XXX fix how this is passed
+                )
+        limit = 10  # XXX CONFIG
+        n = query.singleValue()
+        if n >= limit:
+            return False
+        # XXX it seems wrong to grab locks and update tables in check()
+
+
 @workflows.add('test')
 class TestWorkflow(BaseWorkflow):
 

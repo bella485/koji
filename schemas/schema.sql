@@ -1078,6 +1078,14 @@ CREATE TABLE workflow_wait (
 ) WITHOUT OIDS;
 
 
+CREATE TABLE workflow_slots (
+        id SERIAL NOT NULL PRIMARY KEY,
+        name TEXT,
+        workflow_id INTEGER REFERENCES workflow(id),
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW()
+) WITHOUT OIDS;
+
+
 CREATE TABLE work_queue (
         id SERIAL NOT NULL PRIMARY KEY,
         workflow_id INTEGER REFERENCES workflow(id),
