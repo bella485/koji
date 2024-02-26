@@ -508,6 +508,8 @@ class Task(object):
         query = QueryProcessor(columns=['request'], tables=['task'],
                                clauses=['id = %(id)i'], values={'id': self.id})
         xml_request = query.singleValue()
+        if xml_request is None:
+            return None
         if xml_request.find('<?xml', 0, 10) == -1:
             # handle older base64 encoded data
             xml_request = base64.b64decode(xml_request)
