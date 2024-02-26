@@ -533,7 +533,7 @@ class TaskWait(BaseWait):
         return (state in self.END_STATES)
 
     @staticmethod
-    def task_done(cls, task_id):
+    def task_done(task_id):
         # TODO catch errors?
         update = UpdateProcessor(
             'workflow_wait',
