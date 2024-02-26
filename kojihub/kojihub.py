@@ -9939,7 +9939,11 @@ class SourceTest(koji.policy.MatchTest):
                 info = task.getInfo(request=True)
                 method = info['method']
                 request = info['request']
-                params = parse_task_params(method, request)
+                try:
+                    params = parse_task_params(method, request)
+                except Exception:
+                    logger.error("Unable to determine source from task %s", task_id)
+                    return False
                 # signatures:
                 # build - (src, target, opts=None)
                 # maven - (url, target, opts=None)
@@ -9956,7 +9960,7 @@ class SourceTest(koji.policy.MatchTest):
                 elif 'url' in params:
                     data[self.field] = params['url']
                 else:
-                    print("Unable to determine source from task '{}'".format(task_id))
+                    logger.error("Unable to determine source from task %s", task_id)
                     return False
         else:
             return False

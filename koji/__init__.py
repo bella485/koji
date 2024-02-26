@@ -3753,6 +3753,9 @@ def _taskLabel(taskInfo):
         # at this place (e.g. client without knowledge of such signatures)
         # it should still display at least "method (arch)"
         return '%s (%s)' % (method, arch)
+    except koji.ParameterError:
+        return '%s (invalid parameters)' % method
+
 
     extra = ''
     if method == 'workflow':

@@ -652,7 +652,7 @@ def taskinfo(environ, taskID):
     try:
         params = parse_task_params(task['method'], task['request'])
     except (TypeError, koji.ParameterError):
-        # unknown tasks/plugins
+        # unknown or malformed tasks/plugins
         params = {'args': task['request']}
     values['task'] = task
     values['params'] = params
