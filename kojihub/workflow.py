@@ -223,6 +223,7 @@ class SimpleRegistry:
         def func(handler):
             self.handlers[name] = handler
             # don't error on duplicates in case a plugin needs to override
+            return handler
         return func
 
     def get(self, name, strict=True):
@@ -543,7 +544,8 @@ class TaskWait(BaseWait):
             clauses=[
                 "wait_type = 'task'",
                 'fulfilled IS FALSE',
-                "params->'task_id' = %(task_id)s",
+                "(params->'task_id')::int = %(task_id)s",
+                # int cast required because -> returns jsonb
             ],
             values = {'task_id': task_id})
         update.set(fulfilled=True)
