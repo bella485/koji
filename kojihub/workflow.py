@@ -256,6 +256,7 @@ class BaseWorkflow:
 
         # are we done?
         if not self.data['steps']:
+            logger.debug('No more steps in workflow')
             self.close()
             return
 
@@ -285,6 +286,8 @@ class BaseWorkflow:
         steps = getattr(self, 'STEPS', None)
         if not steps:
             steps = ['start']
+        else:
+            steps = list(steps)  # copy
         return steps
 
     @classmethod
