@@ -225,8 +225,11 @@ class SimpleRegistry:
             # don't error on duplicates in case a plugin needs to override
         return func
 
-    def get(self, name):
-        return self.handlers[name]
+    def get(self, name, strict=True):
+        if strict:
+            return self.handlers[name]
+        else:
+            return self.handlers.get(name)
 
 
 workflows = SimpleRegistry()
@@ -288,33 +291,35 @@ class BaseWorkflow:
     def get_param_spec(cls):
         """Get the rules about params"""
         spec = getattr(cls, 'PARAMS', None)
-        if isinstance(spec, (list,tuple)):
+        if isinstance(spec, (list,tuple,set)):
             spec = {k: None for k in spec}
         return spec
 
     @classmethod
     def check_params(cls, params):
+        # TODO conversion mechanism
         if not isinstance(params, dict):
             raise koji.ParameterError('Workflow parameters must be given as a dictionary')
         spec = cls.get_param_spec()
         if spec is None:
-            continue
+            return
         for key in params:
             if key not in spec:
-                raise koji.ParameterError('Invalid parameter name for workflow %s: %s',
-                                          self.info['method'], key)
+                raise koji.ParameterError(f'Invalid parameter name: {key}')
         for key in spec:
             pspec = spec[key]
+            if pspec is None or pspec is Ellipsis:
+                continue
+            if isinstance(pspec, dict):
+                pspec = ParamSpec(**pspec)
+            elif not isinstance(pspec, ParamSpec):
+                pspec = ParamSpec(pspec)
             if key in params:
                 if not pspec.check(params[key]):
-                    raise koji.ParameterError('Invalid type for workflow %s parameter %s: '
-                                              'expected %s',
-                                              self.info['method'], key, str(pspec))
+                    raise koji.ParameterError(f'Invalid type for parameter {key}: '
+                                              f'expected {str(pspec)}')
             if pspec.required and key not in params:
-                raise koji.ParameterError('Missing required parameter for workflow %s: %s',
-                                          self.info['method'], key)
-            if check:
-                check(params[key])
+                raise koji.ParameterError(f'Missing required parameter: {key}')
 
     def set_next(self, step):
         self.data['steps'].insert(0, step)
@@ -392,12 +397,42 @@ class BaseWorkflow:
         update.execute()
 
 
+class ParamSpec:
+
+    def __init__(self, rule, required=False):
+        self.required = False
+        self.rule = rule
+
+    def check(self, value):
+        # for now, just assume a couple simple options
+        if isinstance(self.rule, tuple):
+            # set of allowed types
+            return isinstance(value, self.rule)
+        elif callable(self.rule):
+            try:
+                self.rule(value)
+                return True
+            except (TypeError, ValueError, koji.ParameterError):
+                return False
+
+    def __str__(self):
+        # used in error messages
+        if isinstance(self.rule, tuple):
+            return ', '.join(sorted([str(t.__name__) for t in self.rule]))
+        elif callable(self.rule):
+            return self.rule.__name__
+        else:
+            return 'unknown'
+
+
+
+
 def add_workflow(method, params, queue=True):
     context.session.assertLogin()
     # TODO adjust access check?
     method = kojihub.convert_value(method, cast=str)
-    cls = workflows.get(method)
-    if cls:
+    cls = workflows.get(method, strict=False)
+    if not cls:
         raise koji.GenericError(f'Unknown workflow method: {method}')
     cls.check_params(params)
     queue = kojihub.convert_value(queue, cast=bool)
@@ -502,6 +537,7 @@ class TaskWait(BaseWait):
 class TestWorkflow(BaseWorkflow):
 
     STEPS = ['start', 'finish',]
+    PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
     def start(self):
         # fire off a do-nothing task
