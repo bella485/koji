@@ -536,7 +536,7 @@ class TaskWait(BaseWait):
         state = query.singleValue()
         return (state in self.END_STATES)
 
-    @classmethod
+    @staticmethod
     def task_done(cls, task_id):
         # TODO catch errors?
         update = UpdateProcessor(
