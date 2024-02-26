@@ -539,6 +539,8 @@ class TaskWait(BaseWait):
 @workflows.add('test')
 class TestWorkflow(BaseWorkflow):
 
+    # XXX remove this test code
+
     STEPS = ['start', 'finish',]
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
