@@ -41,6 +41,7 @@ from koji.server import ServerError, BadRequest, RequestTimeout
 from koji.xmlrpcplus import ExtendedMarshaller, Fault, dumps, getparser
 from . import auth
 from . import db
+from . import repos
 from . import scheduler
 
 
@@ -866,9 +867,11 @@ def get_registry(opts, plugins):
     functions = kojihub.RootExports()
     hostFunctions = kojihub.HostExports()
     schedulerFunctions = scheduler.SchedulerExports()
+    reposFunctions = repos.ReposExports()
     registry.register_instance(functions)
     registry.register_module(hostFunctions, "host")
     registry.register_module(schedulerFunctions, "scheduler")
+    registry.register_module(reposFunctions, "repos")
     registry.register_function(auth.login)
     registry.register_function(auth.sslLogin)
     registry.register_function(auth.logout)

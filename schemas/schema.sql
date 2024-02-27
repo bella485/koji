@@ -1052,4 +1052,21 @@ CREATE TABLE locks (
 INSERT INTO locks(name) VALUES('protonmsg-plugin');
 INSERT INTO locks(name) VALUES('scheduler');
 
+-- repo queue
+CREATE TABLE repo_queue (
+        tag_id INTEGER NOT NULL REFERENCES tag (id) PRIMARY KEY,
+        score FLOAT DEFAULT 0.0,
+        priority INTEGER DEFAULT  100,
+        --needed_since TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	      expired_event INTEGER REFERENCES events(id),
+	      expired_ts TIMESTAMPTZ,
+	      updated_ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        weight FLOAT DEFAULT 1.0 CHECK (NOT weight <= 0),
+	      awaited BOOL DEFAULT FALSE,
+	      --max_n INTEGER NOT NULL DEFAULT 0,
+	      maven_support BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX repo_queue_score_priority ON repo_queue(priority, score DESC);
+CREATE INDEX repo_queue_tag_id ON repo_queue(tag_id);
+
 COMMIT WORK;
