@@ -556,16 +556,68 @@ class SlotWait(BaseWait):
         params = self.info['params']
         query = QueryProcessor(
                 tables=['workflow_slots'],
-                columns=['count(id)'],
-                clauses=['name = %(name)s'],
-                values=self.info,
-                opts={'rowlock': True},  # XXX fix how this is passed
+                columns=['id'],
+                clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s'],
+                values={'name': params['name'], 'workflow_id': self.info['workflow_id']},
+                )
+        slot_id = query.singleValue()
+        return (slot_id is not None)
+
+
+def handle_slots():
+    """Check slot waits and see if we can fulfill them"""
+
+    query = WaitsQuery(
+        clauses=[
+            ['fulfilled', 'IS', False],
+            ['wait_type', '=', 'slot'],
+        ],
+        opts={'order': 'id'},  # oldest first
+    )
+
+    by_name = {}
+    for wait in query.execute():
+        name = wait['params']['name']
+        by_name.setdefault(name, []).append(wait)
+
+    for name in sorted(by_name):
+        query = QueryProcessor(
+                    tables=['workflow_slots'],
+                    columns=['id', 'num'],
+                    clauses=['name = %(name)s'],
+                    values={'name': name},
                 )
         limit = 10  # XXX CONFIG
-        n = query.singleValue()
-        if n >= limit:
-            return False
-        # XXX it seems wrong to grab locks and update tables in check()
+        held = query.execute()
+        if len(held) >= limit:
+            # all in use
+            continue
+        waits = by_name[name]
+        held = set(in_use)
+        for num in range(limit):
+            if num in held:
+                continue
+            if not waits:
+                break
+            # try to take it
+            wait = waits[0]
+            data = {
+                'name': name,
+                'workflow_id': wait['workflow_id'],
+                'num': num,
+            }
+            insert = InsertProcessor(table='workflow_slots', data=data)
+            savepoint = Savepoint('pre_slot_insert')
+            try:
+                insert.execute()
+            except Exception:
+                # there must be a parallel call
+                savepoint.rollback()
+                logger.debug('Failed to acquire workflow slot')
+                # XXX how do we avoid duplicate fulfillments by parallel instances?
+                continue
+            # success! pop this wait so next pass can handle the next
+            waits.pop(0)
 
 
 @workflows.add('test')

@@ -1081,6 +1081,8 @@ CREATE TABLE workflow_wait (
 CREATE TABLE workflow_slots (
         id SERIAL NOT NULL PRIMARY KEY,
         name TEXT,
+        num INTEGER NOT NULL,
+        UNIQUE (name, num),
         workflow_id INTEGER REFERENCES workflow(id),
         create_time TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ) WITHOUT OIDS;
