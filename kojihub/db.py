@@ -613,19 +613,20 @@ class QueryProcessor(object):
         limit: an integer to use in the 'LIMIT' clause
         asList: if True, return results as a list of lists, where each list contains the
                 column values in query order, rather than the usual list of maps
-        rowlock: if True, use "FOR UPDATE" to lock the queried rows
         group: a column or alias name to use in the 'GROUP BY' clause
                (controlled by enable_group)
     - enable_group: if True, opts.group will be enabled
     - order_map: (optional) a name:expression map of allowed orders. Otherwise any column or alias
                 is allowed
+    - lock: add a locking clause. If True, use simply "FOR UPDATE". Use values
+        "nowait" or "skip" to control wait options.
     """
 
     iterchunksize = 1000
 
     def __init__(self, columns=None, aliases=None, tables=None,
                  joins=None, clauses=None, values=None, transform=None,
-                 opts=None, enable_group=False, order_map=None):
+                 opts=None, enable_group=False, order_map=None, lock=None):
         self.columns = columns
         self.aliases = aliases
         if columns and aliases:
@@ -659,6 +660,10 @@ class QueryProcessor(object):
         else:
             self.opts = {}
         self.order_map = order_map
+        self.lock = lock
+        if lock is None and self.opts.get('rowlock'):
+            # TODO remove this legacy option
+            self.lock = True
         self.enable_group = enable_group
         self.logger = logging.getLogger('koji.db')
 
@@ -710,8 +715,9 @@ SELECT %(col_str)s
              self.opts.get('limit') or
              (self.enable_group and self.opts.get('group'))):
             query = 'SELECT count(*)\nFROM (' + query + ') numrows'
-        if self.opts.get('rowlock'):
-            query += '\n FOR UPDATE'
+        lock_str = self._lock_str()
+        if lock_str:
+            query += f'\n {lock_str}'
         return query
 
     def __repr__(self):
@@ -784,6 +790,16 @@ SELECT %(col_str)s
             return 'GROUP BY ' + ', '.join(group_exprs)
         else:
             return ''
+
+    def _lock_str(self):
+        if not self.lock:
+            return ""
+        elif self.lock == "nowait":
+            return "FOR UPDATE NOWAIT"
+        elif self.lock == "skip":
+            return "FOR UPDATE SKIP LOCKED"
+        elif self.lock:
+            return "FOR UPDATE"
 
     def _optstr(self, optname):
         optval = self.opts.get(optname)
