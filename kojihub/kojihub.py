@@ -14789,6 +14789,11 @@ class HostExports(object):
         host.verify()
         return scheduler.get_tasks_for_host(hostID=host.id, retry=True)
 
+    def nudgeWork(self):
+        host = Host()
+        host.verify()
+        return workflow.nudge_queue()
+
     def refuseTask(self, task_id, soft=True, msg=''):
         soft = convert_value(soft, cast=bool)
         msg = convert_value(msg, cast=str)

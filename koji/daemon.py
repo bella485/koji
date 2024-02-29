@@ -1064,6 +1064,9 @@ class TaskManager(object):
             if self.takeTask(task):
                 return True
 
+        # if we get no tasks, nudge the workflows
+        self.session.host.nudgeWork()
+
         return False
 
     def _waitTask(self, task_id, pid=None):
