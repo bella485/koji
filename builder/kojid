@@ -181,8 +181,6 @@ def main(options, session):
         try:
             if not taken:
                 # Only sleep if we didn't take a task, otherwise retry immediately.
-                # The load-balancing code in getNextTask() will prevent a single builder
-                # from getting overloaded.
                 time.sleep(options.sleeptime)
         except (SystemExit, KeyboardInterrupt):
             logger.warning("Exiting")

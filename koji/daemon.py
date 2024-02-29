@@ -1065,7 +1065,9 @@ class TaskManager(object):
                 return True
 
         # if we get no tasks, nudge the workflows
-        self.session.host.nudgeWork()
+        if self.session.host.nudgeWork():
+            # if a workflow ran, tell main not to sleep
+            return True
 
         return False
 

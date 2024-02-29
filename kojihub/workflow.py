@@ -54,10 +54,11 @@ def nudge_queue():
     """Run next queue entry, or attempt to refill queue"""
     if queue_next():
         # if we handled a queue item, we're done
-        return
+        return True
     update_queue()
     handle_slots()
-    # TODO figure out what we should return
+    return False
+    # TODO should we return something more informative?
 
 
 def queue_next():
