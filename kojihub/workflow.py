@@ -740,15 +740,14 @@ class TestWorkflow(BaseWorkflow):
     STEPS = ['start', 'finish']
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
-    @slot('FOO')
     def start(self):
         # fire off a do-nothing task
         logger.info('TEST WORKFLOW START')
-        task_id = self.task('sleep', {'n': 1})
+        self.data['task_id'] = self.task('sleep', {'n': 1})
 
-    @slot('BAR')
+    @slot('test-sleep')
     def finish(self):
-        # XXX how do we propagate task_id?
+        time.sleep(10)
         logger.info('TEST WORKFLOW FINISH')
 
 
