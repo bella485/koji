@@ -1083,10 +1083,10 @@ CREATE TABLE workflow_slots (
         name TEXT,
         workflow_id INTEGER REFERENCES workflow(id),
         UNIQUE (name, workflow_id),
-        held BOOLEAN NOT FULL DEFAULT FALSE,
+        held BOOLEAN NOT NULL DEFAULT FALSE,
         -- if held is False, that means the slot is requested
         create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        grant_time TIMETSTAMPTZ
+        grant_time TIMESTAMPTZ
 ) WITHOUT OIDS;
 
 
