@@ -1107,5 +1107,6 @@ CREATE TABLE locks (
 INSERT INTO locks(name) VALUES('protonmsg-plugin');
 INSERT INTO locks(name) VALUES('scheduler');
 INSERT INTO locks(name) VALUES('work_queue');
+INSERT INTO locks(name) VALUES('workflow_slots');
 
 COMMIT WORK;

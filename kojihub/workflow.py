@@ -56,6 +56,7 @@ def nudge_queue():
         # if we handled a queue item, we're done
         return
     update_queue()
+    handle_slots()
     # TODO figure out what we should return
 
 
@@ -76,7 +77,7 @@ def queue_next():
         # either empty queue or all locked
         return False
 
-    logger.debug('Handling work queue id %(id)s', job)
+    logger.debug('Handling work queue id %(id)s, workflow %(workflow_id)s', job)
     handle_job(job)
 
     # mark it done
@@ -273,8 +274,8 @@ class BaseWorkflow:
         if slot:
             # a note about timing. We don't request a slot until we're otherwise ready to run
             # We don't want to hold a slot if we're waiting on something else.
-            if not has_slot(slot, self.info['id']):
-                self.wait_slot(slot)
+            if not get_slot(slot, self.info['id']):
+                self.wait_slot(slot, request=False)  # get_slot made the request for us
                 return
             logger.debug('We have slot %s. Proceeding.', slot)
 
@@ -305,6 +306,7 @@ class BaseWorkflow:
         # also open our stub task
         # we don't worry about checks here because the entry is just a stub
         update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
+        # TODO integrate with kojihub.Task
         update.set(state=koji.TASK_STATES['OPEN'])
         update.execute()
 
@@ -382,6 +384,11 @@ class BaseWorkflow:
         task_id = kojihub.make_task(method, args, **opts)
         if wait:
             self.wait_task(task_id)
+
+    def wait_slot(self, name, request=True):
+        self.wait('slot', {'name': name})
+        if request:
+            request_slot(name, self.info['id'])
 
     def start(self):
         raise NotImplementedError('start method not defined')
@@ -604,6 +611,7 @@ def slot(name):
 
 
 def request_slot(name, workflow_id):
+    logger.info('Requesting %s slot for workflow %i', name, workflow_id)
     data = {
         'name': name,
         'workflow_id': workflow_id,
@@ -615,6 +623,7 @@ def request_slot(name, workflow_id):
 
 
 def free_slot(name, workflow_id):
+    logger.info('Freeing %s slot for workflow %i', name, workflow_id)
     values = {
         'name': name,
         'workflow_id': workflow_id,
@@ -626,22 +635,43 @@ def free_slot(name, workflow_id):
     delete.execute()
 
 
-def has_slot(name, workflow_id):
+def get_slot(name, workflow_id):
+    """Check for and/or attempt to acquire slot
+
+    :returns: True if slot is held, False otherwise
+
+    If False, then the slot is *requested*
+    """
     values = {
         'name': name,
         'workflow_id': workflow_id,
     }
     query = QueryProcessor(
         tables=['workflow_slots'],
-        columns=['id'],
-        clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s', 'held IS TRUE'],
+        columns=['id', 'held'],
+        clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s'],
         values=values,
     )
-    return query.singleValue() is not None
+    slot = query.executeOne()
+    if not slot:
+        request_slot(name, workflow_id)
+    elif slot['held']:
+        return True
+
+    handle_slots()  # XXX?
+
+    # check again
+    slot = query.executeOne()
+    return slot and slot['held']
 
 
 def handle_slots():
     """Check slot requests and see if we can grant them"""
+
+    if not db_lock('workflow_slots', wait=False):
+        return
+
+    logger.debug('Checking slots')
 
     query = QueryProcessor(
         tables=['workflow_slots'],
@@ -652,7 +682,8 @@ def handle_slots():
     # index needed and held by name
     need_idx = {}
     held_idx = {}
-    for slot in query.execute():
+    slots = query.execute()
+    for slot in slots:
         if slot['held']:
             held_idx.setdefault(slot['name'], []).append(slot)
         else:
@@ -662,21 +693,23 @@ def handle_slots():
     for name in need_idx:
         need = need_idx[name]
         held = held_idx.get(name, [])
-        limit = 2  # XXX CONFIG
-        while need and len(held) > limit:
+        limit = 3  # XXX CONFIG
+        logger.debug('Slot %s: need %i, held %i', name, len(need), len(held))
+        while need and len(held) < limit:
             slot = need.pop(0)  # first come, first served
             held.append(slot)
             grants.append(slot)
 
     # update the slots
-    update = UpdateProcessor(table='workflow_slots',
-                             clauses=['id IN %(ids)s'],
-                             values={'ids': [s['id'] for s in grants]})
-    update.set(held=True)
-    update.rawset(grant_time='NOW()')
-    update.execute()
+    if grants:
+        update = UpdateProcessor(table='workflow_slots',
+                                 clauses=['id IN %(ids)s'],
+                                 values={'ids': [s['id'] for s in grants]})
+        update.set(held=True)
+        update.rawset(grant_time='NOW()')
+        update.execute()
 
-    # also mark waits fulfilled
+    # also mark any waits fulfilled
     for slot in grants:
         update = UpdateProcessor(
             'workflow_wait',
