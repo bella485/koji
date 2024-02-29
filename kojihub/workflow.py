@@ -50,31 +50,43 @@ def get_queue():
     return query.execute()
 
 
-def run_queue(queue_id):
-    # run a work queue entry
-    queue_id = kojihub.convert_value(queue_id, cast=int)
+def nudge_queue():
+    """Run next queue entry, or attempt to refill queue"""
+    if queue_next():
+        # if we handled a queue item, we're done
+        return
+    update_queue()
+    # TODO figure out what we should return
 
-    logger.debug('Handling work queue id %s', queue_id)
+
+def queue_next():
+    """Run next entry in work queue
+
+    :returns: True if an entry ran, False otherwise
+    """
     # TODO maybe use scheduler logging mechanism?
-    query = WorkQueueQuery(clauses=[['id', '=', queue_id]], opts={'rowlock': True})
-    # XXX fix how rowlock is handled
+    query = QueryProcessor(tables=['work_queue'],
+                           columns=['id', 'workflow_id'],
+                           clauses=['completed IS FALSE'],
+                           opts={'order': 'id', 'limit': 1},
+                           lock='skip')
+    # note the lock=skip with limit 1. This will give us a row lock on the first unlocked row
     job = query.executeOne()
     if not job:
-        raise koji.GenericError('Invalid queue id: %s', queue_id)
-        # TODO should we be less strict?
-    if job['completed']:
-        raise koji.GenericError('Queue entry already completed: %s', queue_id)
+        # either empty queue or all locked
+        return False
 
-    # otherwise, go ahead
+    logger.debug('Handling work queue id %(id)s', job)
     handle_job(job)
 
-    # and mark it done
+    # mark it done
     update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
     update.set(completed=True)
     update.rawset(completion_time='NOW()')
     update.execute()
 
-    logger.debug('Finished handling work queue id %s', queue_id)
+    logger.debug('Finished handling work queue id %(id)s', job)
+    return True
 
 
 def update_queue():
@@ -669,7 +681,7 @@ class WorkflowExports:
     # TODO: would be nice to mimic our registry approach in kojixmlrpc
     #handleWorkQueue = staticmethod(handle_work_queue)
     getQueue = staticmethod(get_queue)
-    runQueue = staticmethod(run_queue)
+    nudge = staticmethod(nudge_queue)
     updateQueue = staticmethod(update_queue)
     add = staticmethod(add_workflow)
     cancel = staticmethod(cancel_workflow)
