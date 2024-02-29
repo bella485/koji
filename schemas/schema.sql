@@ -1081,10 +1081,12 @@ CREATE TABLE workflow_wait (
 CREATE TABLE workflow_slots (
         id SERIAL NOT NULL PRIMARY KEY,
         name TEXT,
-        num INTEGER NOT NULL,
-        UNIQUE (name, num),
         workflow_id INTEGER REFERENCES workflow(id),
-        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        UNIQUE (name, workflow_id),
+        held BOOLEAN NOT FULL DEFAULT FALSE,
+        -- if held is False, that means the slot is requested
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        grant_time TIMETSTAMPTZ
 ) WITHOUT OIDS;
 
 

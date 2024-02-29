@@ -567,72 +567,82 @@ class TaskWait(BaseWait):
 class SlotWait(BaseWait):
 
     def check(self):
-        # we also have triggers to update these, but this is a fallback
-        params = self.info['params']
-        query = QueryProcessor(
-            tables=['workflow_slots'],
-            columns=['id'],
+        # handle_slots will mark us fulfilled, so no point in further checking here
+        return False
+
+
+def request_slot(name, workflow_id):
+    data = {
+        'name': name,
+        'workflow_id': workflow_id,
+    }
+    upsert = UpsertProcessor(table='workflow_slots', data=data, skip_dup=True)
+    upsert.execute()
+    # table has: UNIQUE (name, workflow_id)
+    # so this is a no-op if we already have a request, or are already holding the slot
+
+
+def free_slot(name, workflow_id):
+    values = {
+        'name': name,
+        'workflow_id': workflow_id,
+    }
+    delete = DeleteProcessor(
+            table='workflow_slots',
             clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s'],
-            values={'name': params['name'], 'workflow_id': self.info['workflow_id']},
-        )
-        slot_id = query.singleValue()
-        return (slot_id is not None)
+            values=values)
+    delete.execute()
 
 
 def handle_slots():
-    """Check slot waits and see if we can fulfill them"""
+    """Check slot requests and see if we can grant them"""
 
-    query = WaitsQuery(
-        clauses=[
-            ['fulfilled', 'IS', False],
-            ['wait_type', '=', 'slot'],
-        ],
-        opts={'order': 'id'},  # oldest first
+    query = QueryProcessor(
+        tables=['workflow_slots'],
+        columns=['id', 'name', 'workflow_id', 'held'],
+        opts=['order': 'id'],
     )
 
-    by_name = {}
-    for wait in query.execute():
-        name = wait['params']['name']
-        by_name.setdefault(name, []).append(wait)
+    # index needed and held by name
+    need_idx = {}
+    held_idx = {}
+    for slot in query.execute():
+        if slot['held']:
+            held_idx.setdefault(slot['name'], []).append(slot)
+        else:
+            need_idx.setdefault(slot['name'], []).append(slot)
 
-    for name in sorted(by_name):
-        query = QueryProcessor(
-                    tables=['workflow_slots'],
-                    columns=['id', 'num'],
-                    clauses=['name = %(name)s'],
-                    values={'name': name},
-        )
+    grants = []
+    for name in need_idx:
+        need = need_idx[name]
+        held = held_idx.get(name, [])
         limit = 10  # XXX CONFIG
-        held = query.execute()
-        if len(held) >= limit:
-            # all in use
-            continue
-        waits = by_name[name]
-        held = set(held)
-        for num in range(limit):
-            if num in held:
-                continue
-            if not waits:
-                break
-            # try to take it
-            wait = waits[0]
-            data = {
-                'name': name,
-                'workflow_id': wait['workflow_id'],
-                'num': num,
-            }
-            insert = InsertProcessor(table='workflow_slots', data=data)
-            savepoint = Savepoint('pre_slot_insert')
-            try:
-                insert.execute()
-            except Exception:
-                # there must be a parallel call
-                savepoint.rollback()
-                logger.debug('Failed to acquire workflow slot')
-                # XXX how do we avoid duplicate fulfillments by parallel instances?
-                continue
-            # success! pop this wait so next pass can handle the next
-            waits.pop(0)
+        while need and len(held) > limit:
+            slot = need.pop(0)  # first come, first served
+            held.append(slot)
+            grants.append(slot)
+
+    # update the slots
+    update = UpdateProcessor(table='workflow_slots',
+                             clauses=['id IN %(ids)s'],
+                             values={'ids': [s['id'] for s in grants]})
+    update.set(held=True)
+    update.rawset(grant_time='NOW()')
+    update.execute()
+
+    # also mark waits fulfilled
+    for slot in grants:
+        update = UpdateProcessor(
+            'workflow_wait',
+            clauses=[
+                "wait_type = 'slot'",
+                'fulfilled IS FALSE',
+                'workflow_id = %(workflow_id)s',
+                "(params->>'name') = %(name)s",  # note the ->>
+            ],
+            values=slot)
+        update.set(fulfilled=True)
+        update.execute()
 
 
 @workflows.add('test')
@@ -679,7 +689,7 @@ class NewRepoWorkflow(BaseWorkflow):
 
 class WorkflowExports:
     # TODO: would be nice to mimic our registry approach in kojixmlrpc
-    #handleWorkQueue = staticmethod(handle_work_queue)
+    # XXX most of these need access controls
     getQueue = staticmethod(get_queue)
     nudge = staticmethod(nudge_queue)
     updateQueue = staticmethod(update_queue)
