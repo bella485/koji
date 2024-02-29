@@ -600,7 +600,7 @@ def handle_slots():
     query = QueryProcessor(
         tables=['workflow_slots'],
         columns=['id', 'name', 'workflow_id', 'held'],
-        opts=['order': 'id'],
+        opts={'order': 'id'},
     )
 
     # index needed and held by name
