@@ -6,7 +6,7 @@ import koji
 from koji.context import context
 from . import kojihub
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
-    DeleteProcessor, QueryView, db_lock, nextval
+    DeleteProcessor, QueryView, db_lock, nextval, Savepoint
 
 
 logger = logging.getLogger('koji.workflow')
@@ -44,35 +44,40 @@ class WorkQueueQuery(QueryView):
     default_fields = ('id', 'workflow_id', 'create_ts', 'completion_ts', 'completed', 'error')
 
 
-def handle_work_queue(force=False):
-    # This is called regularly by kojira to keep the work flowing
-    if not db_lock('work_queue', wait=force):
-        # already running elsewhere
-        return {}
+def get_queue():
+    # TODO limit?
+    query = WorkQueueQuery(clauses=[['completed', 'IS', False]], opts={'order': 'id'})
+    return query.execute()
 
-    logger.debug('Handling work queue')
-    # TODO maybe move this to scheduler and use that logging mechanism
-    start = time.time()
 
-    # first come, first served
-    maxjobs = 10  # XXX config
-    maxtime = 30  # XXX config
-    query = WorkQueueQuery(clauses=[['completed', 'IS', False]], opts={'order':'id'})
-    n = 0
-    for n, job in enumerate(query.iterate(), start=1):
-        # TODO transaction isolation
-        handle_job(job)
-        update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
-        update.set(completed=True)
-        update.rawset(completion_time='NOW()')
-        update.execute()
-        if n >= maxjobs:
-            break
-        if time.time() - start >= maxtime:
-            break
-    if n:
-        logger.debug('Handled %i jobs', n)
+def run_queue(queue_id):
+    # run a work queue entry
+    queue_id = kojihub.convert_value(queue_id, cast=int)
 
+    logger.debug('Handling work queue id %s', queue_id)
+    # TODO maybe use scheduler logging mechanism?
+    query = WorkQueueQuery(clauses=[['id', '=', queue_id]], opts={'rowlock': True})
+    # XXX fix how rowlock is handled
+    job = query.executeOne()
+    if not job:
+        raise koji.GenericError('Invalid queue id: %s', queue_id)
+        # TODO should we be less strict?
+    if job['completed']:
+        raise koji.GenericError('Queue entry already completed: %s', queue_id)
+
+    # otherwise, go ahead
+    handle_job(job)
+
+    # and mark it done
+    update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
+    update.set(completed=True)
+    update.rawset(completion_time='NOW()')
+    update.execute()
+
+    logger.debug('Finished handling work queue id %s', queue_id)
+
+
+def update_queue():
     handle_waits()
     clean_queue()
 
@@ -81,9 +86,9 @@ def clean_queue():
     logger.debug('Cleaning old queue entries')
     lifetime = 3600  # XXX config
     delete = DeleteProcessor(
-            table='work_queue',
-            values={'age': f'{lifetime} seconds'},
-            clauses=['completed IS TRUE', "completion_time < NOW() - %(age)s::interval"],
+        table='work_queue',
+        values={'age': f'{lifetime} seconds'},
+        clauses=['completed IS TRUE', "completion_time < NOW() - %(age)s::interval"],
     )
     count = delete.execute()
     if count:
@@ -295,7 +300,7 @@ class BaseWorkflow:
     def get_param_spec(cls):
         """Get the rules about params"""
         spec = getattr(cls, 'PARAMS', None)
-        if isinstance(spec, (list,tuple,set)):
+        if isinstance(spec, (list, tuple, set)):
             spec = {k: None for k in spec}
         return spec
 
@@ -425,8 +430,6 @@ class ParamSpec:
             return 'unknown'
 
 
-
-
 def add_workflow(method, params, queue=True):
     context.session.assertLogin()
     # TODO adjust access check?
@@ -543,7 +546,7 @@ class TaskWait(BaseWait):
                 "(params->'task_id')::int = %(task_id)s",
                 # int cast required because -> returns jsonb
             ],
-            values = {'task_id': task_id})
+            values={'task_id': task_id})
         update.set(fulfilled=True)
         update.execute()
 
@@ -555,11 +558,11 @@ class SlotWait(BaseWait):
         # we also have triggers to update these, but this is a fallback
         params = self.info['params']
         query = QueryProcessor(
-                tables=['workflow_slots'],
-                columns=['id'],
-                clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s'],
-                values={'name': params['name'], 'workflow_id': self.info['workflow_id']},
-                )
+            tables=['workflow_slots'],
+            columns=['id'],
+            clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s'],
+            values={'name': params['name'], 'workflow_id': self.info['workflow_id']},
+        )
         slot_id = query.singleValue()
         return (slot_id is not None)
 
@@ -586,14 +589,14 @@ def handle_slots():
                     columns=['id', 'num'],
                     clauses=['name = %(name)s'],
                     values={'name': name},
-                )
+        )
         limit = 10  # XXX CONFIG
         held = query.execute()
         if len(held) >= limit:
             # all in use
             continue
         waits = by_name[name]
-        held = set(in_use)
+        held = set(held)
         for num in range(limit):
             if num in held:
                 continue
@@ -625,7 +628,7 @@ class TestWorkflow(BaseWorkflow):
 
     # XXX remove this test code
 
-    STEPS = ['start', 'finish',]
+    STEPS = ['start', 'finish']
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
     def start(self):
@@ -664,6 +667,9 @@ class NewRepoWorkflow(BaseWorkflow):
 
 class WorkflowExports:
     # TODO: would be nice to mimic our registry approach in kojixmlrpc
-    handleWorkQueue = staticmethod(handle_work_queue)
+    #handleWorkQueue = staticmethod(handle_work_queue)
+    getQueue = staticmethod(get_queue)
+    runQueue = staticmethod(run_queue)
+    updateQueue = staticmethod(update_queue)
     add = staticmethod(add_workflow)
     cancel = staticmethod(cancel_workflow)
