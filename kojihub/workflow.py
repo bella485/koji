@@ -662,7 +662,7 @@ def handle_slots():
     for name in need_idx:
         need = need_idx[name]
         held = held_idx.get(name, [])
-        limit = 10  # XXX CONFIG
+        limit = 2  # XXX CONFIG
         while need and len(held) > limit:
             slot = need.pop(0)  # first come, first served
             held.append(slot)
@@ -699,11 +699,13 @@ class TestWorkflow(BaseWorkflow):
     STEPS = ['start', 'finish']
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
+    @slot('FOO')
     def start(self):
         # fire off a do-nothing task
         logger.info('TEST WORKFLOW START')
         task_id = self.task('sleep', {'n': 1})
 
+    @slot('BAR')
     def finish(self):
         # XXX how do we propagate task_id?
         logger.info('TEST WORKFLOW FINISH')
