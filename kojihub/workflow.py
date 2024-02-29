@@ -401,7 +401,7 @@ class BaseWorkflow:
 
     def close(self, result='complete', stub_state='CLOSED'):
         # TODO - the result field needs to be handled better
-        self.log(f'Closing {method} workflow')
+        self.log('Closing %(method)s workflow' % self.info)
         # we shouldn't have any waits but...
         delete = DeleteProcessor('workflow_wait', clauses=['workflow_id = %(id)s'],
                                  values=self.info)
@@ -440,7 +440,7 @@ class BaseWorkflow:
         self.close(result='canceled', stub_state='CANCELED')
 
     def requeue(self):
-        self.log('Queuing %(method)s workflow')
+        self.log('Queuing %(method)s workflow' % self.info)
         insert = InsertProcessor('work_queue', data={'workflow_id': self.info['id']})
         insert.execute()
 
