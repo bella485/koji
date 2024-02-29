@@ -268,9 +268,22 @@ class BaseWorkflow:
         # TODO error handling
         step = self.data['steps'].pop(0)
 
+        handler = getattr(self, step)
+        slot = getattr(handler, 'slot', None)
+        if slot:
+            # a note about timing. We don't request a slot until we're otherwise ready to run
+            # We don't want to hold a slot if we're waiting on something else.
+            if not has_slot(slot, self.info['id']):
+                self.wait_slot(slot)
+                return
+            logger.debug('We have slot %s. Proceeding.', slot)
+
         logger.debug('Running %s step for workflow %s', step, self.info['id'])
-        func = getattr(self, step)
-        func()
+        handler()
+
+        if slot:
+            # we only hold the slot during the execution of the step
+            free_slot(slot, self.info['id'])
 
         # are we done?
         if not self.data['steps']:
@@ -383,6 +396,13 @@ class BaseWorkflow:
         if n:
             logger.error('Dangling waits for %(method)s workflow %(id)i', self.info)
 
+        # and similarly for slots
+        delete = DeleteProcessor('workflow_slots', clauses=['workflow_id = %(id)s'],
+                                 values=self.info)
+        n = delete.execute()
+        if n:
+            logger.error('Dangling slots for %(method)s workflow %(id)i', self.info)
+
         update = UpdateProcessor('workflow', clauses=['id=%(id)s'], values=self.info)
         update.set(data=json.dumps(self.data))
         update.rawset(update_time='NOW()')
@@ -396,6 +416,9 @@ class BaseWorkflow:
         # we shouldn't have any waits but...
         update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
         update.set(state=koji.TASK_STATES[stub_state])
+        update.rawset(completion_time='NOW()')
+        # TODO set a result for stub
+        # TODO use kojihub.Task so we get the callbacks right
         # TODO handle failure
         update.execute()
 
@@ -571,6 +594,15 @@ class SlotWait(BaseWait):
         return False
 
 
+def slot(name):
+    """Decorator to indicate that a step handler requires a slot"""
+    def decorator(handler):
+        handler.slot = name
+        return handler
+
+    return decorator
+
+
 def request_slot(name, workflow_id):
     data = {
         'name': name,
@@ -592,6 +624,20 @@ def free_slot(name, workflow_id):
             clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s'],
             values=values)
     delete.execute()
+
+
+def has_slot(name, workflow_id):
+    values = {
+        'name': name,
+        'workflow_id': workflow_id,
+    }
+    query = QueryProcessor(
+        tables=['workflow_slots'],
+        columns=['id'],
+        clauses=['name = %(name)s', 'workflow_id = %(workflow_id)s', 'held IS TRUE'],
+        values=values,
+    )
+    return query.singleValue() is not None
 
 
 def handle_slots():
