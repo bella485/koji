@@ -5,6 +5,7 @@ import time
 import koji
 from koji.context import context
 from . import kojihub
+from .scheduler import log_db, log_both
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
     DeleteProcessor, QueryView, db_lock, nextval, Savepoint
 
@@ -280,7 +281,7 @@ class BaseWorkflow:
                 return
             logger.debug('We have slot %s. Proceeding.', slot)
 
-        logger.debug('Running %s step for workflow %s', step, self.info['id'])
+        self.log(f'Running workflow step {step}')
         handler()
 
         if slot:
@@ -299,6 +300,9 @@ class BaseWorkflow:
 
         # update the db
         self.update()
+
+    def log(self, msg, level=logging.INFO):
+        log_both(msg, task_id=self.info['stub_id'], level=level)
 
     def setup(self):
         """Called to set up the workflow run"""
@@ -365,6 +369,7 @@ class BaseWorkflow:
         self.wait('task', {'task_id': task_id})
 
     def wait(self, wait_type, params):  # TODO maybe **params?
+        self.log(f'Waiting for {wait_type}: {params}')
         data = {
             'workflow_id': self.info['id'],
             'wait_type': wait_type,
@@ -396,7 +401,7 @@ class BaseWorkflow:
 
     def close(self, result='complete', stub_state='CLOSED'):
         # TODO - the result field needs to be handled better
-        logger.info('Closing %(method)s workflow %(id)i', self.info)
+        self.log(f'Closing {method} workflow')
         # we shouldn't have any waits but...
         delete = DeleteProcessor('workflow_wait', clauses=['workflow_id = %(id)s'],
                                  values=self.info)
@@ -435,6 +440,7 @@ class BaseWorkflow:
         self.close(result='canceled', stub_state='CANCELED')
 
     def requeue(self):
+        self.log('Queuing %(method)s workflow')
         insert = InsertProcessor('work_queue', data={'workflow_id': self.info['id']})
         insert.execute()
 
@@ -500,6 +506,7 @@ def add_workflow(method, params, queue=True):
     }
     insert = InsertProcessor('workflow', data=data)
     insert.execute()
+    log_both(f'Adding {method} workflow', task_id=stub_id)
 
     if queue:
         # also add it to the work queue so it will start
