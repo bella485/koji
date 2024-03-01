@@ -484,7 +484,7 @@ class BaseWorkflow:
         update.execute()
 
 
-def subtask()
+def subtask():
     """Decorator to indicate that a step handler should run via a subtask"""
     def decorator(handler):
         handler.subtask = True
