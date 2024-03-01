@@ -485,6 +485,7 @@ class BaseWorkflow:
 
 
 def subtask():
+    # TODO args?
     """Decorator to indicate that a step handler should run via a subtask"""
     def decorator(handler):
         handler.subtask = True
@@ -787,7 +788,7 @@ class TestWorkflow(BaseWorkflow):
         logger.info('TEST WORKFLOW START')
         self.data['task_id'] = self.task('sleep', {'n': 1})
 
-    @slot('test-sleep')
+    @subtask()
     def finish(self):
         time.sleep(10)
         logger.info('TEST WORKFLOW FINISH')
