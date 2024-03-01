@@ -943,7 +943,7 @@ class WorkflowStepTask(BaseTaskHandler):
     _taskWeight = 0.1
 
     def handler(self, workflow_id, step):
-        self.session.hub.workflowStep(workflow_id, step)
+        self.session.host.workflowStep(workflow_id, step)
 
 
 # the end
