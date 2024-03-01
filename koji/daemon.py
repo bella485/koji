@@ -1031,42 +1031,9 @@ class TaskManager(object):
         if not self.ready:
             self.logger.info("Not ready for task")
             return False
-        hosts, tasks = self.session.host.getLoadData()
-        self.logger.debug("Load Data:")
-        self.logger.debug("  hosts: %r" % hosts)
-        self.logger.debug("  tasks: %r" % tasks)
-        # now we organize this data into channel-arch bins
-        bin_hosts = {}  # hosts indexed by bin
-        bins = {}  # bins for this host
-        our_avail = None
-        for host in hosts:
-            host['bins'] = []
-            if host['id'] == self.host_id:
-                # note: task_load reported by server might differ from what we
-                # sent due to precision variation
-                our_avail = host['capacity'] - host['task_load']
-            for chan in host['channels']:
-                for arch in host['arches'].split() + ['noarch']:
-                    bin = "%s:%s" % (chan, arch)
-                    bin_hosts.setdefault(bin, []).append(host)
-                    if host['id'] == self.host_id:
-                        bins[bin] = 1
-        self.logger.debug("bins: %r" % bins)
-        if our_avail is None:
-            self.logger.info("Server did not report this host. Are we disabled?")
-            return False
-        elif not bins:
-            self.logger.info("No bins for this host. Missing channel/arch config?")
-            # Note: we may still take an assigned task below
-        # sort available capacities for each of our bins
-        avail = {}
-        for bin in bins:
-            avail[bin] = [host['capacity'] - host['task_load'] for host in bin_hosts[bin]]
-            avail[bin].sort()
-            avail[bin].reverse()
-        self.cleanDelayTimes()
+        _, tasks = self.session.host.getLoadData()
         for task in tasks:
-            # note: tasks are in priority order
+            # note: tasks are scheduled on hub, we should respect the order
             self.logger.debug("task: %r" % task)
             if task['method'] not in self.handlers:
                 self.logger.warning("Skipping task %(id)i, no handler for method %(method)s", task)
@@ -1083,21 +1050,6 @@ class TaskManager(object):
                     # assigned to us, we can take it regardless
                     if self.takeTask(task):
                         return True
-            elif task['state'] == koji.TASK_STATES['FREE']:
-                bin = "%(channel_id)s:%(arch)s" % task
-                self.logger.debug("task is free, bin=%r" % bin)
-                if bin not in bins:
-                    continue
-                # see where our available capacity is compared to other hosts for this bin
-                # (note: the hosts in this bin are exactly those that could
-                # accept this task)
-                bin_avail = avail.get(bin, [0])
-                if self.checkAvailDelay(task, bin_avail, our_avail):
-                    # decline for now and give the upper half a chance
-                    continue
-                # otherwise, we attempt to open the task
-                if self.takeTask(task):
-                    return True
             else:
                 # should not happen
                 raise Exception("Invalid task state reported by server")
