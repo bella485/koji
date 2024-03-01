@@ -14794,6 +14794,11 @@ class HostExports(object):
         host.verify()
         return workflow.nudge_queue()
 
+    def workflowStep(self, workflow_id, step):
+        host = Host()
+        host.verify()
+        return workflow.run_subtask_step(workflow_id, step)
+
     def refuseTask(self, task_id, soft=True, msg=''):
         soft = convert_value(soft, cast=bool)
         msg = convert_value(msg, cast=str)

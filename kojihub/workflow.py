@@ -208,6 +208,7 @@ class WorkflowQuery(QueryView):
 
 
 def handle_job(job):
+    # TODO row lock
     wf = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).executeOne(strict=True)
     if wf['completed']:
         logger.error('Ignoring completed %(method)s workflow in queue: %(id)i', wf)
@@ -221,6 +222,16 @@ def handle_job(job):
     except Exception as err:
         handle_error(job, err)
         raise  # XXX
+
+
+def run_subtask_step(workflow_id, step):
+    # TODO row lock
+    wf = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).executeOne(strict=True)
+    if wf['completed']:
+        raise koji.GenericError('Workflow is completed')
+    cls = workflows.get(wf['method'])
+    handler = cls(wf)
+    handler.run(subtask_step=step)
 
 
 def handle_error(job, err):
@@ -265,14 +276,28 @@ class BaseWorkflow:
         self.data = info['data']
         self.waiting = False
 
-    def run(self):
+    def run(self, subtask_step=None):
         if self.data is None:
             self.setup()
 
         # TODO error handling
         step = self.data['steps'].pop(0)
-
         handler = getattr(self, step)
+
+        is_subtask = getattr(handler, 'subtask', False)
+        if subtask_step is not None:
+            # we've been called via a workflowStep task
+            if subtask_step != step:
+                raise koji.GenericError(f'Step mismatch {subtask_step} != {step}')
+            elif not is_subtask:
+                raise koji.GenericError(f'Not a subtask step: {step}')
+            # otherwise we're good
+        elif is_subtask:
+            # this step needs to run via a subtask
+            self.task('workflowStep', {'workflow_id': self.info['id'], 'step': step})
+            return
+
+        # TODO slots are a better idea for tasks than for workflows
         slot = getattr(handler, 'slot', None)
         if slot:
             # a note about timing. We don't request a slot until we're otherwise ready to run
@@ -457,6 +482,15 @@ class BaseWorkflow:
         update.set(data=json.dumps(self.data))
         update.rawset(update_time='NOW()')
         update.execute()
+
+
+def subtask()
+    """Decorator to indicate that a step handler should run via a subtask"""
+    def decorator(handler):
+        handler.subtask = True
+        return handler
+
+    return decorator
 
 
 class ParamSpec:

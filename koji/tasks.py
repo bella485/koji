@@ -286,6 +286,9 @@ LEGACY_SIGNATURES = {
         # these are stub tasks created by workflows
         [['method', 'params', 'workflow_id'], None, None, (None,)],
     ],
+    'workflowStep': [
+        [['workflow_id', 'step'], None, None, (None,)],
+    ],
 }
 
 
@@ -931,3 +934,16 @@ class WaitrepoTask(BaseTaskHandler):
 
             time.sleep(self.PAUSE)
             last_repo = repo
+
+
+class WorkflowStepTask(BaseTaskHandler):
+
+    Methods = ['workflowStep']
+    # all we do is make a hub call
+    _taskWeight = 0.1
+
+    def handler(self, workflow_id, step):
+        self.session.hub.workflowStep(workflow_id, step)
+
+
+# the end
