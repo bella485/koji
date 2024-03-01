@@ -226,7 +226,7 @@ def handle_job(job):
 
 def run_subtask_step(workflow_id, step):
     # TODO row lock
-    wf = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).executeOne(strict=True)
+    wf = WorkflowQuery(clauses=[['id', '=', workflow_id]]).executeOne(strict=True)
     if wf['completed']:
         raise koji.GenericError('Workflow is completed')
     cls = workflows.get(wf['method'])
