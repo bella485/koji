@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 import time
@@ -5,9 +6,9 @@ import time
 import koji
 from koji.context import context
 from . import kojihub
-from .scheduler import log_db, log_both
+from .scheduler import log_both
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
-    DeleteProcessor, QueryView, db_lock, nextval, Savepoint
+    DeleteProcessor, QueryView, db_lock, nextval
 
 
 logger = logging.getLogger('koji.workflow')
@@ -281,8 +282,23 @@ class BaseWorkflow:
                 return
             logger.debug('We have slot %s. Proceeding.', slot)
 
+        # auto-fill handler params
+        kwargs = {}
+        params = inspect.signature(handler).parameters
+        for key in params:
+            param = params[key]
+            if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+                # step handlers shouldn't use these, but we'll be nice
+                logger.warning('Ignoring variable args for %s', handler)
+                continue
+            if key in self.params:
+                kwargs[key] = self.params[key]
+            elif key in self.data:
+                kwargs[key] = self.data[key]
+
         self.log(f'Running workflow step {step}')
-        handler()
+        logger.debug('Step args: %r', kwargs)
+        handler(**kwargs)
 
         if slot:
             # we only hold the slot during the execution of the step
@@ -402,19 +418,11 @@ class BaseWorkflow:
     def close(self, result='complete', stub_state='CLOSED'):
         # TODO - the result field needs to be handled better
         self.log('Closing %(method)s workflow' % self.info)
-        # we shouldn't have any waits but...
-        delete = DeleteProcessor('workflow_wait', clauses=['workflow_id = %(id)s'],
-                                 values=self.info)
-        n = delete.execute()
-        if n:
-            logger.error('Dangling waits for %(method)s workflow %(id)i', self.info)
 
-        # and similarly for slots
-        delete = DeleteProcessor('workflow_slots', clauses=['workflow_id = %(id)s'],
-                                 values=self.info)
-        n = delete.execute()
-        if n:
-            logger.error('Dangling slots for %(method)s workflow %(id)i', self.info)
+        for table in ('workflow_wait', 'workflow_slots', 'work_queue'):
+            delete = DeleteProcessor(table, clauses=['workflow_id = %(id)s'],
+                                     values=self.info)
+            delete.execute()
 
         update = UpdateProcessor('workflow', clauses=['id=%(id)s'], values=self.info)
         update.set(data=json.dumps(self.data))
@@ -740,7 +748,7 @@ class TestWorkflow(BaseWorkflow):
     STEPS = ['start', 'finish']
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
-    def start(self):
+    def start(self, a, b):
         # fire off a do-nothing task
         logger.info('TEST WORKFLOW START')
         self.data['task_id'] = self.task('sleep', {'n': 1})
@@ -754,13 +762,19 @@ class TestWorkflow(BaseWorkflow):
 @workflows.add('new-repo')
 class NewRepoWorkflow(BaseWorkflow):
 
-    STEPS = ['start', 'repos', 'finalize']
+    STEPS = ['init', 'repos', 'finalize']
+    PARAMS = {
+        'tag': (int, str, dict),
+        'event': (int,),
+        'opts': (dict,),
+    }
 
-    def start(self):
-        # TODO validate params
+    @slot('repo-init')
+    def init(self, tag, event=None, opts=None):
+        tinfo = kojihub.get_tag(tag, strict=True, event=event)
         kw = self.params
         # ??? should we call repo_init ourselves?
-        task_id = self.task('initRepo', kw)
+        self.data['task_id'] = self.task('initRepo', kw)
         # TODO mechanism for task_id value to persist to next step
 
     def repos(self):
