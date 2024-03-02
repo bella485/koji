@@ -282,7 +282,7 @@ class BaseWorkflow:
 
         # TODO error handling
         step = self.data['steps'].pop(0)
-        handler = getattr(self, step)
+        handler = self.get_handler(step)
 
         is_subtask = getattr(handler, 'subtask', False)
         if subtask_step is not None:
@@ -316,7 +316,9 @@ class BaseWorkflow:
                 # step handlers shouldn't use these, but we'll be nice
                 logger.warning('Ignoring variable args for %s', handler)
                 continue
-            if key in self.params:
+            if key == 'workflow':
+                kwargs[key] = self
+            elif key in self.params:
                 kwargs[key] = self.params[key]
             elif key in self.data:
                 kwargs[key] = self.data[key]
@@ -355,6 +357,35 @@ class BaseWorkflow:
         # TODO integrate with kojihub.Task
         update.set(state=koji.TASK_STATES['OPEN'])
         update.execute()
+
+    @classmethod
+    def step(cls, name=None):
+        """Decorator to add steps outside of class"""
+        # note this can't be used IN the class definition
+        steps = getattr(cls, 'STEPS', None)
+        if steps is None:
+            steps = cls.STEPS = []
+        handlers = getattr(cls, '_step_handlers', None)
+        if handlers is None:
+            handlers = cls._step_handlers = {}
+
+        def decorator(func):
+            nonlocal name
+            # also updates nonlocal steps
+            if name is None:
+                name = func.__name__
+            steps.append(name)
+            handlers[name] = func
+            return func
+
+        return decorator
+
+    def get_handler(self, step):
+        handlers = getattr(self, '_step_handlers', {})
+        if handlers and step in handlers:
+            return handlers[step]
+        else:
+            return getattr(self, step)
 
     def get_steps(self):
         """Get the initial list of steps
@@ -780,18 +811,20 @@ class TestWorkflow(BaseWorkflow):
 
     # XXX remove this test code
 
-    STEPS = ['start', 'finish']
+    # STEPS = ['start', 'finish']
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
-    def start(self, a, b):
-        # fire off a do-nothing task
-        logger.info('TEST WORKFLOW START')
-        self.data['task_id'] = self.task('sleep', {'n': 1})
+@TestWorkflow.step()
+def start(workflow, a, b):
+    # fire off a do-nothing task
+    logger.info('TEST WORKFLOW START')
+    workflow.data['task_id'] = workflow.task('sleep', {'n': 1})
 
-    @subtask()
-    def finish(self):
-        time.sleep(10)
-        logger.info('TEST WORKFLOW FINISH')
+@subtask()
+@TestWorkflow.step()
+def finish():
+    time.sleep(10)
+    logger.info('TEST WORKFLOW FINISH')
 
 
 @workflows.add('new-repo')
