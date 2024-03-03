@@ -298,6 +298,7 @@ class BaseWorkflow:
         elif is_subtask:
             # this step needs to run via a subtask
             self.task('workflowStep', {'workflow_id': self.info['id'], 'step': step})
+            # TODO handle task failure without looping
             return
 
         # TODO slots are a better idea for tasks than for workflows
@@ -355,11 +356,8 @@ class BaseWorkflow:
         logger.debug('Setting up workflow: %r', self.info)
         self.data = {'steps': self.get_steps()}
         # also open our stub task
-        # we don't worry about checks here because the entry is just a stub
-        update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
-        # TODO integrate with kojihub.Task
-        update.set(state=koji.TASK_STATES['OPEN'])
-        update.execute()
+        stub = kojihub.Task(self.info['stub_id'])
+        stub.open(workflow_id=self.info['id'])
 
     @classmethod
     def step(cls, name=None):
@@ -493,14 +491,9 @@ class BaseWorkflow:
         # also close our stub task
         # we don't worry about checks here because the entry is just a stub
         logger.info('Closing workflow task %(stub_id)i', self.info)
-        # we shouldn't have any waits but...
-        update = UpdateProcessor('task', clauses=['id = %(stub_id)s'], values=self.info)
-        update.set(state=koji.TASK_STATES[stub_state])
-        update.rawset(completion_time='NOW()')
-        # TODO set a result for stub
-        # TODO use kojihub.Task so we get the callbacks right
+        stub = kojihub.Task(self.info['stub_id'])
+        stub._close(result, stub_state)
         # TODO handle failure
-        update.execute()
 
     def cancel(self):
         # TODO we need to do more here, but for now
