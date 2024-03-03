@@ -1072,8 +1072,10 @@ CREATE TABLE workflow_wait (
         wait_type TEXT,
         params JSONB,
         create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        fulfill_time TIMESTAMPTZ,
         fulfilled BOOLEAN NOT NULL DEFAULT FALSE,  -- wait condition fulfilled?
-        handled BOOLEAN NOT NULL DEFAULT FALSE     -- workflow informed?
+        seen BOOLEAN NOT NULL DEFAULT FALSE,  -- noted by scheduler?
+        handled BOOLEAN NOT NULL DEFAULT FALSE  -- recieved by handler?
         -- more ???
 ) WITHOUT OIDS;
 

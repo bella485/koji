@@ -75,26 +75,26 @@ def queue_next():
                            opts={'order': 'id', 'limit': 1},
                            lock='skip')
     # note the lock=skip with limit 1. This will give us a row lock on the first unlocked row
-    job = query.executeOne()
-    if not job:
+    row = query.executeOne()
+    if not row:
         # either empty queue or all locked
         return False
 
-    logger.debug('Handling work queue id %(id)s, workflow %(workflow_id)s', job)
-    handle_job(job)
+    logger.debug('Handling work queue id %(id)s, workflow %(workflow_id)s', row)
+    run_workflow(row['workflow_id'])
 
     # mark it done
-    update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=job)
+    update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=row)
     update.set(completed=True)
     update.rawset(completion_time='NOW()')
     update.execute()
 
-    logger.debug('Finished handling work queue id %(id)s', job)
+    logger.debug('Finished handling work queue id %(id)s', row)
     return True
 
 
 def update_queue():
-    handle_waits()
+    check_waits()
     clean_queue()
 
 
@@ -111,7 +111,7 @@ def clean_queue():
         logger.info('Deleted %i old queue entries', count)
 
 
-def handle_waits():
+def check_waits():
     """Check our wait data and see if we need to update the queue
 
     Things we're checking for:
@@ -122,8 +122,9 @@ def handle_waits():
     logger.debug('Checking waits')
     query = WaitsQuery(
         clauses=[
-            ['handled', 'IS', False],
-        ]
+            ['seen', 'IS', False],
+        ],
+        opts={'order': 'id'}
     )
 
     # index by workflow
@@ -132,48 +133,57 @@ def handle_waits():
         wf_waits.setdefault(info['workflow_id'], []).append(info)
 
     fulfilled = []
-    handled = []
+    seen = []
     requeue = []
     for workflow_id in wf_waits:
-        waiting = []
-        for info in wf_waits[workflow_id]:
+        waits = wf_waits[workflow_id]
+        # first pass: check fulfillment
+        for info in waits:
             if info['fulfilled']:
-                handled.append(info)
+                # fulfilled but not seen means fulfillment was noted elsewhere
+                # mark it seen so we don't keep checking it
+                seen.append(info)
             else:
                 # TODO we should avoid calling wait.check quite so often
                 cls = waits.get(info['wait_type'])
                 wait = cls(info)
                 if wait.check():
+                    info['fulfilled'] = True
                     fulfilled.append(info)
-                else:
-                    waiting.append(info)
-        if not waiting:
+        waiting = []
+        nonbatch = []
+        # second pass: decide whether to requeue
+        for info in waits:
+            if info['fulfilled']:
+                # batch waits won't trigger a requeue unless all other waits are fulfilled
+                if not info.get('batch'):
+                    nonbatch.append(info)
+            else:
+                waiting.append(info)
+        if not waiting or nonbatch:
             requeue.append(workflow_id)
 
-    for info in fulfilled:
+    for info in fulfilled + seen:
         logger.info('Fulfilled %(wait_type)s wait %(id)s for workflow %(workflow_id)s', info)
+
     if fulfilled:
-        # we can do these in single update
         update = UpdateProcessor(
             table='workflow_wait',
             clauses=['id IN %(ids)s'],
             values={'ids': [w['id'] for w in fulfilled]},
         )
         update.set(fulfilled=True)
-        update.set(handled=True)
+        update.rawset(fulfill_time='NOW()')
+        update.set(seen=True)
         update.execute()
 
-    # XXX we should not mark them handled until workflow actually runs
-    for info in handled:
-        logger.info('Handled %(wait_type)s wait %(id)s for workflow %(workflow_id)s', info)
-    if handled:
-        # we can do these in single update
+    if seen:
         update = UpdateProcessor(
             table='workflow_wait',
             clauses=['id IN %(ids)s'],
-            values={'ids': [w['id'] for w in handled]},
+            values={'ids': [w['id'] for w in seen]},
         )
-        update.set(handled=True)
+        update.set(seen=True)
         update.execute()
 
     for workflow_id in requeue:
@@ -208,34 +218,30 @@ class WorkflowQuery(QueryView):
     }
 
 
-def handle_job(job):
-    # TODO row lock
-    query = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).query
+def run_workflow(workflow_id, opts=None, strict=False):
+    query = WorkflowQuery(clauses=[['id', '=', workflow_id]]).query
     query.lock = True  # we must have a lock on the workflow before attempting to run it
     wf = query.executeOne(strict=True)
     if wf['completed']:
+        # shouldn't happen, closing the workflow should delete its queue entries
         logger.error('Ignoring completed %(method)s workflow in queue: %(id)i', wf)
-        logger.debug('Data: %r', wf)
+        logger.debug('Data: %r, Opts: %r', wf, opts)
         return
-    logger.debug('Handling workflow: %r', wf)
+
     cls = workflows.get(wf['method'])
     handler = cls(wf)
+
     try:
-        handler.run()
+        handler.run(opts)
     except Exception as err:
-        handle_error(job, err)
+        # handle_error(workflow_id, err)
+        # TODO sort out error handling
         raise  # XXX
 
 
 def run_subtask_step(workflow_id, step):
-    query = WorkflowQuery(clauses=[['id', '=', workflow_id]])
-    query.lock = True  # we must have a lock on the workflow before attempting to run it
-    wf = query.executeOne(strict=True)
-    if wf['completed']:
-        raise koji.GenericError('Workflow is completed')
-    cls = workflows.get(wf['method'])
-    handler = cls(wf)
-    handler.run(subtask_step=step)
+    opts = {'from_subtask': True, 'step': step}
+    run_workflow(workflow_id, opts, strict=True)
 
 
 def handle_error(job, err):
@@ -280,20 +286,24 @@ class BaseWorkflow:
         self.data = info['data']
         self.waiting = False
 
-    def run(self, subtask_step=None):
+    def run(self, opts=None):
         if self.data is None:
             self.setup()
+        if opts is None:
+            opts = {}
+
+        self.handle_waits()
 
         # TODO error handling
         step = self.data['steps'].pop(0)
         handler = self.get_handler(step)
+        if 'step' in opts and opts['step'] != step:
+            raise koji.GenericError(f'Step mismatch {opts["step"]} != {step}')
 
         is_subtask = getattr(handler, 'subtask', False)
-        if subtask_step is not None:
+        if opts.get('from_subtask'):
             # we've been called via a workflowStep task
-            if subtask_step != step:
-                raise koji.GenericError(f'Step mismatch {subtask_step} != {step}')
-            elif not is_subtask:
+            if not is_subtask:
                 raise koji.GenericError(f'Not a subtask step: {step}')
             # otherwise we're good
         elif is_subtask:
@@ -348,6 +358,23 @@ class BaseWorkflow:
 
         # update the db
         self.update()
+
+    def handle_waits(self):
+        query = WaitsQuery(
+            clauses=[['workflow_id', '=', self.info['id']], ['handled', 'IS', False]],
+            opts={'order': 'id'})
+        mywaits = query.execute()
+        waiting = []
+        fulfilled = []
+        for info in mywaits:
+            if not info['fulfilled']:
+                # TODO should we call check here as well?
+                waiting.append(info)
+            else:
+                cls = waits.get(info['wait_type'])
+                wait = cls(info)
+                wait.handle(workflow=self)
+        return bool(waiting)
 
     def log(self, msg, level=logging.INFO):
         log_both(msg, task_id=self.info['stub_id'], level=level)
@@ -616,6 +643,7 @@ class WaitsQuery(QueryView):
         'create_time': ['workflow_wait.create_time', None],
         'create_ts': ["date_part('epoch', workflow_wait.create_time)", None],
         'fulfilled': ['workflow_wait.fulfilled', None],
+        'seen': ['workflow_wait.seen', None],
         'handled': ['workflow_wait.handled', None],
     }
 
@@ -629,18 +657,14 @@ class BaseWait:
     def check(self):
         raise NotImplementedError('wait check not defined')
 
-    # XXX does it make sense to update state here?
-    def set_fulfilled(self):
-        update = UpdateProcessor('workflow_wait', clauses=['id = %(id)s'], values=self.info)
-        update.set(fulfilled=True)
-        update.execute()
-
-    # XXX does it make sense to update state here?
     def set_handled(self):
         # TODO what should we do if not fulfilled yet?
         update = UpdateProcessor('workflow_wait', clauses=['id = %(id)s'], values=self.info)
         update.set(handled=True)
         update.execute()
+
+    def handle(self):
+        self.set_handled()
 
 
 @waits.add('task')
@@ -655,6 +679,28 @@ class TaskWait(BaseWait):
                                clauses=['id = %(task_id)s'], values=params)
         state = query.singleValue()
         return (state in self.END_STATES)
+
+    def handle(self, workflow):
+        self.set_handled()
+        task = kojihub.Task(self.info['params']['task_id'])
+        tinfo = task.getInfo()
+        ret = {'task': tinfo}
+        if tinfo['state'] == koji.TASK_STATES['FAILED']:
+            if not self.info['params'].get('canfail', False):
+                raise koji.GenericError(f'Workflow task {tinfo["id"]} failed')
+                # TODO workflow failure
+            # otherwise we keep going
+        elif tinfo['state'] == koji.TASK_STATES['CANCELED']:
+            # TODO unclear if canfail applies here
+            raise koji.GenericError(f'Workflow task {tinfo["id"]} canceled')
+        elif tinfo['state'] == koji.TASK_STATES['CLOSED']:
+            # shouldn't be a fault
+            ret['result'] = task.getResult()
+        else:
+            # should not happen
+            raise koji.GenericError(f'Task not completed: {tinfo}')
+        # TODO: update workflow data?
+        return ret
 
     @staticmethod
     def task_done(task_id):
