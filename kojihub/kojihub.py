@@ -390,8 +390,17 @@ class Task(object):
             for (child_id,) in query.execute():
                 Task(child_id).setPriority(priority, recurse=True)
 
-    def _close(self, result, state):
+    def _close(self, result, state, encode=False):
         """Mark task closed and set response
+
+        :param result: the task result to set
+        :type result: str or object
+        :param state: the state to set
+        :type state: int
+        :param encode: whether to encode the result, default: False
+        :type encode: bool
+
+        If encode is False (the default), the result should already be encoded
 
         Returns True if successful, False if not"""
         # access checks should be performed by calling function
@@ -399,6 +408,8 @@ class Task(object):
         # the actual value should be retrieved from the 'new' value of the post callback
         now = time.time()
         info = self.getInfo(request=True)
+        if encode:
+            result = koji.xmlrpcplus.dumps((result,), methodresponse=1, allow_none=1)
         info['result'] = result
         self.runCallbacks('preTaskStateChange', info, 'state', state)
         self.runCallbacks('preTaskStateChange', info, 'completion_ts', now)

@@ -163,6 +163,7 @@ def handle_waits():
         update.set(handled=True)
         update.execute()
 
+    # XXX we should not mark them handled until workflow actually runs
     for info in handled:
         logger.info('Handled %(wait_type)s wait %(id)s for workflow %(workflow_id)s', info)
     if handled:
@@ -492,7 +493,7 @@ class BaseWorkflow:
         # we don't worry about checks here because the entry is just a stub
         logger.info('Closing workflow task %(stub_id)i', self.info)
         stub = kojihub.Task(self.info['stub_id'])
-        stub._close(result, koji.TASK_STATES[stub_state])
+        stub._close(result, koji.TASK_STATES[stub_state], encode=True)
         # TODO handle failure
 
     def cancel(self):
