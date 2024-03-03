@@ -226,21 +226,21 @@ class Task(object):
         if not self.verifyOwner(user_id):
             raise koji.ActionNotAllowed("user %d does not own task %d" % (user_id, self.id))
 
-    def lock(self, host_id, newstate='OPEN', force=False, workflow_id=None):
+    def lock(self, host_id, newstate='OPEN', force=False, workflow=False):
         """Attempt to associate the task for host, either to assign or open
 
         :param int host_id: id of host, can also be None
         :param str newstate: task state to set, as a string, default: "OPEN"
         :param bool force: force operation, default False
-        :param workflow_id: workflow id, default None
+        :param bool workflow: task is a workflow stub
 
-        If host_id is specfied as None, workflow_id must be given.
-        If workflow_id is given, it must match the task.
+        If host_id is specfied as None, workflow must be True
+        If workflow is True, the task must be a workflow stub
 
         returns True if successful, False otherwise"""
         info = self.getInfo(request=True)
         self.runCallbacks('preTaskStateChange', info, 'state', koji.TASK_STATES[newstate])
-        if workflow_id is not None:
+        if workflow:
             host_id = None
         if host_id is not None:
             self.runCallbacks('preTaskStateChange', info, 'host_id', host_id)
@@ -248,7 +248,7 @@ class Task(object):
         # note the QueryProcessor...opts={'rowlock': True}
         task_id = self.id
         if not force:
-            query = QueryProcessor(columns=['state', 'host_id', 'workflow_id'], tables=['task'],
+            query = QueryProcessor(columns=['state', 'host_id', 'is_workflow'], tables=['task'],
                                    clauses=['id=%(task_id)s'], values={'task_id': task_id},
                                    lock=True)
             r = query.executeOne()
@@ -256,11 +256,11 @@ class Task(object):
                 raise koji.GenericError("No such task: %i" % task_id)
             state = r['state']
             otherhost = r['host_id']
-            if workflow_id is not None:
-                if workflow_id != r['workflow_id']:
+            if workflow:
+                # workflows can manage their stubs
+                if not r['is_workflow']:
                     # should not happen
-                    raise ValueError('workflow id mismatch')
-                # otherwise a workflow can manage its own stub
+                    raise ValueError(f'task {self.id} is not a workflow')
             elif state == koji.TASK_STATES['FREE']:
                 if otherhost is not None:
                     log_error(f"Error: task {task_id} is both free "
@@ -317,11 +317,11 @@ class Task(object):
         returns True if successful, False otherwise"""
         return self.lock(host_id, 'ASSIGNED', force)
 
-    def open(self, host_id=None, workflow_id=None):
-        """Attempt to open the task for host.
+    def open(self, host_id=None, workflow=False):
+        """Attempt to open the task for host or workflow
 
         returns task data if successful, None otherwise"""
-        if self.lock(host_id, 'OPEN', workflow_id=workflow_id):
+        if self.lock(host_id, 'OPEN', workflow=workflow):
             # get more complete data to return
             fields = self.fields + (('task.request', 'request'),)
             query = QueryProcessor(tables=['task'], clauses=['id=%(id)i'], values=vars(self),

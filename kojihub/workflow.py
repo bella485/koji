@@ -357,7 +357,7 @@ class BaseWorkflow:
         self.data = {'steps': self.get_steps()}
         # also open our stub task
         stub = kojihub.Task(self.info['stub_id'])
-        stub.open(workflow_id=self.info['id'])
+        stub.open(workflow=True)
 
     @classmethod
     def step(cls, name=None):
