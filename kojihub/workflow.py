@@ -29,19 +29,19 @@ Starting with basic tasks, e.g.
 
 class WorkQueueQuery(QueryView):
 
-    tables = ['work_queue']
+    tables = ['workflow_queue']
     #joinmap = {
-    #    'workflow': 'workflow ON work_queue.workflow_id = workflow.id',
+    #    'workflow': 'workflow ON workflow_queue.workflow_id = workflow.id',
     #}
     fieldmap = {
-        'id': ['work_queue.id', None],
-        'workflow_id': ['work_queue.workflow_id', None],
-        'create_time': ['work_queue.create_time', None],
-        'create_ts': ["date_part('epoch', work_queue.create_time)", None],
-        'completion_time': ['work_queue.completion_time', None],
-        'completion_ts': ["date_part('epoch', work_queue.completion_time)", None],
-        'completed': ['work_queue.completed', None],
-        'error': ['work_queue.error', None],
+        'id': ['workflow_queue.id', None],
+        'workflow_id': ['workflow_queue.workflow_id', None],
+        'create_time': ['workflow_queue.create_time', None],
+        'create_ts': ["date_part('epoch', workflow_queue.create_time)", None],
+        'completion_time': ['workflow_queue.completion_time', None],
+        'completion_ts': ["date_part('epoch', workflow_queue.completion_time)", None],
+        'completed': ['workflow_queue.completed', None],
+        'error': ['workflow_queue.error', None],
     }
     default_fields = ('id', 'workflow_id', 'create_ts', 'completion_ts', 'completed', 'error')
 
@@ -69,7 +69,7 @@ def queue_next():
     :returns: True if an entry ran, False otherwise
     """
     # TODO maybe use scheduler logging mechanism?
-    query = QueryProcessor(tables=['work_queue'],
+    query = QueryProcessor(tables=['workflow_queue'],
                            columns=['id', 'workflow_id'],
                            clauses=['completed IS FALSE'],
                            opts={'order': 'id', 'limit': 1},
@@ -84,7 +84,7 @@ def queue_next():
     handle_job(job)
 
     # mark it done
-    update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
+    update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=job)
     update.set(completed=True)
     update.rawset(completion_time='NOW()')
     update.execute()
@@ -102,7 +102,7 @@ def clean_queue():
     logger.debug('Cleaning old queue entries')
     lifetime = 3600  # XXX config
     delete = DeleteProcessor(
-        table='work_queue',
+        table='workflow_queue',
         values={'age': f'{lifetime} seconds'},
         clauses=['completed IS TRUE', "completion_time < NOW() - %(age)s::interval"],
     )
@@ -178,7 +178,7 @@ def handle_waits():
 
     for workflow_id in requeue:
         logger.info('Re-queueing workflow %s', workflow_id)
-        insert = InsertProcessor('work_queue', data={'workflow_id': workflow_id})
+        insert = InsertProcessor('workflow_queue', data={'workflow_id': workflow_id})
         insert.execute()
 
 
@@ -242,7 +242,7 @@ def handle_error(job, err):
     # for now we mark it completed but include the error
     # TODO retries?
     # XXX what do we do about the workflow?
-    update = UpdateProcessor('work_queue', clauses=['id=%(id)s'], values=job)
+    update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=job)
     update.set(completed=True)
     update.set(error=str(err))
     update.rawset(completion_time='NOW()')
@@ -477,7 +477,7 @@ class BaseWorkflow:
         # TODO - the result field needs to be handled better
         self.log('Closing %(method)s workflow' % self.info)
 
-        for table in ('workflow_wait', 'workflow_slots', 'work_queue'):
+        for table in ('workflow_wait', 'workflow_slots', 'workflow_queue'):
             delete = DeleteProcessor(table, clauses=['workflow_id = %(id)s'],
                                      values=self.info)
             delete.execute()
@@ -502,7 +502,7 @@ class BaseWorkflow:
 
     def requeue(self):
         self.log('Queuing %(method)s workflow' % self.info)
-        insert = InsertProcessor('work_queue', data={'workflow_id': self.info['id']})
+        insert = InsertProcessor('workflow_queue', data={'workflow_id': self.info['id']})
         insert.execute()
 
     def update(self):
@@ -581,7 +581,7 @@ def add_workflow(method, params, queue=True):
 
     if queue:
         # also add it to the work queue so it will start
-        insert = InsertProcessor('work_queue', data={'workflow_id': data['id']})
+        insert = InsertProcessor('workflow_queue', data={'workflow_id': data['id']})
         insert.execute()
 
     # TODO return full info?

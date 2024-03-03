@@ -1090,7 +1090,7 @@ CREATE TABLE workflow_slots (
 ) WITHOUT OIDS;
 
 
-CREATE TABLE work_queue (
+CREATE TABLE workflow_queue (
         id SERIAL NOT NULL PRIMARY KEY,
         workflow_id INTEGER REFERENCES workflow(id),
         create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1106,7 +1106,7 @@ CREATE TABLE locks (
 ) WITHOUT OIDS;
 INSERT INTO locks(name) VALUES('protonmsg-plugin');
 INSERT INTO locks(name) VALUES('scheduler');
-INSERT INTO locks(name) VALUES('work_queue');
+INSERT INTO locks(name) VALUES('workflow_queue');
 INSERT INTO locks(name) VALUES('workflow_slots');
 
 COMMIT WORK;
