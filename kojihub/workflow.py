@@ -209,7 +209,9 @@ class WorkflowQuery(QueryView):
 
 def handle_job(job):
     # TODO row lock
-    wf = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).executeOne(strict=True)
+    query = WorkflowQuery(clauses=[['id', '=', job['workflow_id']]]).query
+    query.lock = True  # we must have a lock on the workflow before attempting to run it
+    wf = query.executeOne(strict=True)
     if wf['completed']:
         logger.error('Ignoring completed %(method)s workflow in queue: %(id)i', wf)
         logger.debug('Data: %r', wf)
@@ -225,8 +227,9 @@ def handle_job(job):
 
 
 def run_subtask_step(workflow_id, step):
-    # TODO row lock
-    wf = WorkflowQuery(clauses=[['id', '=', workflow_id]]).executeOne(strict=True)
+    query = WorkflowQuery(clauses=[['id', '=', workflow_id]])
+    query.lock = True  # we must have a lock on the workflow before attempting to run it
+    wf = query.executeOne(strict=True)
     if wf['completed']:
         raise koji.GenericError('Workflow is completed')
     cls = workflows.get(wf['method'])
