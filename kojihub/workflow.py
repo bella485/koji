@@ -492,7 +492,7 @@ class BaseWorkflow:
         # we don't worry about checks here because the entry is just a stub
         logger.info('Closing workflow task %(stub_id)i', self.info)
         stub = kojihub.Task(self.info['stub_id'])
-        stub._close(result, stub_state)
+        stub._close(result, koji.TASK_STATES[stub_state])
         # TODO handle failure
 
     def cancel(self):
