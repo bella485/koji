@@ -933,6 +933,7 @@ class NewRepoWorkflow(BaseWorkflow):
     @subtask()
     def repo_init(self, tag, event=None, opts=None):
         tinfo = kojihub.get_tag(tag, strict=True, event=event)
+        event = kojihub.convert_value(event, cast=int, none_allowed=True)
         if opts is None:
             opts = {}
         opts = dslice(opts, ('with_src', 'with_debuginfo', 'with_separate_src'))
