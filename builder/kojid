@@ -5639,8 +5639,8 @@ Build Info: %(weburl)s/buildinfo?buildID=%(build_id)i\r
 
 
 class NewRepoTask(BaseTaskHandler):
-    Methods = ['newRepo']
-    _taskWeight = 0.1
+    Methods = ['prepRepo']
+    _taskWeight = 0.5
 
     def copy_arch_repo(self, src_repo_id, src_repo_path, repo_id, arch):
         """Copy repodata, return False if it fails"""
@@ -5722,29 +5722,18 @@ class NewRepoTask(BaseTaskHandler):
         self.logger.debug('Arch repo test passed %s' % arch)
         return True
 
-    def handler(self, tag, event=None, src=False, debuginfo=False, separate_src=False):
-        tinfo = self.session.getTag(tag, strict=True, event=event)
-
-        # check for fs access before we try calling repoInit
+    def handler(self, tag, repo, opts):
+        # check for fs access before we go any further
         top_repos_dir = joinpath(self.options.topdir, "repos")
         if not os.path.isdir(top_repos_dir):
             # missing or incorrect mount?
             # refuse and let another host try
             raise RefuseTask("No access to repos dir %s" % top_repos_dir)
 
-        # call repoInit
-        kwargs = {}
-        if event is not None:
-            kwargs['event'] = event
-        if src:
-            kwargs['with_src'] = True
-        if separate_src:
-            kwargs['with_separate_src'] = True
-        # generate debuginfo repo if requested or if specified in sidetag's extra
-        if debuginfo or tinfo['extra'].get('with_debuginfo'):
-            kwargs['with_debuginfo'] = True
-
-        repo_id, event_id = self.session.host.repoInit(tinfo['id'], task_id=self.id, **kwargs)
+        # workflow has already called repo_init
+        tinfo = tag
+        repo_id = repo['id']
+        event_id = repo['event_id']
 
         path = koji.pathinfo.repo(repo_id, tinfo['name'])
         if not os.path.isdir(path):
@@ -5784,13 +5773,13 @@ class NewRepoTask(BaseTaskHandler):
         newrepo = {'tag_id': tinfo['id'], 'create_event': event_id}
         if self.options.copy_old_repodata:
             possibly_clonable = self.check_repo(oldrepo_path, newrepo_path,
-                                                oldrepo, newrepo, kwargs)
+                                                oldrepo, newrepo, opts)
         else:
             possibly_clonable = False
 
-        subtasks = {}
         data = {}
         cloned_archs = []
+        needed_archs = []
         for arch in arches:
             if possibly_clonable and self.check_arch_repo(oldrepo_path, newrepo_path, arch):
                 result = self.copy_arch_repo(oldrepo['id'], oldrepo_path, repo_id, arch)
@@ -5798,6 +5787,13 @@ class NewRepoTask(BaseTaskHandler):
                     data[arch] = result
                     cloned_archs.append(arch)
                     continue
+            # otherwise we need a createrepo task for this arch
+            needed_arches.append(arch)
+
+        return {'cloned': data, 'needed': needed_arches}
+
+        subtasks = {}
+        for arch in needed_archs:
             # if we can't copy old repo directly, trigger normal createrepo
             arglist = [repo_id, arch, oldrepo]
             subtasks[arch] = self.session.host.subtask(method='createrepo',

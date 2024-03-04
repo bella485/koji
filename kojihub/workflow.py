@@ -919,23 +919,25 @@ def finish():
 @workflows.add('new-repo')
 class NewRepoWorkflow(BaseWorkflow):
 
-    STEPS = ['init', 'repos', 'finalize']
+    STEPS = ['repo_init', 'repos', 'repo_done']
     PARAMS = {
         'tag': (int, str, dict),
-        'event': (int,),
+        'event': (int, type(None)),
         'opts': (dict,),
     }
 
-    @slot('repo-init')
-    def init(self, tag, event=None, opts=None):
+    @subtask()
+    def repo_init(self, tag, event=None, opts=None):
         tinfo = kojihub.get_tag(tag, strict=True, event=event)
-        kw = self.params
-        # ??? should we call repo_init ourselves?
-        self.data['task_id'] = self.task('initRepo', kw)
-        # TODO mechanism for task_id value to persist to next step
+        opts = dslice(opts, ('with_src', 'with_debuginfo', 'with_separate_src'), strict=True)
+        # TODO further opts validation?
+        repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event, task_id=self.info['stub_id'], **opts)
+        repo_info = kojihub.repo_info(repo_id)
+        kw = {'tag': tinfo, 'repo': repo_info, 'opts': opts}
+        self.data['task_id'] = self.task('prepRepo', kw)
 
     def repos(self):
-        # TODO fetch archlist from task
+        
         repo_tasks = []
         for arch in self.needed_arches:
             params = {'repo_id': repo_id, 'arch': arch, 'oldrepo': oldrepo}
