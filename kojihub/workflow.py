@@ -5,6 +5,7 @@ import time
 
 import koji
 from koji.context import context
+from koji.util import dslice
 from . import kojihub
 from .scheduler import log_both
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
@@ -405,7 +406,6 @@ class BaseWorkflow:
             opts={'order': 'id'})
         mywaits = query.execute()
         waiting = []
-        fulfilled = []
         for info in mywaits:
             if not info['fulfilled']:
                 # TODO should we call check here as well?
@@ -905,11 +905,13 @@ class TestWorkflow(BaseWorkflow):
     # STEPS = ['start', 'finish']
     PARAMS = {'a': int, 'b': (int, type(None)), 'c': str}
 
+
 @TestWorkflow.step()
 def start(workflow, a, b):
     # fire off a do-nothing task
     logger.info('TEST WORKFLOW START')
     workflow.data['task_id'] = workflow.task('sleep', {'n': 1})
+
 
 @subtask()
 @TestWorkflow.step()
@@ -933,25 +935,26 @@ class NewRepoWorkflow(BaseWorkflow):
         tinfo = kojihub.get_tag(tag, strict=True, event=event)
         opts = dslice(opts, ('with_src', 'with_debuginfo', 'with_separate_src'), strict=True)
         # TODO further opts validation?
-        repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event, task_id=self.info['stub_id'], **opts)
+        repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event,
+                                              task_id=self.info['stub_id'], **opts)
         repo_info = kojihub.repo_info(repo_id)
         kw = {'tag': tinfo, 'repo': repo_info, 'opts': opts}
         self.data['prep_id'] = self.task('prepRepo', kw)
         self.data['repo'] = repo_info
 
-    def repos(self, prep_id):
+    def repos(self, prep_id, repo):
         # TODO better mechanism for fetching task result
         prepdata = kojihub.Task(prep_id).getResult()
         repo_tasks = []
         for arch in prepdata['needed']:
-            params = {'repo_id': repo_id, 'arch': arch, 'oldrepo': oldrepo}
+            params = {'repo_id': repo['id'], 'arch': arch, 'oldrepo': prepdata['oldrepo']}
             repo_tasks[arch] = self.task('createrepo', params)
             # TODO fail workflow on any failed subtask
         self.data['cloned'] = prepdata['cloned']
         self.data['repo_tasks'] = repo_tasks
 
     @subtask()
-    def repo_done(self, cloned, repo_tasks, event=None):
+    def repo_done(self, repo, cloned, repo_tasks, event=None):
         data = cloned.copy()
         for arch in repo_tasks:
             data[arch] = kojihub.Task(repo_tasks[arch]).getResult()
@@ -964,7 +967,10 @@ class NewRepoWorkflow(BaseWorkflow):
                 'cloned_from_repo_id': 0,   # XXX
                 'cloned_archs': list(sorted(cloned)),
             }
-        kojihub.repo_done(repo_id, data, **kwargs)
+        kojihub.repo_done(repo['id'], data, **kwargs)
+
+        # do we need a return?
+        return repo['id'], repo['event_id']
 
 
 class WorkflowExports:
