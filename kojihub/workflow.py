@@ -934,18 +934,35 @@ class NewRepoWorkflow(BaseWorkflow):
         repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event, task_id=self.info['stub_id'], **opts)
         repo_info = kojihub.repo_info(repo_id)
         kw = {'tag': tinfo, 'repo': repo_info, 'opts': opts}
-        self.data['task_id'] = self.task('prepRepo', kw)
+        self.data['prep_id'] = self.task('prepRepo', kw)
+        self.data['repo'] = repo_info
 
-    def repos(self):
-        
+    def repos(self, prep_id):
+        # TODO better mechanism for fetching task result
+        prepdata = kojihub.Task(prep_id).getResult()
         repo_tasks = []
-        for arch in self.needed_arches:
+        for arch in prepdata['needed']:
             params = {'repo_id': repo_id, 'arch': arch, 'oldrepo': oldrepo}
             repo_tasks[arch] = self.task('createrepo', params)
+            # TODO fail workflow on any failed subtask
+        self.data['cloned'] = prepdata['cloned']
+        self.data['repo_tasks'] = repo_tasks
 
-    def finalize(self):
-        # TODO fetch params from self/tasks
-        repo_done(...)
+    @subtask()
+    def repo_done(self, event, cloned, repo_tasks):
+        data = cloned.copy()
+        for arch in repo_tasks:
+            data[arch] = kojihub.Task(repo_tasks[arch]).getResult()
+
+        kwargs = {}
+        if event is not None:
+            kwargs['expire'] = True
+        if cloned:
+            kwargs['repo_json_updates'] = {
+                'cloned_from_repo_id': 0,   # XXX
+                'cloned_archs': list(sorted(cloned)),
+            }
+        kojihub.repo_done(repo_id, data, **kwargs)
 
 
 class WorkflowExports:
