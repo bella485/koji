@@ -242,24 +242,26 @@ def run_workflow(workflow_id, opts=None, strict=False):
     cls = workflows.get(wf['method'])
     handler = cls(wf)
 
-    err = None
+    error = None
     savepoint = Savepoint('pre_workflow')
     try:
         handler.run(opts)
 
     except WorkflowFailure as err:
         # this is deliberate failure, so handle it that way
-        handler.fail(msg=str(err))
+        error = str(err)
+        handler.fail(msg=error)
 
     except Exception as err:
         # for unplanned exceptions, we assume the worst
         # rollback and freeze the workflow
         savepoint.rollback()
-        handle_error(wf, err)
+        error = str(err)
+        handle_error(wf, error)
         logger.exception('Error handling workflow')
 
-    if strict and err is not None:
-        raise koji.GenericError(f'Error handling workflow: {str(err)}')
+    if strict and error is not None:
+        raise koji.GenericError(f'Error handling workflow: {error}')
 
 
 def run_subtask_step(workflow_id, step):
@@ -267,7 +269,7 @@ def run_subtask_step(workflow_id, step):
     run_workflow(workflow_id, opts, strict=True)
 
 
-def handle_error(info, err):
+def handle_error(info, error):
     # freeze the workflow
     update = UpdateProcessor('workflow', clauses=['id=%(id)s'], values=info)
     update.set(frozen=True)
@@ -276,7 +278,7 @@ def handle_error(info, err):
 
     # record the error
     error_data = {
-        'error': str(err),  # TODO traceback?
+        'error': error,  # TODO traceback?
         'workflow_data': info['data'],
     }
     data = {
@@ -949,7 +951,7 @@ class NewRepoWorkflow(BaseWorkflow):
         self.data['repo_tasks'] = repo_tasks
 
     @subtask()
-    def repo_done(self, event, cloned, repo_tasks):
+    def repo_done(self, cloned, repo_tasks, event=None):
         data = cloned.copy()
         for arch in repo_tasks:
             data[arch] = kojihub.Task(repo_tasks[arch]).getResult()
