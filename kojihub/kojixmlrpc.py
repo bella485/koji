@@ -45,6 +45,12 @@ from . import scheduler
 from . import workflow
 
 
+# HTTP headers included in every request
+GLOBAL_HEADERS = [
+    ('Koji-Version', koji.__version__),
+]
+
+
 class Marshaller(ExtendedMarshaller):
 
     dispatch = ExtendedMarshaller.dispatch.copy()
@@ -390,7 +396,7 @@ def offline_reply(start_response, msg=None):
     else:
         faultString = msg
     response = dumps(Fault(faultCode, faultString)).encode()
-    headers = [
+    headers = GLOBAL_HEADERS + [
         ('Content-Length', str(len(response))),
         ('Content-Type', "text/xml"),
     ]
@@ -400,7 +406,7 @@ def offline_reply(start_response, msg=None):
 
 def error_reply(start_response, status, response, extra_headers=None):
     response = response.encode()
-    headers = [
+    headers = GLOBAL_HEADERS + [
         ('Content-Length', str(len(response))),
         ('Content-Type', "text/plain"),
     ]
@@ -817,7 +823,7 @@ def application(environ, start_response):
             except RequestTimeout as e:
                 return error_reply(start_response, '408 Request Timeout', str(e) + '\n')
             response = response.encode()
-            headers = [
+            headers = GLOBAL_HEADERS + [
                 ('Content-Length', str(len(response))),
                 ('Content-Type', "text/xml"),
             ]

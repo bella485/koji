@@ -324,9 +324,8 @@ def handle_add_channel(goptions, session, args):
         if 'channel %s already exists' % channel_name in msg:
             error("channel %s already exists" % channel_name)
         elif 'Invalid method:' in msg:
-            version = session.getKojiVersion()
             error("addChannel is available on hub from Koji 1.26 version, your version is %s" %
-                  version)
+                  session.hub_version_str)
         else:
             error(msg)
     print("%s added: id %d" % (args[0], channel_id))
@@ -356,9 +355,8 @@ def handle_edit_channel(goptions, session, args):
     except koji.GenericError as ex:
         msg = str(ex)
         if 'Invalid method:' in msg:
-            version = session.getKojiVersion()
             error("editChannel is available on hub from Koji 1.26 version, your version is %s" %
-                  version)
+                  session.hub_version_str)
         else:
             warn(msg)
     if not result:
@@ -6295,14 +6293,6 @@ def handle_cancel(goptions, session, args):
     if len(args) == 0:
         parser.error("You must specify at least one task id or build")
     activate_session(session, goptions)
-    older_hub = False
-    try:
-        hub_version = session.getKojiVersion()
-        v = tuple([int(x) for x in hub_version.split('.')])
-        if v < (1, 33, 0):
-            older_hub = True
-    except koji.GenericError:
-        older_hub = True
     tlist = []
     blist = []
     for arg in args:
@@ -6329,7 +6319,7 @@ def handle_cancel(goptions, session, args):
             for task_id in tlist:
                 results.append(remote_fn(task_id, **opts))
         for build in blist:
-            if not older_hub:
+            if session.hub_version >= (1, 33, 0):
                 results.append(m.cancelBuild(build, strict=True))
             else:
                 results.append(m.cancelBuild(build))
@@ -7575,7 +7565,7 @@ def handle_moshimoshi(options, session, args):
         u = {'name': 'anonymous user'}
     print("%s, %s!" % (_printable_unicode(random.choice(greetings)), u["name"]))
     print("")
-    print("You are using the hub at %s" % session.baseurl)
+    print("You are using the hub at %s (Koji %s)" % (session.baseurl, session.hub_version_str))
     authtype = u.get('authtype', getattr(session, 'authtype', None))
     if authtype == koji.AUTHTYPES['NORMAL']:
         print("Authenticated via password")
@@ -8130,3 +8120,34 @@ def handle_promote_build(goptions, session, args):
         error("Not a draft build: %s" % draft_build)
     rinfo = session.promoteBuild(binfo['id'], force=options.force)
     print("%s has been promoted to %s" % (binfo['nvr'], rinfo['nvr']))
+
+
+def anon_handle_list_users(goptions, session, args):
+    """[admin] List of users"""
+    usage = "usage: %prog list-users [options]"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--usertype", help="List users that have a given usertype "
+                                         "(e.g. NORMAL, HOST, GROUP)")
+    parser.add_option("--prefix", help="List users that have a given prefix")
+    (options, args) = parser.parse_args(args)
+
+    if len(args) > 0:
+        parser.error("This command takes no arguments")
+    activate_session(session, goptions)
+
+    if options.usertype:
+        if options.usertype.upper() in koji.USERTYPES.keys():
+            usertype = koji.USERTYPES[options.usertype.upper()]
+        else:
+            error("Usertype %s doesn't exist" % options.usertype)
+    else:
+        usertype = koji.USERTYPES['NORMAL']
+
+    if options.prefix:
+        prefix = options.prefix
+    else:
+        prefix = None
+
+    users_list = session.listUsers(userType=usertype, prefix=prefix)
+    for user in users_list:
+        print(user['name'])
