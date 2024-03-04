@@ -935,7 +935,7 @@ class NewRepoWorkflow(BaseWorkflow):
         tinfo = kojihub.get_tag(tag, strict=True, event=event)
         if opts is None:
             opts = {}
-        opts = dslice(opts, ('with_src', 'with_debuginfo', 'with_separate_src'), strict=True)
+        opts = dslice(opts, ('with_src', 'with_debuginfo', 'with_separate_src'))
         # TODO further opts validation?
         repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event,
                                               task_id=self.info['stub_id'], **opts)
