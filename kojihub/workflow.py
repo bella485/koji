@@ -933,6 +933,8 @@ class NewRepoWorkflow(BaseWorkflow):
     @subtask()
     def repo_init(self, tag, event=None, opts=None):
         tinfo = kojihub.get_tag(tag, strict=True, event=event)
+        if opts is None:
+            opts = {}
         opts = dslice(opts, ('with_src', 'with_debuginfo', 'with_separate_src'), strict=True)
         # TODO further opts validation?
         repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event,
