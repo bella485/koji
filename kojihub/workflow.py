@@ -8,7 +8,7 @@ from koji.context import context
 from . import kojihub
 from .scheduler import log_both
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
-    DeleteProcessor, QueryView, db_lock, nextval
+    DeleteProcessor, QueryView, db_lock, nextval, Savepoint
 
 
 logger = logging.getLogger('koji.workflow')
@@ -68,7 +68,6 @@ def queue_next():
 
     :returns: True if an entry ran, False otherwise
     """
-    # TODO maybe use scheduler logging mechanism?
     query = QueryProcessor(tables=['workflow_queue'],
                            columns=['id', 'workflow_id'],
                            clauses=['completed IS FALSE'],
@@ -81,13 +80,16 @@ def queue_next():
         return False
 
     logger.debug('Handling work queue id %(id)s, workflow %(workflow_id)s', row)
-    run_workflow(row['workflow_id'])
 
-    # mark it done
-    update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=row)
-    update.set(completed=True)
-    update.rawset(completion_time='NOW()')
-    update.execute()
+    try:
+        run_workflow(row['workflow_id'])
+
+    finally:
+        # mark it done, even if we errored
+        update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=row)
+        update.set(completed=True)
+        update.rawset(completion_time='NOW()')
+        update.execute()
 
     logger.debug('Finished handling work queue id %(id)s', row)
     return True
@@ -136,9 +138,8 @@ def check_waits():
     seen = []
     requeue = []
     for workflow_id in wf_waits:
-        waits = wf_waits[workflow_id]
         # first pass: check fulfillment
-        for info in waits:
+        for info in wf_waits[workflow_id]:
             if info['fulfilled']:
                 # fulfilled but not seen means fulfillment was noted elsewhere
                 # mark it seen so we don't keep checking it
@@ -153,7 +154,7 @@ def check_waits():
         waiting = []
         nonbatch = []
         # second pass: decide whether to requeue
-        for info in waits:
+        for info in wf_waits[workflow_id]:
             if info['fulfilled']:
                 # batch waits won't trigger a requeue unless all other waits are fulfilled
                 if not info.get('batch'):
@@ -203,6 +204,7 @@ class WorkflowQuery(QueryView):
         'stub_id': ['stub_id', None],
         'started': ['workflow.started', None],
         'completed': ['workflow.completed', None],
+        'frozen': ['workflow.frozen', None],
         'create_time': ['workflow.create_time', None],
         'start_time': ['workflow.start_time', None],
         'update_time': ['workflow.update_time', None],
@@ -218,25 +220,46 @@ class WorkflowQuery(QueryView):
     }
 
 
+class WorkflowFailure(Exception):
+    """Raised to explicitly fail a workflow"""
+    pass
+
+
 def run_workflow(workflow_id, opts=None, strict=False):
     query = WorkflowQuery(clauses=[['id', '=', workflow_id]]).query
     query.lock = True  # we must have a lock on the workflow before attempting to run it
     wf = query.executeOne(strict=True)
+
     if wf['completed']:
         # shouldn't happen, closing the workflow should delete its queue entries
-        logger.error('Ignoring completed %(method)s workflow in queue: %(id)i', wf)
+        logger.error('Ignoring completed %(method)s workflow: %(id)i', wf)
         logger.debug('Data: %r, Opts: %r', wf, opts)
+        return
+    if wf['frozen']:
+        logger.warning('Skipping frozen %(method)s workflow: %(id)i', wf)
         return
 
     cls = workflows.get(wf['method'])
     handler = cls(wf)
 
+    err = None
+    savepoint = Savepoint('pre_workflow')
     try:
         handler.run(opts)
+
+    except WorkflowFailure as err:
+        # this is deliberate failure, so handle it that way
+        handler.fail(msg=str(err))
+
     except Exception as err:
-        # handle_error(workflow_id, err)
-        # TODO sort out error handling
-        raise  # XXX
+        # for unplanned exceptions, we assume the worst
+        # rollback and freeze the workflow
+        savepoint.rollback()
+        handle_error(wf, err)
+        logger.exception('Error handling workflow')
+
+    if strict and err is not None:
+        raise koji.GenericError(f'Error handling workflow: {str(err)}')
 
 
 def run_subtask_step(workflow_id, step):
@@ -244,15 +267,30 @@ def run_subtask_step(workflow_id, step):
     run_workflow(workflow_id, opts, strict=True)
 
 
-def handle_error(job, err):
-    # for now we mark it completed but include the error
-    # TODO retries?
-    # XXX what do we do about the workflow?
-    update = UpdateProcessor('workflow_queue', clauses=['id=%(id)s'], values=job)
-    update.set(completed=True)
-    update.set(error=str(err))
-    update.rawset(completion_time='NOW()')
+def handle_error(info, err):
+    # freeze the workflow
+    update = UpdateProcessor('workflow', clauses=['id=%(id)s'], values=info)
+    update.set(frozen=True)
+    update.rawset(update_time='NOW()')
     update.execute()
+
+    # record the error
+    error_data = {
+        'error': str(err),  # TODO traceback?
+        'workflow_data': info['data'],
+    }
+    data = {
+        'workflow_id': info['id'],
+        'data': json.dumps(error_data),
+    }
+    insert = InsertProcessor('workflow_error', data=data)
+    insert.execute()
+
+    # delist the workflow
+    for table in ('workflow_wait', 'workflow_slots', 'workflow_queue'):
+        delete = DeleteProcessor(table, clauses=['workflow_id = %(id)s'],
+                                 values=info)
+        delete.execute()
 
 
 class SimpleRegistry:
@@ -526,6 +564,14 @@ class BaseWorkflow:
     def cancel(self):
         # TODO we need to do more here, but for now
         self.close(result='canceled', stub_state='CANCELED')
+
+    def fail(self, msg=None):
+        # TODO we need to do more here, but for now
+        if msg is not None:
+            msg = f'Workflow failed - {msg}'
+        else:
+            msg = 'Workflow failed'
+        self.close(result=msg, stub_state='FAILED')
 
     def requeue(self):
         self.log('Queuing %(method)s workflow' % self.info)

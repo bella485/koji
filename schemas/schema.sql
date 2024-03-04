@@ -1054,6 +1054,7 @@ CREATE TABLE workflow (
         stub_id INTEGER UNIQUE NOT NULL REFERENCES task (id),
         started BOOLEAN NOT NULL DEFAULT FALSE,
         completed BOOLEAN NOT NULL DEFAULT FALSE,
+        frozen BOOLEAN NOT NULL DEFAULT FALSE,
         create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         start_time TIMESTAMPTZ,
         update_time TIMESTAMPTZ,
@@ -1076,7 +1077,15 @@ CREATE TABLE workflow_wait (
         fulfilled BOOLEAN NOT NULL DEFAULT FALSE,  -- wait condition fulfilled?
         seen BOOLEAN NOT NULL DEFAULT FALSE,  -- noted by scheduler?
         handled BOOLEAN NOT NULL DEFAULT FALSE  -- recieved by handler?
-        -- more ???
+) WITHOUT OIDS;
+
+
+CREATE TABLE workflow_error (
+        id SERIAL NOT NULL PRIMARY KEY,
+        workflow_id INTEGER REFERENCES workflow(id),
+        data JSONB,
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        handled BOOLEAN NOT NULL DEFAULT FALSE
 ) WITHOUT OIDS;
 
 
