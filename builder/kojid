@@ -5788,9 +5788,9 @@ class NewRepoTask(BaseTaskHandler):
                     cloned_archs.append(arch)
                     continue
             # otherwise we need a createrepo task for this arch
-            needed_arches.append(arch)
+            needed_archs.append(arch)
 
-        return {'cloned': data, 'needed': needed_arches, 'oldrepo': oldrepo}
+        return {'cloned': data, 'needed': needed_archs, 'oldrepo': oldrepo}
 
 
 class CreaterepoTask(BaseTaskHandler):
