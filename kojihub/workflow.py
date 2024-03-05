@@ -353,8 +353,9 @@ class BaseWorkflow:
             # otherwise we're good
         elif is_subtask:
             # this step needs to run via a subtask
-            self.task('workflowStep', {'workflow_id': self.info['id'], 'step': step})
-            # TODO handle task failure without looping
+            self.task('workflowStep', {'workflow_id': self.info['id'], 'step': step}, wait=False)
+            # we don't need to wait for this one, because it calls us
+            # TODO handle task failure without stalling
             return
 
         # TODO slots are a better idea for tasks than for workflows
