@@ -941,6 +941,7 @@ class NewRepoWorkflow(BaseWorkflow):
         repo_id, event_id = kojihub.repo_init(tinfo['id'], event=event,
                                               task_id=self.info['stub_id'], **opts)
         repo_info = kojihub.repo_info(repo_id)
+        del repo_info['creation_time']  # json unfriendly
         kw = {'tag': tinfo, 'repo': repo_info, 'opts': opts}
         self.data['prep_id'] = self.task('prepRepo', kw)
         self.data['repo'] = repo_info
