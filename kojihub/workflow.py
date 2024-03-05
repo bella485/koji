@@ -531,6 +531,7 @@ class BaseWorkflow:
         task_id = kojihub.make_task(method, args, **opts)
         if wait:
             self.wait_task(task_id)
+        return task_id
 
     def wait_slot(self, name, request=True):
         self.wait('slot', {'name': name})
