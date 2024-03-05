@@ -3002,6 +3002,78 @@ def dist_repo_init(tag, keys, task_opts):
     return repo_id, event
 
 
+def repo_done(repo_id, data, expire=False, repo_json_updates=None):
+    """Finalize a repo
+
+    repo_id: the id of the repo
+    data: a dictionary of repo files in the form:
+          { arch: [uploadpath, [file1, file2, ...]], ...}
+    expire: if set to true, mark the repo expired immediately [*]
+    repo_json_updates: dict - if provided it will be shallow copied
+                              into repo.json file
+
+    Actions:
+    * Move uploaded repo files into place
+    * Mark repo ready
+    * Expire earlier repos
+    * Move/create 'latest' symlink
+
+    For dist repos, the move step is skipped (that is handled in
+    distRepoMove).
+
+    * This is used when a repo from an older event is generated
+    """
+    rinfo = repo_info(repo_id, strict=True)
+    convert_value(data, cast=dict, check_only=True)
+    koji.plugin.run_callbacks('preRepoDone', repo=rinfo, data=data, expire=expire)
+    if rinfo['state'] != koji.REPO_INIT:
+        raise koji.GenericError("Repo %(id)s not in INIT state (got %(state)s)" % rinfo)
+    repodir = koji.pathinfo.repo(repo_id, rinfo['tag_name'])
+    workdir = koji.pathinfo.work()
+    if repo_json_updates:
+        repo_json = koji.load_json(f'{repodir}/repo.json')
+        repo_json.update(repo_json_updates)
+        koji.dump_json(f'{repodir}/repo.json', repo_json, indent=2)
+    if not rinfo['dist']:
+        for arch, (uploadpath, files) in data.items():
+            archdir = "%s/%s" % (repodir, koji.canonArch(arch))
+            if not os.path.isdir(archdir):
+                raise koji.GenericError("Repo arch directory missing: %s" % archdir)
+            datadir = "%s/repodata" % archdir
+            koji.ensuredir(datadir)
+            for fn in files:
+                src = "%s/%s/%s" % (workdir, uploadpath, fn)
+                if fn.endswith('pkglist'):
+                    dst = '%s/%s' % (archdir, fn)
+                else:
+                    dst = "%s/%s" % (datadir, fn)
+                if not os.path.exists(src):
+                    raise koji.GenericError("uploaded file missing: %s" % src)
+                safer_move(src, dst)
+    if expire:
+        repo_expire(repo_id)
+        koji.plugin.run_callbacks('postRepoDone', repo=rinfo, data=data, expire=expire)
+        return
+    # else:
+    repo_ready(repo_id)
+    repo_expire_older(rinfo['tag_id'], rinfo['create_event'], rinfo['dist'])
+
+    # make a latest link
+    if rinfo['dist']:
+        latestrepolink = koji.pathinfo.distrepo('latest', rinfo['tag_name'])
+    else:
+        latestrepolink = koji.pathinfo.repo('latest', rinfo['tag_name'])
+        # XXX - this is a slight abuse of pathinfo
+    try:
+        if os.path.lexists(latestrepolink):
+            os.unlink(latestrepolink)
+        os.symlink(str(repo_id), latestrepolink)
+    except OSError:
+        # making this link is nonessential
+        log_error("Unable to create latest link for repo: %s" % repodir)
+    koji.plugin.run_callbacks('postRepoDone', repo=rinfo, data=data, expire=expire)
+
+
 def repo_set_state(repo_id, state, check=True):
     """Set repo state"""
     repo_id = convert_value(repo_id, cast=int)
@@ -15760,55 +15832,7 @@ class HostExports(object):
         """
         host = Host()
         host.verify()
-        rinfo = repo_info(repo_id, strict=True)
-        convert_value(data, cast=dict, check_only=True)
-        koji.plugin.run_callbacks('preRepoDone', repo=rinfo, data=data, expire=expire)
-        if rinfo['state'] != koji.REPO_INIT:
-            raise koji.GenericError("Repo %(id)s not in INIT state (got %(state)s)" % rinfo)
-        repodir = koji.pathinfo.repo(repo_id, rinfo['tag_name'])
-        workdir = koji.pathinfo.work()
-        if repo_json_updates:
-            repo_json = koji.load_json(f'{repodir}/repo.json')
-            repo_json.update(repo_json_updates)
-            koji.dump_json(f'{repodir}/repo.json', repo_json, indent=2)
-        if not rinfo['dist']:
-            for arch, (uploadpath, files) in data.items():
-                archdir = "%s/%s" % (repodir, koji.canonArch(arch))
-                if not os.path.isdir(archdir):
-                    raise koji.GenericError("Repo arch directory missing: %s" % archdir)
-                datadir = "%s/repodata" % archdir
-                koji.ensuredir(datadir)
-                for fn in files:
-                    src = "%s/%s/%s" % (workdir, uploadpath, fn)
-                    if fn.endswith('pkglist'):
-                        dst = '%s/%s' % (archdir, fn)
-                    else:
-                        dst = "%s/%s" % (datadir, fn)
-                    if not os.path.exists(src):
-                        raise koji.GenericError("uploaded file missing: %s" % src)
-                    safer_move(src, dst)
-        if expire:
-            repo_expire(repo_id)
-            koji.plugin.run_callbacks('postRepoDone', repo=rinfo, data=data, expire=expire)
-            return
-        # else:
-        repo_ready(repo_id)
-        repo_expire_older(rinfo['tag_id'], rinfo['create_event'], rinfo['dist'])
-
-        # make a latest link
-        if rinfo['dist']:
-            latestrepolink = koji.pathinfo.distrepo('latest', rinfo['tag_name'])
-        else:
-            latestrepolink = koji.pathinfo.repo('latest', rinfo['tag_name'])
-            # XXX - this is a slight abuse of pathinfo
-        try:
-            if os.path.lexists(latestrepolink):
-                os.unlink(latestrepolink)
-            os.symlink(str(repo_id), latestrepolink)
-        except OSError:
-            # making this link is nonessential
-            log_error("Unable to create latest link for repo: %s" % repodir)
-        koji.plugin.run_callbacks('postRepoDone', repo=rinfo, data=data, expire=expire)
+        return repo_done(repo_id, data, expire=expire, repo_json_updates=repo_json_updates)
 
     def distRepoMove(self, repo_id, uploadpath, arch):
         """
