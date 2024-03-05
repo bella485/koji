@@ -950,7 +950,7 @@ class NewRepoWorkflow(BaseWorkflow):
     def repos(self, prep_id, repo):
         # TODO better mechanism for fetching task result
         prepdata = kojihub.Task(prep_id).getResult()
-        repo_tasks = []
+        repo_tasks = {}
         for arch in prepdata['needed']:
             params = {'repo_id': repo['id'], 'arch': arch, 'oldrepo': prepdata['oldrepo']}
             repo_tasks[arch] = self.task('createrepo', params)
