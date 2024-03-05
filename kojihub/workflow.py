@@ -937,7 +937,7 @@ class NewRepoWorkflow(BaseWorkflow):
         'opts': (dict,),
     }
 
-    @subtask()
+    #@subtask()
     def repo_init(self, tag, event=None, opts=None):
         tinfo = kojihub.get_tag(tag, strict=True, event=event)
         event = kojihub.convert_value(event, cast=int, none_allowed=True)
@@ -964,7 +964,7 @@ class NewRepoWorkflow(BaseWorkflow):
         self.data['cloned'] = prepdata['cloned']
         self.data['repo_tasks'] = repo_tasks
 
-    @subtask()
+    #@subtask()
     def repo_done(self, repo, cloned, repo_tasks, event=None):
         data = cloned.copy()
         for arch in repo_tasks:
