@@ -694,6 +694,7 @@ def make_task(method, arglist, **opts):
             opts.setdefault(f, pdata[f])
         opts.setdefault('label', None)
     else:
+        pdata = None
         opts.setdefault('priority', koji.PRIO_DEFAULT)
         # calling function should enforce priority limitations, if applicable
         opts.setdefault('arch', 'noarch')
