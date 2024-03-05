@@ -975,7 +975,7 @@ class NewRepoWorkflow(BaseWorkflow):
         kojihub.repo_done(repo['id'], data, **kwargs)
 
         # do we need a return?
-        return repo['id'], repo['event_id']
+        return repo['id'], repo['create_event']
 
 
 class WorkflowExports:
