@@ -334,7 +334,10 @@ class BaseWorkflow:
         if opts is None:
             opts = {}
 
-        self.handle_waits()
+        if self.handle_waits():
+            # we are still waiting, so we can't go to next step
+            self.update()
+            return
 
         # TODO error handling
         step = self.data['steps'].pop(0)
@@ -415,6 +418,7 @@ class BaseWorkflow:
                 cls = waits.get(info['wait_type'])
                 wait = cls(info)
                 wait.handle(workflow=self)
+                self.log('Handled %(wait_type)s wait %(id)s' % info)
         return bool(waiting)
 
     def log(self, msg, level=logging.INFO):
