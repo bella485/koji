@@ -5733,7 +5733,7 @@ class NewRepoTask(BaseTaskHandler):
         # workflow has already called repo_init
         tinfo = tag
         repo_id = repo['id']
-        event_id = repo['event_id']
+        event_id = repo['create_event']
 
         path = koji.pathinfo.repo(repo_id, tinfo['name'])
         if not os.path.isdir(path):
