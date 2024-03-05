@@ -58,8 +58,9 @@ def nudge_queue():
     if queue_next():
         # if we handled a queue item, we're done
         return True
-    update_queue()
-    handle_slots()
+    if db_lock('workflow_maint', wait=False):
+        update_queue()
+        handle_slots()
     return False
     # TODO should we return something more informative?
 

@@ -1119,5 +1119,6 @@ INSERT INTO locks(name) VALUES('protonmsg-plugin');
 INSERT INTO locks(name) VALUES('scheduler');
 INSERT INTO locks(name) VALUES('workflow_queue');
 INSERT INTO locks(name) VALUES('workflow_slots');
+INSERT INTO locks(name) VALUES('workflow_maint');
 
 COMMIT WORK;
