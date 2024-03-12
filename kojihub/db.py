@@ -114,7 +114,13 @@ class CursorWrapper:
             def quote(a, b):
                 return a % b
         try:
-            return quote(operation, parameters)
+            sql = quote(operation, parameters)
+            if isinstance(sql, bytes):
+                try:
+                    sql = koji.util.decode_bytes(sql)
+                except Exception:
+                    pass
+            return sql
         except Exception:
             self.logger.exception(
                 'Unable to quote query:\n%s\nParameters: %s', operation, parameters)
