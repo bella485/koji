@@ -423,7 +423,10 @@ class KiwiCreateImageTask(BaseBuildTask):
 
         bundle_path = os.path.join(broot.rootdir(), bundle_dir[1:])
         for fname in os.listdir(bundle_path):
-            self.uploadFile(os.path.join(bundle_path, fname), remoteName=fname)
+            # rename '.vhdfixed.xz' Azure images to 'vhd.xz' to match
+            # what Koji expects
+            upname = fname.replace("vhdfixed", "vhd")
+            self.uploadFile(os.path.join(bundle_path, fname), remoteName=upname)
             imgdata['files'].append(fname)
 
         if not self.opts.get('scratch'):
