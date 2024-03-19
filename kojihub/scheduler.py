@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import time
 
 import koji
@@ -335,6 +336,7 @@ class TaskScheduler(object):
         # tasks are already in priority order
         for task in self.free_tasks:
             min_avail = task['weight'] - self.capacity_overcommit
+            random.shuffle(task['_hosts'])
             task['_hosts'].sort(key=lambda h: h['_rank'])
             logger.debug('Task %i choices: %s', task['task_id'],
                          [(h['name'], "%(_rank).2f" % h) for h in task['_hosts']])
