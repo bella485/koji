@@ -5,6 +5,7 @@ import time
 import koji
 from koji.context import context
 from . import kojihub
+from . import repos
 from .db import QueryProcessor, InsertProcessor, UpsertProcessor, UpdateProcessor, \
     DeleteProcessor, QueryView, db_lock
 
@@ -224,6 +225,7 @@ class TaskScheduler(object):
             return False
 
         logger.info('Running task scheduler')
+        self.check_repos()
         self.get_tasks()
         self.get_hosts()
         self.check_hosts()
@@ -271,6 +273,15 @@ class TaskScheduler(object):
         upsert.execute()
 
         return ret
+
+    def check_repos(self):
+        # we process the repo queue first as this can create newRepo tasks
+        try:
+            repos.check_repo_queue()
+        except Exception as err:
+            # don't let this derail the scheduler
+            log_both(f'Failed to process repo queue: {err}', level=logging.ERROR)
+            raise  # XXX
 
     def do_schedule(self):
         # debug

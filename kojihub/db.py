@@ -892,6 +892,7 @@ class QueryView:
         self.clauses = clauses
         self.fields = fields
         self.opts = opts
+        self.enable_raw_clauses = False
         self._query = None
 
     @property
@@ -902,31 +903,47 @@ class QueryView:
             return self.get_query()
 
     def get_query(self):
-        self.extra_joins = []
-        self.values = {}
-        self.order_map = {}
+        self._implicit_joins = []
+        self._values = {}
+        self._order_map = {}
 
         self.check_opts()
 
         tables = list(self.tables)  # copy
-        fields = self.get_fields(self.fields)
-        columns, aliases = zip(*fields.items())
         clauses = self.get_clauses()
+        # get_fields needs to be after clauses because it might consider other implicit joins
+        fields = self.get_fields(self.fields)
+        aliases, columns = zip(*fields.items())
         joins = self.get_joins()
         self._query = QueryProcessor(
             columns=columns, aliases=aliases,
             tables=tables, joins=joins,
-            clauses=clauses, values=self.values,
-            opts=self.opts, order_map=self.order_map)
+            clauses=clauses, values=self._values,
+            opts=self.opts, order_map=self._order_map)
 
         return self._query
 
     def get_fields(self, fields):
-        fields = fields or self.default_fields
-        if not fields or fields == '*':
-            fields = sorted(self.fieldmap.keys())
+        fields = fields or self.default_fields or ['*']
+        if isinstance(fields, str):
+            fields = [fields]
 
-        return {self.map_field(f): f for f in fields}
+        # handle special field names
+        flist = []
+        for field in fields:
+            if field == '*':
+                # all fields that don't require additional joins
+                for f in self.fieldmap:
+                    joinkey = self.fieldmap[f][1]
+                    if joinkey is None or joinkey in self._implicit_joins:
+                        flist.append(f)
+            elif field == '**':
+                # all fields
+                flist.extend(self.fieldmap)
+            else:
+                flist.append(field)
+
+        return {f: self.map_field(f) for f in set(flist)}
 
     def check_opts(self):
         # some options may trigger joins
@@ -936,7 +953,7 @@ class QueryView:
             for key in self.opts['order'].split(','):
                 if key.startswith('-'):
                     key = key[1:]
-                self.order_map[key] = self.map_field(key)
+                self._order_map[key] = self.map_field(key)
         if 'group' in self.opts:
             for key in self.opts['group'].split(','):
                 self.map_field(key)
@@ -948,7 +965,7 @@ class QueryView:
         fullname, joinkey = f_info
         fullname = fullname or field
         if joinkey:
-            self.extra_joins.append(joinkey)
+            self._implicit_joins.append(joinkey)
             # duplicates removed later
         return fullname
 
@@ -958,6 +975,14 @@ class QueryView:
         clauses = self.clauses or []
         for n, clause in enumerate(clauses):
             # TODO checks check checks
+            if isinstance(clause, RawClauses):
+                if not self.enable_raw_clauses:
+                    raise koji.GenericError('raw clauses not enabled')
+                result.extend(clause.clauses)
+                self._values.update(clause.values)
+                self._implicit_joins.extend(clause.joins)
+                continue
+            # otherwise we should have a list
             if len(clause) == 2:
                 # implicit operator
                 field, value = clause
@@ -968,13 +993,13 @@ class QueryView:
             elif len(clause) == 3:
                 field, op, value = clause
                 op = op.upper()
-                if op not in ('IN', '=', '!=', '>', '<', '>=', '<='):
+                if op not in ('IN', '=', '!=', '>', '<', '>=', '<=', 'IS', 'IS NOT'):
                     raise koji.ParameterError(f'Invalid operator: {op}')
             else:
                 raise koji.ParameterError(f'Invalid clause: {clause}')
             fullname = self.map_field(field)
             key = f'v_{field}_{n}'
-            self.values[key] = value
+            self._values[key] = value
             result.append(f'{fullname} {op} %({key})s')
 
         return result
@@ -982,8 +1007,8 @@ class QueryView:
     def get_joins(self):
         joins = list(self.joins)
         seen = set()
-        # note we preserve the order that extra joins were added
-        for joinkey in self.extra_joins:
+        # note we preserve the order that implicit joins were added
+        for joinkey in self._implicit_joins:
             if joinkey in seen:
                 continue
             seen.add(joinkey)
@@ -1001,6 +1026,21 @@ class QueryView:
 
     def singleValue(self, strict=True):
         return self.query.singleValue(strict=strict)
+
+
+class RawClauses:
+    """Used to specify raw clauses with a QueryView"""
+
+    def __init__(self, clauses, values=None, joins=None):
+        if values is None:
+            values = {}
+        if joins is None:
+            joins = []
+        if isinstance(clauses, str):
+            clauses = [clauses]
+        self.clauses = clauses  # list of raw clauses, as strings
+        self.values = values  # dict of values for raw clauses
+        self.joins = joins  # specify extra joins by joinkey
 
 
 class BulkInsertProcessor(object):
@@ -1128,3 +1168,110 @@ def _applyQueryOpts(results, queryOpts):
         return len(results)
     else:
         return results
+
+
+class BulkUpdateProcessor(object):
+    """Build a bulk update statement using a from clause
+
+    table - the table to insert into
+    data - list of dictionaries of update data (keys = row names)
+    match_keys - the fields that are used to match
+
+    The row data is provided as a list of dictionaries. Each entry
+    must contain the same keys.
+
+    The match_keys value indicate which keys are used to select the
+    rows to update. The remaining keys are the actual updates.
+    I.e. if you have data = [{'a':1, 'b':2}] with match_keys=['a'],
+    this will set b=2 for rows where a=1
+
+    """
+
+    def __init__(self, table, data=None, match_keys=None):
+        # TODO: inherit from UpdateProcessor?
+        self.table = table
+        self.data = data or {}
+        self.match_keys = match_keys or []
+        self._values = {}
+
+    def __str__(self):
+        return self.get_sql()
+
+    def get_sql(self):
+        if not self.data or not self.match_keys:
+            return "-- incomplete bulk update"
+        set_keys, all_keys = self.get_keys()
+        match_keys = list(self.match_keys)
+        match_keys.sort()
+
+        values = {}
+        utable = f'u_{self.table}'  # XXX this will fail if schema-qualified
+        assigns = [f'{key} = {utable}.{key}' for key in all_keys]
+        fdata = []
+        for n, row in enumerate(self.data):
+            parts = []
+            for key in all_keys:
+                v_key = f'val_{key}_{n}'
+                parts.append(f'%({v_key})s')
+                values[v_key] = row[key]
+                # TODO support raw values
+            fdata.append('(%s)' % ', '.join(parts))
+        # TODO support extra clauses
+        clauses = [f'{self.table}.{key} = {utable}.{key}' for key in match_keys]
+        parts = [
+            'UPDATE %s SET %s ' % (self.table, ', '.join(assigns)),
+            'FROM (VALUES %s) AS %s (%s) ' % (
+                ', '.join(fdata), utable, ', '.join(all_keys)),
+            'WHERE (%s)' % ' AND '.join(clauses),
+        ]
+        self._values = values
+        return ''.join(parts)
+
+    def get_keys(self):
+        if not self.data:
+            raise ValueError('no update data')
+        # TODO ensure keys are strings
+        all_keys = list(self.data[0].keys())
+        all_keys.sort()
+        set_keys = [k for k in all_keys if k not in self.match_keys]
+        set_keys.sort()
+        # also check that data is sane
+        required = set(all_keys)
+        for row in self.data:
+            if set(row.keys()) != required:
+                raise ValueError('mismatched update keys')
+        # XXX is check needed?
+        return set_keys, all_keys
+
+    def __repr__(self):
+        return "<BulkUpdateProcessor: %r>" % vars(self)
+
+    def get_values(self):
+        """Returns unified values dict, including data"""
+        # XXX unused
+        ret = {}
+        ret.update(self.values)
+        for key in self.data:
+            ret["data." + key] = self.data[key]
+        return ret
+
+    def make_revoke(self, event_id=None, user_id=None):
+        """Add standard revoke options to the update"""
+        if event_id is None:
+            event_id = get_event()
+        if user_id is None:
+            context.session.assertLogin()
+            user_id = context.session.user_id
+        data = self.data.copy()
+        for row in data:
+            row['revoke_event'] = event_id
+            row['revoker_id'] = user_id
+            row['active'] = None
+            self.clauses.append('active = TRUE')  # XXX
+
+    def execute(self):
+        sql = self.get_sql()  # sets self._values
+        return _dml(sql, self._values)
+
+
+# the end

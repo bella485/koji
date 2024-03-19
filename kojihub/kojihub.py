@@ -76,12 +76,14 @@ from koji.util import (
     safer_move,
 )
 from . import scheduler
+from . import repos
 from .auth import get_user_perms, get_user_groups
 from .db import (  # noqa: F401
     BulkInsertProcessor,
     DeleteProcessor,
     InsertProcessor,
     QueryProcessor,
+    QueryView,
     Savepoint,
     UpdateProcessor,
     UpsertProcessor,
@@ -646,9 +648,9 @@ def make_task(method, arglist, **opts):
         opts.setdefault('priority', koji.PRIO_DEFAULT)
         # calling function should enforce priority limitations, if applicable
         opts.setdefault('arch', 'noarch')
-        if not context.session.logged_in:
-            raise koji.GenericError('task must have an owner')
-        else:
+        if 'owner' not in opts:
+            if not context.session.logged_in:
+                raise koji.GenericError('task must have an owner')
             opts['owner'] = context.session.user_id
         opts['label'] = None
         opts['parent'] = None
@@ -2710,9 +2712,22 @@ def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=Non
                                clauses=['id=%(event)s'], values={'event': event})
         query.singleValue(strict=True)
         event_id = event
-    insert = InsertProcessor('repo')
-    insert.set(id=repo_id, create_event=event_id, tag_id=tag_id, state=state, task_id=task_id)
+
+    # do the insert
+    repo_opts = {'src': with_src, 'debuginfo': with_debuginfo, 'separate_src': with_separate_src}
+    data = {
+        'id': repo_id,
+        'create_event': event_id,
+        'begin_event': tag_last_change_event(tag_id, before=event_id) or event_id,
+        'end_event': tag_first_change_event(tag_id, after=event_id),  # None if unchanged
+        'tag_id': tag_id,
+        'state': state,
+        'task_id': task_id,
+        'opts': json.dumps(repo_opts),
+    }
+    insert = InsertProcessor('repo', data=data)
     insert.execute()
+
     # Need to pass event_id because even though this is a single transaction,
     # it is possible to see the results of other committed transactions
     latest = not tinfo['extra'].get('repo_include_all', False)
@@ -2953,8 +2968,11 @@ def repo_set_state(repo_id, state, check=True):
                                     % (oldstate, state))
     update = UpdateProcessor('repo', clauses=['id=%(repo_id)s'],
                              values={'repo_id': repo_id},
-                             data={'state': state})
+                             data={'state': state},
+                             rawdata={'state_time': 'NOW()'})
     update.execute()
+    if state == koji.REPO_READY:
+        repos.repo_done_hook(repo_id)
 
 
 def repo_info(repo_id, strict=False):
@@ -2966,22 +2984,9 @@ def repo_info(repo_id, strict=False):
     :returns: dict (id, state, create_event, creation_time, tag_id, tag_name,
               dist)
     """
-    fields = [
-        ('repo.id', 'id'),
-        ('repo.state', 'state'),
-        ('repo.task_id', 'task_id'),
-        ('repo.create_event', 'create_event'),
-        ('events.time', 'creation_time'),  # for compatibility with getRepo
-        ("date_part('epoch', events.time)", 'create_ts'),
-        ('repo.tag_id', 'tag_id'),
-        ('tag.name', 'tag_name'),
-        ('repo.dist', 'dist'),
-    ]
-    columns, aliases = zip(*fields)
-    joins = ['tag ON tag_id=tag.id', 'events ON repo.create_event = events.id']
-    query = QueryProcessor(tables=['repo'], columns=columns, aliases=aliases, joins=joins,
-                           clauses=['repo.id = %(repo_id)s'], values={'repo_id': repo_id})
-    return query.executeOne(strict=strict)
+    repo_id = convert_value(repo_id, cast=int)
+    clauses = [['id', '=', repo_id]]
+    return repos.RepoQuery(clauses, fields='**').executeOne(strict=strict)
 
 
 def repo_ready(repo_id):
@@ -3060,23 +3065,10 @@ def get_active_repos():
 
     This is a list of all the repos that the repo daemon needs to worry about.
     """
-    fields = (
-        ('repo.id', 'id'),
-        ('repo.state', 'state'),
-        ('repo.task_id', 'task_id'),
-        ('repo.create_event', 'create_event'),
-        ("date_part('epoch', events.time)", 'create_ts'),
-        ('repo.tag_id', 'tag_id'),
-        ('repo.dist', 'dist'),
-        ('tag.name', 'tag_name'),
-    )
-    fields, aliases = zip(*fields)
-    values = {'st_deleted': koji.REPO_DELETED}
-    joins = ['tag ON repo.tag_id=tag.id', 'events ON repo.create_event = events.id']
-    clauses = ['repo.state != %(st_deleted)s']
-    query = QueryProcessor(columns=fields, aliases=aliases, tables=['repo'],
-                           joins=joins, clauses=clauses, values=values)
-    return query.execute()
+    clauses = [['state', '!=', koji.REPO_DELETED]]
+    fields = ('id', 'tag_id', 'create_event', 'create_ts', 'state', 'dist', 'task_id', 'tag_name',
+              'creation_ts', 'state_ts', 'end_event', 'opts')
+    return repos.RepoQuery(clauses, fields).execute()
 
 
 def tag_changed_since_event(event, taglist):
@@ -3116,6 +3108,233 @@ def tag_changed_since_event(event, taglist):
         if query.execute():
             return True
     return False
+
+
+def tag_last_change_event(tag, before=None, inherit=True):
+    """Report the most recent event that changed the tag, or None
+
+    :param tag: tag to consider
+    :type tag: int or str
+    :param before: only consider events before this value
+    :type before: int, optional
+    :param inherit: follow inheritance
+    :type inherit: bool
+
+    :returns: event id or None
+    :rtype: int or NoneType
+    """
+    taginfo = get_tag(tag, strict=True, event="auto")
+    tag_id = taginfo['id']
+    before = convert_value(before, int, none_allowed=True)
+    tag_delete = taginfo.get('revoke_event')
+
+    # get inheritance at the event
+    tags = [tag_id]
+    if inherit:
+        tags += [link['parent_id'] for link in readFullInheritance(tag_id, event=before)]
+
+    data = {
+        'before': before,
+        'tags': tags,
+    }
+
+    # first check the tag_updates table
+    tag_clause = 'tag_id IN %(tags)s'
+    clauses = [tag_clause]
+    if before is not None:
+        clauses.append('update_event < %(before)s')
+    query = QueryProcessor(tables=['tag_updates'], clauses=clauses,
+                           columns=['max(update_event)'], values=data)
+    update_event = query.singleValue()
+    logger.debug('tag_update event %s', update_event)
+    events = [update_event]
+
+    # check for changes in versioned tables
+    tables = (
+        'tag_listing',
+        'tag_inheritance',
+        'tag_config',
+        'tag_packages',
+        'tag_external_repos',
+        'tag_extra',
+        'group_package_listing',
+        'group_req_listing',
+        'group_config',
+    )
+    for table in tables:
+        # create events
+        clauses = [tag_clause]
+        if before is not None:
+            clauses.append('create_event < %(before)s')
+        query = QueryProcessor(tables=[table], columns=['max(create_event)'],
+                               clauses=clauses, values=data)
+        events.append(query.singleValue())
+        logger.debug('%s create event %s', table, events[-1])
+
+        # revoke events
+        clauses = [tag_clause]
+        if before is not None:
+            clauses.append('revoke_event < %(before)s')
+        query = QueryProcessor(tables=[table], columns=['max(revoke_event)'],
+                               clauses=clauses, values=data)
+        events.append(query.singleValue())
+        logger.debug('%s revoke event %s', table, events[-1])
+
+    # also check external repo changes
+    repos = set()
+    for tag_id in tags:
+        for tag_repo in get_tag_external_repos(tag_info=tag_id, event=before):
+            repos.add(tag_repo['external_repo_id'])
+    if repos:
+        repos = list(repos)
+        repos.sort()
+        repo_clause = 'external_repo_id IN %(repos)s'
+        data['repos'] = repos
+        tables = (
+            'external_repo_config',
+            'external_repo_data',
+        )
+        for table in tables:
+            # create events
+            clauses = [repo_clause]
+            if before is not None:
+                clauses.append('create_event < %(before)s')
+            query = QueryProcessor(tables=[table], columns=['max(create_event)'],
+                                   clauses=clauses, values=data)
+            events.append(query.singleValue())
+            logger.debug('%s create event %s', table, events[-1])
+
+            # revoke events
+            clauses = [repo_clause]
+            if before is not None:
+                clauses.append('revoke_event < %(before)s')
+            query = QueryProcessor(tables=[table], columns=['max(revoke_event)'],
+                                   clauses=clauses, values=data)
+            events.append(query.singleValue())
+            logger.debug('%s revoke event %s', table, events[-1])
+
+    # return the most recent event
+    events = [ev for ev in events if ev is not None]
+    if not events:
+        # this could happen if our before value is before the tag existed
+        return None
+    elif tag_delete:
+        return min(tag_delete, max(events))
+    else:
+        return max(events)
+
+
+def tag_first_change_event(tag, after=None, inherit=True):
+    """Report the earliest event that changed the tag, or None if unchanged
+
+    :param tag: tag to consider
+    :type tag: int or str
+    :param after: only consider events after this value
+    :type after: int, optional
+    :param inherit: follow inheritance
+    :type inherit: bool
+
+    :returns: event id or None
+    :rtype: int or NoneType
+    """
+    tag_id = get_tag_id(tag, strict=True)
+    after = convert_value(after, int, none_allowed=True)
+
+    # get tag create event because we need it to filter later
+    query = QueryProcessor(tables=['tag_config'], columns=['min(create_event)'],
+                           clauses=['tag_id = %(tag_id)s'], values={'tag_id': tag_id})
+    tag_create = query.singleValue()
+
+    # get tag list
+    tags = [tag_id]
+    if inherit:
+        tags += [link['parent_id'] for link in readFullInheritance(tag_id, event=after)]
+
+    data = {
+        'after': after,
+        'tags': tags,
+    }
+
+    # first check the tag_updates table
+    tag_clause = 'tag_id IN %(tags)s'
+    clauses = [tag_clause]
+    if after:
+        clauses.append('update_event > %(after)s')
+    query = QueryProcessor(tables=['tag_updates'], clauses=clauses,
+                           columns=['min(update_event)'], values=data)
+    update_event = query.singleValue()
+    logger.debug('tag_update event %s', update_event)
+    events = [update_event]
+
+    # check for changes in versioned tables
+    tables = (
+        'tag_listing',
+        'tag_inheritance',
+        'tag_config',
+        'tag_packages',
+        'tag_external_repos',
+        'tag_extra',
+        'group_package_listing',
+        'group_req_listing',
+        'group_config',
+    )
+    for table in tables:
+        clauses = [tag_clause]
+        if after is not None:
+            clauses.append('create_event > %(after)s')
+        query = QueryProcessor(tables=[table], columns=['min(create_event)'],
+                               clauses=clauses, values=data)
+        events.append(query.singleValue())
+        logger.debug('%s create event %s', table, events[-1])
+
+        clauses = [tag_clause]
+        if after is not None:
+            clauses.append('revoke_event > %(after)s')
+        query = QueryProcessor(tables=[table], columns=['min(revoke_event)'],
+                               clauses=clauses, values=data)
+        events.append(query.singleValue())
+        logger.debug('%s revoke event %s', table, events[-1])
+
+    # also check external repo changes
+    repos = set()
+    for tag_id in tags:
+        for tag_repo in get_tag_external_repos(tag_info=tag_id, event=after):
+            repos.add(tag_repo['external_repo_id'])
+    if repos:
+        repos = list(repos)
+        repos.sort()
+        repo_clause = 'external_repo_id IN %(repos)s'
+        data['repos'] = repos
+        tables = (
+            'external_repo_config',
+            'external_repo_data',
+        )
+        for table in tables:
+            # create events
+            clauses = [repo_clause]
+            if after is not None:
+                clauses.append('create_event > %(after)s')
+            query = QueryProcessor(tables=[table], columns=['min(create_event)'],
+                                   clauses=clauses, values=data)
+            events.append(query.singleValue())
+            logger.debug('%s create event %s', table, events[-1])
+
+            # revoke events
+            clauses = [repo_clause]
+            if after is not None:
+                clauses.append('revoke_event > %(after)s')
+            query = QueryProcessor(tables=[table], columns=['min(revoke_event)'],
+                                   clauses=clauses, values=data)
+            events.append(query.singleValue())
+            logger.debug('%s revoke event %s', table, events[-1])
+
+    # return the most recent event
+    events = [ev for ev in events if ev is not None]
+    if not events:
+        # no subsequent changes found
+        return None
+    else:
+        return max(min(events), tag_create)
 
 
 def set_tag_update(tag_id, utype, event_id=None, user_id=None):
@@ -4085,8 +4304,7 @@ def get_tag_external_repos(tag_info=None, repo_info=None, event=None):
     clauses = [eventCondition(event, table='tag_external_repos'),
                eventCondition(event, table='external_repo_config')]
     if tag_info:
-        tag = get_tag(tag_info, strict=True, event=event)
-        tag_id = tag['id']
+        tag_id = get_tag_id(tag_info, strict=True)
         clauses.append('tag.id = %(tag_id)i')
     if repo_info:
         repo = get_external_repo(repo_info, strict=True, event=event)
@@ -8305,6 +8523,7 @@ def query_history(tables=None, **kwargs):
         'tag_extra': ['tag_id', 'key', 'value'],
         'build_target_config': ['build_target_id', 'build_tag', 'dest_tag'],
         'external_repo_config': ['external_repo_id', 'url'],
+        'external_repo_data': ['external_repo_id', 'data'],
         'host_config': ['host_id', 'arches', 'capacity', 'description', 'comment', 'enabled'],
         'host_channels': ['host_id', 'channel_id'],
         'tag_external_repos': ['tag_id', 'external_repo_id', 'priority', 'merge_mode'],
@@ -10838,6 +11057,8 @@ class RootExports(object):
         can make arbitrary tasks. You need to supply all *args and **opts
         accordingly to the task."""
         context.session.assertPerm('admin')
+        if 'owner' in opts:
+            raise koji.ActionNotAllowed('The owner option is not allowed here')
         return make_task(*args, **opts)
 
     def uploadFile(self, path, name, size, md5sum, offset, data, volume=None, checksum=None):
@@ -13214,45 +13435,7 @@ class RootExports(object):
                 taginfo['extra'][k] = v[1]
         return taginfo
 
-    def getRepo(self, tag, state=None, event=None, dist=False):
-        """Get individual repository data based on tag and additional filters.
-        If more repos fits, most recent is returned.
-
-        :param int|str tag: tag ID or name
-        :param int state: value from koji.REPO_STATES
-        :param int event: event ID
-        :param bool dist: True = dist repo, False = regular repo
-
-        :returns: dict with repo data (id, state, create_event, time, dist)
-        """
-        if isinstance(tag, int):
-            id = tag
-        else:
-            id = get_tag_id(tag, strict=True)
-
-        fields = ['repo.id', 'repo.state', 'repo.task_id', 'repo.create_event', 'events.time',
-                  "date_part('epoch', events.time)", 'repo.dist']
-        aliases = ['id', 'state', 'task_id', 'create_event', 'creation_time', 'create_ts', 'dist']
-        joins = ['events ON repo.create_event = events.id']
-        clauses = ['repo.tag_id = %(id)i']
-        if dist:
-            clauses.append('repo.dist is true')
-        else:
-            clauses.append('repo.dist is false')
-        if event:
-            # the repo table doesn't have all the fields of a _config table, just create_event
-            clauses.append('create_event <= %(event)i')
-        else:
-            if state is None:
-                state = koji.REPO_READY
-            clauses.append('repo.state = %(state)s')
-
-        query = QueryProcessor(columns=fields, aliases=aliases,
-                               tables=['repo'], joins=joins, clauses=clauses,
-                               values=locals(),
-                               opts={'order': '-creation_time', 'limit': 1})
-        return query.executeOne()
-
+    getRepo = staticmethod(repos.old_get_repo)
     repoInfo = staticmethod(repo_info)
     getActiveRepos = staticmethod(get_active_repos)
 
@@ -13281,6 +13464,8 @@ class RootExports(object):
 
     def newRepo(self, tag, event=None, src=False, debuginfo=False, separate_src=False):
         """Create a newRepo task. returns task id"""
+        if not context.opts.get('AllowNewRepo', False):
+            raise koji.GenericError('newRepo api call is disabled')
         if context.session.hasPerm('regen-repo'):
             pass
         else:
@@ -13318,6 +13503,8 @@ class RootExports(object):
         repo_problem(repo_id)
 
     tagChangedSinceEvent = staticmethod(tag_changed_since_event)
+    tagLastChangeEvent = staticmethod(tag_last_change_event)
+    tagFirstChangeEvent = staticmethod(tag_first_change_event)
     createBuildTarget = staticmethod(create_build_target)
     editBuildTarget = staticmethod(edit_build_target)
     deleteBuildTarget = staticmethod(delete_build_target)
@@ -14870,6 +15057,8 @@ class HostExports(object):
         ptask = Task(parent)
         ptask.assertHost(host.id)
         opts['parent'] = parent
+        if 'owner' in opts:
+            raise koji.ActionNotAllowed('The owner option is not allowed here')
         if 'label' in opts:
             # first check for existing task with this parent/label
             query = QueryProcessor(tables=['task'], columns=['id'],
@@ -15711,23 +15900,21 @@ class HostExports(object):
     def repoDone(self, repo_id, data, expire=False, repo_json_updates=None):
         """Finalize a repo
 
-        repo_id: the id of the repo
-        data: a dictionary of repo files in the form:
-              { arch: [uploadpath, [file1, file2, ...]], ...}
-        expire: if set to true, mark the repo expired immediately [*]
-        repo_json_updates: dict - if provided it will be shallow copied
-                                  into repo.json file
+        :param int repo_id: the id of the repo
+        :param dict data: a dictionary of repo files in the form:
+        :param bool expire: (legacy) if true, mark repo expired
+        :param dict repo_json_updates: updates for repo.json file
+
+        The data parameter should be of the form:
+            { arch: [uploadpath, [file1, file2, ...]], ...}
 
         Actions:
         * Move uploaded repo files into place
-        * Mark repo ready
-        * Expire earlier repos
-        * Move/create 'latest' symlink
+        * Mark repo ready (or expired)
+        * Move/create 'latest' symlink if appropriate
 
         For dist repos, the move step is skipped (that is handled in
         distRepoMove).
-
-        * This is used when a repo from an older event is generated
         """
         host = Host()
         host.verify()
@@ -15759,26 +15946,14 @@ class HostExports(object):
                         raise koji.GenericError("uploaded file missing: %s" % src)
                     safer_move(src, dst)
         if expire:
+            logger.warning("expire option for repoDone call is deprecated")
             repo_expire(repo_id)
             koji.plugin.run_callbacks('postRepoDone', repo=rinfo, data=data, expire=expire)
             return
-        # else:
-        repo_ready(repo_id)
-        repo_expire_older(rinfo['tag_id'], rinfo['create_event'], rinfo['dist'])
 
-        # make a latest link
-        if rinfo['dist']:
-            latestrepolink = koji.pathinfo.distrepo('latest', rinfo['tag_name'])
-        else:
-            latestrepolink = koji.pathinfo.repo('latest', rinfo['tag_name'])
-            # XXX - this is a slight abuse of pathinfo
-        try:
-            if os.path.lexists(latestrepolink):
-                os.unlink(latestrepolink)
-            os.symlink(str(repo_id), latestrepolink)
-        except OSError:
-            # making this link is nonessential
-            log_error("Unable to create latest link for repo: %s" % repodir)
+        repo_ready(repo_id)
+        repos.symlink_if_latest(rinfo)
+
         koji.plugin.run_callbacks('postRepoDone', repo=rinfo, data=data, expire=expire)
 
     def distRepoMove(self, repo_id, uploadpath, arch):

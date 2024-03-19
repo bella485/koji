@@ -5893,8 +5893,6 @@ class NewRepoTask(BaseTaskHandler):
 
         # finalize
         kwargs = {}
-        if event is not None:
-            kwargs['expire'] = True
         if cloned_archs:
             kwargs['repo_json_updates'] = {
                 'cloned_from_repo_id': oldrepo['id'],
@@ -6148,7 +6146,7 @@ class NewDistRepoTask(BaseTaskHandler):
                 continue
             upload_dir = koji.pathinfo.taskrelpath(subtasks[arch])
             self.session.host.distRepoMove(repo_id, upload_dir, arch)
-        self.session.host.repoDone(repo_id, {}, expire=False)
+        self.session.host.repoDone(repo_id, {})
         return 'Dist repository #%s successfully generated' % repo_id
 
 

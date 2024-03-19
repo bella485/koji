@@ -47,7 +47,6 @@ from koji_cli.lib import (
     print_task_recurse,
     unique_path,
     warn,
-    wait_repo,
     watch_logs,
     watch_tasks,
     truncate_string
@@ -4347,6 +4346,13 @@ def _print_histline(entry, **kwargs):
             fmt = "new external repo: %(external_repo.name)s"
         else:
             fmt = "external repo deleted: %(external_repo.name)s"
+    elif table == 'external_repo_data':
+        if edit:
+            fmt = "tracking data for external repo %(external_repo.name)s altered"
+        elif create:
+            fmt = "new tracking data for external repo %(external_repo.name)s"
+        else:
+            fmt = "deleted tracking data for external repo %(external_repo.name)s"
     elif table == 'tag_external_repos':
         if edit:
             fmt = "external repo entry for %(external_repo.name)s in tag %(tag.name)s updated"
@@ -4450,6 +4456,7 @@ _table_keys = {
     'tag_extra': ['tag_id', 'key'],
     'build_target_config': ['build_target_id'],
     'external_repo_config': ['external_repo_id'],
+    'external_repo_data': ['external_repo_id'],
     'host_config': ['host_id'],
     'host_channels': ['host_id', 'channel_id'],
     'tag_external_repos': ['tag_id', 'external_repo_id'],
@@ -4934,13 +4941,16 @@ def anon_handle_taginfo(goptions, session, args):
         build_targets = session.getBuildTargets(buildTagID=info['id'], **event_opts)
         repos = {}
         if not event:
-            for target in dest_targets + build_targets:
-                if target['build_tag'] not in repos:
-                    repo = session.getRepo(target['build_tag'])
+            # find related repos
+            repo_tags = [tg['build_tag'] for tg in dest_targets + build_targets]
+            repo_tags.append(info['id'])
+            for repo_tag_id in repo_tags:
+                if repo_tag_id not in repos:
+                    repo = session.getRepo(repo_tag_id)
                     if repo is None:
-                        repos[target['build_tag']] = "no active repo"
+                        repos[repo_tag_id] = "no active repo"
                     else:
-                        repos[target['build_tag']] = "repo#%(id)i: %(creation_time)s" % repo
+                        repos[repo_tag_id] = "repo#%(id)i: %(creation_time)s" % repo
         if dest_targets:
             print("Targets that build into this tag:")
             for target in dest_targets:
@@ -4956,6 +4966,8 @@ def anon_handle_taginfo(goptions, session, args):
             print("Targets that build from this tag:")
             for target in build_targets:
                 print("  %s" % target['name'])
+        elif info['id'] in repos:
+            print("Current repo: %s" % repos[info['id']])
         external_repos = session.getTagExternalRepos(tag_info=info['id'], **event_opts)
         if external_repos:
             print("External repos:")
@@ -7254,13 +7266,23 @@ def anon_handle_wait_repo(options, session, args):
                            "(may be used multiple times)")
     parser.add_option("--target", action="store_true",
                       help="Interpret the argument as a build target name")
+    parser.add_option("--event", type='int', metavar="EVENT#", help="repo at event or later")
+    parser.add_option("--ts", type='int', metavar="TIMESTAMP",
+                      help="repo at event or later, from timestamp")
+    parser.add_option("--current", action="store_true", help="Use current event")
+    parser.add_option("--new", action="store_true", help="Create a new event")
+    parser.add_option("--request", action="store_true",
+                      help="Create a repo request (requires auth)")
     parser.add_option("--timeout", type="int", default=120,
                       help="Amount of time to wait (in minutes) before giving up "
                            "(default: 120)")
+    parser.add_option("-v", "--verbose", action="store_true", help="Be verbose")
     parser.add_option("--quiet", action="store_true", default=options.quiet,
                       help="Suppress output, success or failure will be indicated by the return "
                            "value only")
     (suboptions, args) = parser.parse_args(args)
+
+    # TODO support opts
 
     builds = [koji.parse_NVR(build) for build in suboptions.builds]
     if len(args) < 1:
@@ -7270,6 +7292,14 @@ def anon_handle_wait_repo(options, session, args):
 
     tag = args[0]
 
+    anon = True
+    if suboptions.request:
+        # requires auth
+        options.noauth = False
+        activate_session(session, options)
+        anon = False
+    else:
+        warn('Use --request to request a repo and get faster results')
     ensure_connection(session, options)
     if suboptions.target:
         target_info = session.getBuildTarget(tag)
@@ -7289,7 +7319,8 @@ def anon_handle_wait_repo(options, session, args):
                 maybe = {}.fromkeys([t['build_tag_name'] for t in targets])
                 maybe = sorted(maybe.keys())
                 warn("Suggested tags: %s" % ', '.join(maybe))
-            error()
+            if not suboptions.request:
+                error()
         tag_id = tag_info['id']
 
     for nvr in builds:
@@ -7303,13 +7334,49 @@ def anon_handle_wait_repo(options, session, args):
                 warn("nvr %s is not current in tag %s\n  latest build in %s is %s" %
                      (expected_nvr, tag, tag, present_nvr))
 
-    success, msg = wait_repo(session, tag_id, builds,
-                             poll_interval=options.poll_interval, timeout=suboptions.timeout)
-    if success:
-        if not suboptions.quiet:
-            print(msg)
+    min_event = None
+    if suboptions.current:
+        if suboptions.event or suboptions.ts:
+            parser.error('--current conflicts with --event and --ts')
+        min_event = "last"
+    elif suboptions.new:
+        # TODO reconcile with other event args
+        min_event = "new"
     else:
+        event = koji.util.eventFromOpts(session, suboptions)
+        if event:
+            event['timestr'] = time.asctime(time.localtime(event['ts']))
+            if not options.quiet:
+                print("Using event %(id)i (%(timestr)s)" % event)
+            min_event = event['id']
+
+    # set up our own logger to get a simpler format
+    logger = logging.getLogger("waitrepo")  # not under koji.*
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    if options.debug:
+        logger.setLevel(logging.DEBUG)
+    elif suboptions.quiet:
+        logger.setLevel(logging.ERROR)
+    elif suboptions.verbose:
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARNING)
+    watcher = koji.util.RepoWatcher(session, tag_id, nvrs=suboptions.builds, min_event=min_event,
+                                    logger=logger)
+    watcher.PAUSE = options.poll_interval
+    watcher.TIMEOUT = suboptions.timeout
+    try:
+        repoinfo = watcher.waitrepo(anon=anon)
+    except koji.GenericError as err:
+        msg = 'Failed to get repo -- %s' % err
         error('' if suboptions.quiet else msg)
+
+    if not suboptions.quiet:
+        print('Got repo %(id)i' % repoinfo)
+        print("Repo info: %s/repoinfo?repoID=%s" % (options.weburl, repoinfo['id']))
 
 
 def handle_regen_repo(options, session, args):
@@ -7328,6 +7395,7 @@ def handle_regen_repo(options, session, args):
     parser.add_option("--separate-source", "--separate-src", action="store_true",
                       help="Include source rpms in separate src repo")
     (suboptions, args) = parser.parse_args(args)
+
     if len(args) == 0:
         parser.error("A tag name must be specified")
     elif len(args) > 1:
@@ -7360,6 +7428,8 @@ def handle_regen_repo(options, session, args):
         repo_opts['src'] = True
     if suboptions.separate_source:
         repo_opts['separate_src'] = True
+
+    # TODO: use RepoWatcher instead once it supports opts
     task_id = session.newRepo(tag, **repo_opts)
     print("Regenerating repo for tag: %s" % tag)
     print("Created task: %d" % task_id)
