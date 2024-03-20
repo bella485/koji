@@ -7440,6 +7440,125 @@ def handle_regen_repo(options, session, args):
                            poll_interval=options.poll_interval, topurl=options.topurl)
 
 
+def handle_request_repo(options, session, args):
+    """Request a repo for a tag"""
+    usage = "usage: %prog request-repo [options] <tag>"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--target", action="store_true",
+                      help="Interpret the argument as a build target name")
+    parser.add_option("--wait", action="store_true",
+                      help="Wait on for regen to finish, even if running in the background")
+    parser.add_option("--nowait", action="store_false", dest="wait",
+                      help="Don't wait on for regen to finish")
+    parser.add_option("--min-event", type="int", help="Minimum event id for repo")
+    parser.add_option("--at-event", type="int", help="Specific event id for repo")
+    parser.add_option("--current", "--last", action="store_true", help="Use current event for tag")
+    parser.add_option("--debuginfo", action="store_true", help="Include debuginfo rpms in repo")
+    parser.add_option("--source", "--src", action="store_true",
+                      help="Include source rpms in each of repos")
+    parser.add_option("--separate-source", "--separate-src", action="store_true",
+                      help="Include source rpms in separate src repo")
+    parser.add_option("--timeout", type="int", default=120,
+                      help="Wait timeout (default: 120)")
+    parser.add_option("-v", "--verbose", action="store_true", help="More verbose output")
+    parser.add_option("--quiet", action="store_true", default=options.quiet,
+                      help="Reduced output")
+    (suboptions, args) = parser.parse_args(args)
+
+    _request_repo(options, session, parser, suboptions, args)
+
+
+def _request_repo(goptions, session, parser, options, args):
+    """Handle the request-repo command"""
+    if len(args) == 0:
+        parser.error("A tag name must be specified")
+    elif len(args) > 1:
+        if options.target:
+            parser.error("Only a single target may be specified")
+        else:
+            parser.error("Only a single tag name may be specified")
+
+    # get the request parameters
+    params = {}
+    if options.at_event:
+        if options.min_event or options.current:
+            parser.error('Cannot specify both min-event and at-event')
+        params['at_event'] = options.at_event
+    elif options.current:
+        if options.min_event:
+            parser.error('Cannot specify both min-event and current')
+        params['min_event'] = "last"
+    elif options.min_event:
+        params['min_event'] = options.min_event
+    repo_opts = {}
+    if options.debuginfo:
+        repo_opts['debuginfo'] = True
+    if options.source:
+        repo_opts['src'] = True
+    if options.separate_source:
+        repo_opts['separate_src'] = True
+    if repo_opts:
+        params['opts'] = repo_opts
+
+    activate_session(session, goptions)
+
+    # get the tag
+    if options.target:
+        # treat first arg as a target
+        target = session.getBuildTarget(args[0])
+        if not target:
+            parser.error("No such build target: %s" % args[0])
+        tag = session.getTag(target['build_tag'], strict=True)
+    else:
+        tag = session.getTag(args[0])
+        if not tag:
+            parser.error("No such tag: %s" % args[0])
+    if not tag['arches']:
+        warn("Tag %s has an empty arch list" % tag['name'])
+
+    # set up a logger for RepoWatcher
+    logger = logging.getLogger("waitrepo")  # not under koji.*
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    if goptions.debug:
+        logger.setLevel(logging.DEBUG)
+    elif options.quiet:
+        logger.setLevel(logging.ERROR)
+    elif options.verbose:
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARNING)
+
+    watcher = koji.util.RepoWatcher(session, tag['id'], logger=logger, **params)
+    watcher.PAUSE = goptions.poll_interval
+    watcher.TIMEOUT = options.timeout
+
+    # first make the request
+    check = watcher.request()
+
+    repo = check['repo']
+    if repo:
+        print('Got repo %(id)i' % repo)
+        print("Repo info: %s/repoinfo?repoID=%s" % (options.weburl, repo['id']))
+        return
+
+    # otherwise we should have a request
+    req = check['request']
+    if not options.wait:
+        print('Got request: %(id)s' % req)
+        if req.get('task_id'):
+            print('Got task: %(task_id)s' % req)
+            print('Task info: %s/taskinfo?taskID=%s' % (options.weburl, req['task_id']))
+    else:
+        try:
+            watcher.wait_request(req)
+        except koji.GenericError as err:
+            msg = 'Failed to get repo -- %s' % err
+            error('' if options.quiet else msg)
+
+
 def handle_dist_repo(options, session, args):
     """Create a yum repo with distribution options"""
     usage = "usage: %prog dist-repo [options] <tag> <key_id> [<key_id> ...]\n\n" \

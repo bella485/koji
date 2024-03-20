@@ -65,10 +65,12 @@ class RepoQueueQuery(QueryView):
         'task_state': ['task.state', 'task'],
         'score': ['repo_queue.score', None],
         'create_time': ['repo_queue.create_time', None],
+        'create_ts': ["date_part('epoch', repo.create_time)", None],
         'opts': ['repo_queue.opts', None],
         'tag_name': ['tag.name', 'tag'],
     }
-    default_fields = ('id', 'tag_id', 'at_event', 'min_event', 'score', 'create_time', 'opts')
+    default_fields = ('id', 'tag_id', 'at_event', 'min_event', 'score', 'create_ts',
+                      'task_id', 'repo_id', 'opts')
 
 
 def check_repo_queue():
@@ -555,7 +557,7 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
         clauses.append(['at_event', '=', at_event])
     else:
         clauses.append(['min_event', '>=', min_event])
-    check = RepoQueueQuery(clauses, fields=None, opts={'order': 'id'}).execute()
+    check = RepoQueueQuery(clauses, fields='**', opts={'order': 'id'}).execute()
     for req in check:
         # if there is more than one, the oldest is most likely to be satisfied first
         # TODO update score/data/stats??
@@ -578,7 +580,7 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
     logger.info('New repo request for %(name)s', taginfo)
 
     # query to make return consistent with above
-    req = RepoQueueQuery(clauses=[['id', '=', req_id]], fields=None).executeOne()
+    req = RepoQueueQuery(clauses=[['id', '=', req_id]], fields='**').executeOne()
     ret['request'] = req
     return ret
 
@@ -631,6 +633,7 @@ def check_repo_request(req_id):
 class RepoExports:
 
     request = staticmethod(request_repo)
+    get = staticmethod(get_repo)
     checkRequest = staticmethod(check_repo_request)
 
     getExternalRepoData = staticmethod(get_external_repo_data)

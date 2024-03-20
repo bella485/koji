@@ -135,7 +135,7 @@ class RepoWatcher(object):
     PAUSE = 6  # XXX
     TIMEOUT = 120
 
-    def __init__(self, session, tag, nvrs=None, min_event=None, logger=None):
+    def __init__(self, session, tag, nvrs=None, min_event=None, at_event=None, opts=None, logger=None):
         self.session = session
         self.taginfo = session.getTag(tag, strict=True)
         # TODO support opts
@@ -144,13 +144,19 @@ class RepoWatcher(object):
         self.nvrs = nvrs
         self.builds = [koji.parse_NVR(nvr) for nvr in nvrs]
         # note that we don't assume the nvrs exist yet
+        self.at_event = at_event
         if min_event is None:
             self.min_event = None
+        elif at_event is not None:
+            raise koji.ParameterError('Cannot specify both min_event and at_event')
         elif min_event == "last":
             # TODO pass through?
             self.min_event = session.tagLastChangeEvent(self.taginfo['id'])
         else:
             self.min_event = int(min_event)
+        if opts is None:
+            opts = {}
+        self.opts = opts
         self.logger = logger or logging.getLogger('koji')
 
     def getRepo(self):
@@ -168,8 +174,7 @@ class RepoWatcher(object):
                                             event=None):
                 return None
 
-        self.logger.info('Requesting a repo')
-        check = self.session.repo.request(self.taginfo['id'], min_event=self.min_event)
+        check = self.request()
         repoinfo = check.get('repo')
         if repoinfo:
             # "he says they've already got one"
@@ -185,6 +190,10 @@ class RepoWatcher(object):
         """Return args for a waitrepo task matching our data"""
         tag = self.taginfo['id']
         newer_than = None  # this legacy arg doesn't make sense for us
+        if self.at_event:
+            raise koji.GenericError('at_event not supported by waitrepo task')
+        if self.opts:
+            raise koji.GenericError('opts not supported by waitrepo task')
         return [tag, newer_than, self.nvrs, self.min_event]
 
     def waitrepo(self, anon=False):
@@ -200,6 +209,9 @@ class RepoWatcher(object):
                 repoinfo = self.wait_request(req)
                 if self.check_repo(repoinfo):
                     break
+                elif self.at_event is not None:
+                    # shouldn't happen
+                    raise koji.GenericError('Failed at_event request')
                 else:
                     min_event = self.session.tagLastChangeEvent(self.taginfo['id'])
                     # we should have waited for builds before creating the request
@@ -208,7 +220,8 @@ class RepoWatcher(object):
             else:
                 # check for repo directly
                 # either first pass or anon mode
-                repoinfo = self.session.getRepo(self.taginfo['id'], min_event=min_event)
+                repoinfo = self.session.repo.get(self.taginfo['id'], min_event=min_event,
+                                                 at_event=self.at_event, opts=self.opts)
                 if repoinfo and self.check_repo(repoinfo):
                     break
             # Otherwise, we'll need a new request
@@ -219,10 +232,7 @@ class RepoWatcher(object):
                 self.logger.debug('Updated min_event to last change: %s', min_event)
             if not anon:
                 # Request a repo
-                self.logger.info('Requesting a repo')
-                self.logger.debug('self.session.repo.request(%s, min_event=%s)',
-                                  self.taginfo['id'], min_event)
-                check = self.session.repo.request(self.taginfo['id'], min_event=min_event)
+                check = self.request(min_event)
                 repoinfo = check.get('repo')
                 if repoinfo:
                     self.logger.debug('Request yielded repo: %r', check)
@@ -230,13 +240,23 @@ class RepoWatcher(object):
                 else:
                     req = check.get('request')
                     self.logger.debug('Got request: %r', req)
-                    if min_event == 'last':
+                    if min_event in ('last', None):
                         min_event = req['min_event']
                         self.logger.info('Updated min_event from hub: %s', min_event)
             self.pause()
 
         self.logger.debug('Got repo: %r', repoinfo)
         return repoinfo
+
+    def request(self, min_event=None, wait=False):
+        if min_event is None:
+            min_event = self.min_event
+        self.logger.info('Requesting a repo')
+        self.logger.debug('self.session.repo.request(%s, min_event=%s, at_event=%s, opts=%r)',
+                          self.taginfo['id'], min_event, self.at_event, self.opts)
+        check = self.session.repo.request(self.taginfo['id'], min_event=min_event,
+                                          at_event=self.at_event, opts=self.opts)
+        return check
 
     def wait_request(self, req):
         watch_fields = ('opts', 'score', 'task_id', 'task_state')
@@ -287,11 +307,23 @@ class RepoWatcher(object):
                               self.taginfo['id'], repoinfo['tag_id'])
             return False
 
-        # New enough?
-        if self.min_event is not None and self.min_event != "new":
+        # Matching event?
+        if self.at_event is not None:
+            if repoinfo['create_event'] != self.min_event:
+                self.logger.info('Got repo with wrong event. %s != %s',
+                                 repoinfo['create_event'], self.at_event)
+                return False
+        elif self.min_event is not None:
             if repoinfo['create_event'] < self.min_event:
                 self.logger.info('Got repo before min event. %s < %s',
                                  repoinfo['create_event'], self.min_event)
+                return False
+
+        # Matching opts
+        if self.opts is not None:
+            if repoinfo['opts'] != self.opts:
+                self.logger.info('Got repo with wrong opts. %s != %s',
+                                 repoinfo['opts'], self.opts)
                 return False
 
         # Needed builds?
