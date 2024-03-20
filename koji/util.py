@@ -149,8 +149,6 @@ class RepoWatcher(object):
         elif min_event == "last":
             # TODO pass through?
             self.min_event = session.tagLastChangeEvent(self.taginfo['id'])
-        elif min_event == "new":
-            self.min_event = "new"  # XXX non-int ok here?
         else:
             self.min_event = int(min_event)
         self.logger = logger or logging.getLogger('koji')
@@ -207,7 +205,7 @@ class RepoWatcher(object):
                     # we should have waited for builds before creating the request
                     # this could indicate further tagging/untagging, or a bug
                     self.logger.error('Repo request did not satisfy conditions')
-            elif min_event != "new":
+            else:
                 # check for repo directly
                 # either first pass or anon mode
                 repoinfo = self.session.getRepo(self.taginfo['id'], min_event=min_event)
@@ -232,8 +230,7 @@ class RepoWatcher(object):
                 else:
                     req = check.get('request')
                     self.logger.debug('Got request: %r', req)
-                    if min_event in ('last', 'new'):
-                        # TODO perhaps reconsider the new option
+                    if min_event == 'last':
                         min_event = req['min_event']
                         self.logger.info('Updated min_event from hub: %s', min_event)
             self.pause()
