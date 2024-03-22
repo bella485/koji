@@ -7359,6 +7359,65 @@ def anon_handle_wait_repo(options, session, args):
         print("Repo info: %s/repoinfo?repoID=%s" % (options.weburl, repoinfo['id']))
 
 
+def handle_wait_repo_request(goptions, session, args):
+    """Wait for an existing repo request"""
+    usage = "usage: %prog wait-repo-request [options] <request-id>"
+    parser = OptionParser(usage=get_usage_str(usage))
+    parser.add_option("--timeout", type="int", default=120,
+                      help="Wait timeout (default: 120)")
+    parser.add_option("-v", "--verbose", action="store_true", help="More verbose output")
+    parser.add_option("--quiet", action="store_true", default=goptions.quiet,
+                      help="Reduced output")
+    (options, args) = parser.parse_args(args)
+
+    if len(args) == 0:
+        parser.error("A request id must be specified")
+    elif len(args) > 1:
+        parser.error("This command only accepts one argument")
+
+    activate_session(session, goptions)
+
+    req_id = args[0]
+
+    # first check the request
+    check = session.repo.checkRequest(req_id)
+
+    repo = check['repo']
+    if repo:
+        print('Got repo %(id)i' % repo)
+        print("Repo info: %s/repoinfo?repoID=%s" % (goptions.weburl, repo['id']))
+        return
+
+    # otherwise
+    req = check['request']
+    tag_id = req['tag_id']
+
+    # set up a logger for RepoWatcher
+    logger = logging.getLogger("waitrepo")  # not under koji.*
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    if goptions.debug:
+        logger.setLevel(logging.DEBUG)
+    elif options.quiet:
+        logger.setLevel(logging.ERROR)
+    elif options.verbose:
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARNING)
+
+    watcher = koji.util.RepoWatcher(session, tag_id, logger=logger)
+    watcher.PAUSE = goptions.poll_interval
+    watcher.TIMEOUT = options.timeout
+
+    try:
+        watcher.wait_request(req)
+    except koji.GenericError as err:
+        msg = 'Failed to get repo -- %s' % err
+        error('' if options.quiet else msg)
+
+
 def handle_regen_repo(options, session, args):
     "[admin] Force a repo to be regenerated"
     usage = "usage: %prog regen-repo [options] <tag>"
@@ -7420,7 +7479,7 @@ def handle_regen_repo(options, session, args):
                            poll_interval=options.poll_interval, topurl=options.topurl)
 
 
-def handle_request_repo(options, session, args):
+def handle_request_repo(goptions, session, args):
     """Request a repo for a tag"""
     usage = "usage: %prog request-repo [options] <tag>"
     parser = OptionParser(usage=get_usage_str(usage))
@@ -7441,11 +7500,11 @@ def handle_request_repo(options, session, args):
     parser.add_option("--timeout", type="int", default=120,
                       help="Wait timeout (default: 120)")
     parser.add_option("-v", "--verbose", action="store_true", help="More verbose output")
-    parser.add_option("--quiet", action="store_true", default=options.quiet,
+    parser.add_option("--quiet", action="store_true", default=goptions.quiet,
                       help="Reduced output")
-    (suboptions, args) = parser.parse_args(args)
+    (options, args) = parser.parse_args(args)
 
-    _request_repo(options, session, parser, suboptions, args)
+    _request_repo(goptions, session, parser, options, args)
 
 
 def _request_repo(goptions, session, parser, options, args):
@@ -7521,7 +7580,7 @@ def _request_repo(goptions, session, parser, options, args):
     repo = check['repo']
     if repo:
         print('Got repo %(id)i' % repo)
-        print("Repo info: %s/repoinfo?repoID=%s" % (options.weburl, repo['id']))
+        print("Repo info: %s/repoinfo?repoID=%s" % (goptions.weburl, repo['id']))
         return
 
     # otherwise we should have a request

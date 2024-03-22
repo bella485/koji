@@ -138,6 +138,7 @@ class RepoWatcher(object):
     def __init__(self, session, tag, nvrs=None, min_event=None, at_event=None, opts=None, logger=None):
         self.session = session
         self.taginfo = session.getTag(tag, strict=True)
+        self.start = None
         # TODO support opts
         if nvrs is None:
             nvrs = []
@@ -158,6 +159,12 @@ class RepoWatcher(object):
             opts = {}
         self.opts = opts
         self.logger = logger or logging.getLogger('koji')
+
+    def get_start(self):
+        # we don't want necessarily want to start the clock in init
+        if not self.start:
+            self.start = time.time()
+        return self.start
 
     def getRepo(self):
         """Return repo if available now, without waiting
@@ -198,7 +205,7 @@ class RepoWatcher(object):
 
     def waitrepo(self, anon=False):
         self.logger.info('Waiting on repo for %s', self.taginfo['name'])
-        self.start = time.time()
+        self.get_start()
         min_event = self.min_event
         self.logger.debug('min_event = %r, nvrs = %r', min_event, self.nvrs)
         repoinfo = None
@@ -261,6 +268,7 @@ class RepoWatcher(object):
     def wait_request(self, req):
         watch_fields = ('opts', 'score', 'task_id', 'task_state')
         # XXX opts shouldn't change?
+        self.get_start()
         watch_data = dict([(f, req.get(f)) for f in watch_fields])
         while True:
             check = self.session.repo.checkRequest(req['id'])
@@ -284,6 +292,7 @@ class RepoWatcher(object):
             self.pause()
 
     def wait_builds(self, builds):
+        self.get_start()
         while True:
             if koji.util.checkForBuilds(self.session, self.taginfo['id'], builds, event=None):
                 self.logger.debug('Successfully waited for nvrs %s in tag %s', self.nvrs,
