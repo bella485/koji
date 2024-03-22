@@ -526,6 +526,9 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
         if min_event is not None:
             raise koji.ParameterError('The min_event and at_event options conflict')
         at_event = kojihub.convert_value(at_event, cast=int)
+        ev = context.handlers.get('getEvent')(at_event, strict=False)
+        if not ev:
+            raise koji.ParameterError(f'Invalid event: {at_event}')
     elif min_event == "last":
         min_event = kojihub.tag_last_change_event(taginfo['id'])
         logger.debug('Using last event %s for repo request', min_event)
@@ -534,9 +537,9 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
         logger.debug('Using event %s for repo request', min_event)
     else:
         min_event = kojihub.convert_value(min_event, cast=int)
-        sys_last = context.handlers.call('getLastEvent')['id']
-        if min_event > sys_last:
-            raise koji.ParameterError(f'Event {min_event} is in the future')
+        ev = context.handlers.get('getEvent')(min_event, strict=False)
+        if not ev:
+            raise koji.ParameterError(f'Invalid event: {min_event}')
 
     ret = {'repo': None, 'request': None, 'duplicate': False}
 

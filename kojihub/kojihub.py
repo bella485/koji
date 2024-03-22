@@ -10994,25 +10994,32 @@ class RootExports(object):
         else:
             return context.opts
 
-    def getEvent(self, id):
+    def getEvent(self, id, strict=True):
         """
         Get information about the event with the given id.
+
+        :param int id: the event id
+        :param bool strict: if True (the default), error on invalid event
+        :returns: dict or None
 
         A map will be returned with the following keys:
           - id (integer): id of the event
           - ts (float): timestamp the event was created, in
                         seconds since the epoch
 
-        If no event with the given id exists, an error will be raised.
+        If the event is not in the database, an error will be raised in the strict
+        case, otherwise the call will return None.
         """
+        event_id = convert_value(id, cast=int)
+        strict = convert_value(strict, cast=bool)
         fields = [
             ('id', 'id'),
             ("date_part('epoch', time)", 'ts')
         ]
         columns, aliases = zip(*fields)
         query = QueryProcessor(tables=['events'], columns=columns, aliases=aliases,
-                               clauses=['id = %(id)i'], values={'id': id})
-        return query.executeOne(strict=True)
+                               clauses=['id = %(id)s'], values={'id': id})
+        return query.executeOne(strict=strict)
 
     def getLastEvent(self, before=None):
         """
