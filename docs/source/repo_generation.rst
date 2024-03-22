@@ -22,7 +22,7 @@ without a build if configured. They can also be triggered manually.
 
 ::
 
-    repo.request(tag, min_event=None, opts=None)
+    repo.request(tag, min_event=None, at_event=None, opts=None)
       description: Request a repo for a tag
 
 Each repo request is for a single tag. The optional ``min_event`` parameter specifies how recent the
@@ -73,11 +73,11 @@ All repo requests go into a queue that Koji regularly checks.
 As long as there is sufficient capacity, Koji will create ``newRepo`` tasks for these
 requests.
 
-The status of a request can be checked with the ``checkRepoRequest`` api call
+The status of a request can be checked with the ``repo.checkRequest`` api call
 
 ::
 
-    checkRepoRequest(req_id)
+    repo.checkRequest(req_id)
     description: Report status of repo request
 
         :param int req_id the request id

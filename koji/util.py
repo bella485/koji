@@ -263,7 +263,7 @@ class RepoWatcher(object):
         # XXX opts shouldn't change?
         watch_data = dict([(f, req.get(f)) for f in watch_fields])
         while True:
-            check = self.session.checkRepoRequest(req['id'])
+            check = self.session.repo.checkRequest(req['id'])
             self.logger.debug('Request check: %r', check)
             repo = check.get('repo')
             if repo:
