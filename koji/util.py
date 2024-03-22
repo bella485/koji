@@ -265,8 +265,7 @@ class RepoWatcher(object):
         return check
 
     def wait_request(self, req):
-        watch_fields = ('opts', 'score', 'task_id', 'task_state')
-        # XXX opts shouldn't change?
+        watch_fields = ('score', 'task_id', 'task_state', 'repo_id')
         self.get_start()
         watch_data = dict([(f, req.get(f)) for f in watch_fields])
         while True:
