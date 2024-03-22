@@ -139,7 +139,6 @@ class RepoWatcher(object):
         self.session = session
         self.taginfo = session.getTag(tag, strict=True)
         self.start = None
-        # TODO support opts
         if nvrs is None:
             nvrs = []
         self.nvrs = nvrs
@@ -155,8 +154,7 @@ class RepoWatcher(object):
             self.min_event = session.tagLastChangeEvent(self.taginfo['id'])
         else:
             self.min_event = int(min_event)
-        if opts is None:
-            opts = {}
+        # if opts is None we'll get the default opts
         self.opts = opts
         self.logger = logger or logging.getLogger('koji')
 
@@ -200,6 +198,7 @@ class RepoWatcher(object):
         if self.at_event:
             raise koji.GenericError('at_event not supported by waitrepo task')
         if self.opts:
+            # TODO?
             raise koji.GenericError('opts not supported by waitrepo task')
         return [tag, newer_than, self.nvrs, self.min_event]
 

@@ -7283,7 +7283,7 @@ def anon_handle_wait_repo(options, session, args):
     elif len(args) > 1:
         parser.error("Only one tag may be specified")
 
-    tag = args[0]
+    tag_arg = args[0]
 
     anon = True
     if suboptions.request:
@@ -7295,27 +7295,32 @@ def anon_handle_wait_repo(options, session, args):
         warn('The --request option is recommended for faster results')
 
     ensure_connection(session, options)
+
+    # get tag
     if suboptions.target:
-        target_info = session.getBuildTarget(tag)
+        # treat as a target
+        target_info = session.getBuildTarget(tag_arg)
         if not target_info:
-            parser.error("No such build target: %s" % tag)
-        tag = target_info['build_tag_name']
-        tag_id = target_info['build_tag']
+            parser.error("No such build target: %s" % tag_arg)
+        tag = session.getTag(target_info['build_tag'], strict=True)
     else:
-        tag_info = session.getTag(tag)
-        if not tag_info:
-            parser.error("No such tag: %s" % tag)
-        targets = session.getBuildTargets(buildTagID=tag_info['id'])
+        tag = session.getTag(tag_arg)
+        if not tag:
+            parser.error("No such tag: %s" % tag_arg)
+        # warn if not a build target
+        targets = session.getBuildTargets(buildTagID=tag['id'])
         if not targets:
-            warn("%(name)s is not a build tag for any target" % tag_info)
-            targets = session.getBuildTargets(destTagID=tag_info['id'])
+            warn("%(name)s is not a build tag for any target" % tag)
+            targets = session.getBuildTargets(destTagID=tag['id'])
             if targets:
                 maybe = {}.fromkeys([t['build_tag_name'] for t in targets])
                 maybe = sorted(maybe.keys())
                 warn("Suggested tags: %s" % ', '.join(maybe))
-            if not suboptions.request:
-                error()
-        tag_id = tag_info['id']
+
+    if not suboptions.request:
+        # do we expect automatic regen?
+        if not tag['extra'].get('kojira.auto'):
+            warn("This tag is not configured for automatic regeneration")
 
     for nvr in builds:
         data = session.getLatestBuilds(tag_id, package=nvr["name"])
@@ -7343,7 +7348,7 @@ def anon_handle_wait_repo(options, session, args):
     else:
         logger.setLevel(logging.WARNING)
 
-    watcher = koji.util.RepoWatcher(session, tag_id, nvrs=suboptions.builds, min_event=None,
+    watcher = koji.util.RepoWatcher(session, tag['id'], nvrs=suboptions.builds, min_event=None,
                                     logger=logger)
     watcher.PAUSE = options.poll_interval
     watcher.TIMEOUT = suboptions.timeout
