@@ -65,7 +65,7 @@ class RepoQueueQuery(QueryView):
         'task_state': ['task.state', 'task'],
         'score': ['repo_queue.score', None],
         'create_time': ['repo_queue.create_time', None],
-        'create_ts': ["date_part('epoch', repo.create_time)", None],
+        'create_ts': ["date_part('epoch', repo_queue.create_time)", None],
         'opts': ['repo_queue.opts', None],
         'tag_name': ['tag.name', 'tag'],
     }
