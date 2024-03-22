@@ -254,7 +254,7 @@ class RepoWatcher(object):
         self.logger.debug('Got repo: %r', repoinfo)
         return repoinfo
 
-    def request(self, min_event=None, wait=False):
+    def request(self, min_event=None):
         if min_event is None:
             min_event = self.min_event
         self.logger.info('Requesting a repo')

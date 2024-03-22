@@ -7365,7 +7365,7 @@ def anon_handle_wait_repo(options, session, args):
 
 
 def handle_wait_repo_request(goptions, session, args):
-    """Wait for an existing repo request"""
+    """[monitor] Wait for an existing repo request"""
     usage = "usage: %prog wait-repo-request [options] <request-id>"
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--timeout", type="int", default=120,
@@ -7417,14 +7417,14 @@ def handle_wait_repo_request(goptions, session, args):
     watcher.TIMEOUT = options.timeout
 
     try:
-        watcher.wait_request(req)
+        repo = watcher.wait_request(req)
     except koji.GenericError as err:
         msg = 'Failed to get repo -- %s' % err
         error('' if options.quiet else msg)
 
 
-def handle_regen_repo(options, session, args):
-    "[admin] Force a repo to be regenerated"
+def handle_regen_repo(goptions, session, args):
+    "[admin] Regenerate a current repo if there is not one"
     usage = "usage: %prog regen-repo [options] <tag>"
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--target", action="store_true",
@@ -7433,24 +7433,41 @@ def handle_regen_repo(options, session, args):
                       help="Wait on for regen to finish, even if running in the background")
     parser.add_option("--nowait", action="store_false", dest="wait",
                       help="Don't wait on for regen to finish")
+    parser.add_option("--make-task", action="store_true", help="Directly create a newRepo task")
     parser.add_option("--debuginfo", action="store_true", help="Include debuginfo rpms in repo")
     parser.add_option("--source", "--src", action="store_true",
                       help="Include source rpms in each of repos")
     parser.add_option("--separate-source", "--separate-src", action="store_true",
                       help="Include source rpms in separate src repo")
-    (suboptions, args) = parser.parse_args(args)
+    parser.add_option("--timeout", type="int", default=120,
+                      help="Wait timeout (default: 120)")
+    parser.add_option("-v", "--verbose", action="store_true", help="More verbose output")
+    parser.add_option("--quiet", action="store_true", default=goptions.quiet,
+                      help="Reduced output")
+    (options, args) = parser.parse_args(args)
+
+    if not options.make_task:
+        # alias for request-repo --current
+        options.at_event = None
+        options.min_event = None
+        options.current = True
+        return _request_repo(goptions, session, parser, options, args)
+
+    # otherwise we still have the old way
 
     if len(args) == 0:
         parser.error("A tag name must be specified")
     elif len(args) > 1:
-        if suboptions.target:
+        if options.target:
             parser.error("Only a single target may be specified")
         else:
             parser.error("Only a single tag name may be specified")
-    activate_session(session, options)
+
+    activate_session(session, goptions)
+
     tag = args[0]
     repo_opts = {}
-    if suboptions.target:
+    if options.target:
         info = session.getBuildTarget(tag)
         if not info:
             parser.error("No such build target: %s" % tag)
@@ -7466,22 +7483,21 @@ def handle_regen_repo(options, session, args):
             warn("%s is not a build tag" % tag)
     if not info['arches']:
         warn("Tag %s has an empty arch list" % info['name'])
-    if suboptions.debuginfo:
+    if options.debuginfo:
         repo_opts['debuginfo'] = True
-    if suboptions.source:
+    if options.source:
         repo_opts['src'] = True
-    if suboptions.separate_source:
+    if options.separate_source:
         repo_opts['separate_src'] = True
 
-    # TODO: use RepoWatcher instead once it supports opts
     task_id = session.newRepo(tag, **repo_opts)
     print("Regenerating repo for tag: %s" % tag)
     print("Created task: %d" % task_id)
-    print("Task info: %s/taskinfo?taskID=%s" % (options.weburl, task_id))
-    if suboptions.wait or (suboptions.wait is None and not _running_in_bg()):
+    print("Task info: %s/taskinfo?taskID=%s" % (goptions.weburl, task_id))
+    if options.wait or (options.wait is None and not _running_in_bg()):
         session.logout()
-        return watch_tasks(session, [task_id], quiet=options.quiet,
-                           poll_interval=options.poll_interval, topurl=options.topurl)
+        return watch_tasks(session, [task_id], quiet=goptions.quiet,
+                           poll_interval=goptions.poll_interval, topurl=goptions.topurl)
 
 
 def handle_request_repo(goptions, session, args):
@@ -7594,13 +7610,16 @@ def _request_repo(goptions, session, parser, options, args):
         print('Got request: %(id)s' % req)
         if req.get('task_id'):
             print('Got task: %(task_id)s' % req)
-            print('Task info: %s/taskinfo?taskID=%s' % (options.weburl, req['task_id']))
+            print('Task info: %s/taskinfo?taskID=%s' % (goptions.weburl, req['task_id']))
     else:
         try:
-            watcher.wait_request(req)
+            repo = watcher.wait_request(req)
         except koji.GenericError as err:
             msg = 'Failed to get repo -- %s' % err
             error('' if options.quiet else msg)
+
+    print('Got repo %(id)i' % repo)
+    print("Repo info: %s/repoinfo?repoID=%s" % (goptions.weburl, repo['id']))
 
 
 def handle_dist_repo(options, session, args):

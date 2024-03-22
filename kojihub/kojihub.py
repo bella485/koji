@@ -13472,7 +13472,7 @@ class RootExports(object):
     def newRepo(self, tag, event=None, src=False, debuginfo=False, separate_src=False):
         """Create a newRepo task. returns task id"""
         if not context.opts.get('AllowNewRepo', False):
-            raise koji.GenericError('newRepo api call is disabled')
+            raise koji.ActionNotAllowed('newRepo api call is disabled')
         if context.session.hasPerm('regen-repo'):
             pass
         else:
