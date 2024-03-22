@@ -135,7 +135,8 @@ class RepoWatcher(object):
     PAUSE = 6  # XXX
     TIMEOUT = 120
 
-    def __init__(self, session, tag, nvrs=None, min_event=None, at_event=None, opts=None, logger=None):
+    def __init__(self, session, tag, nvrs=None, min_event=None, at_event=None, opts=None,
+                 logger=None):
         self.session = session
         self.taginfo = session.getTag(tag, strict=True)
         self.start = None

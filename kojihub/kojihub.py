@@ -11018,7 +11018,7 @@ class RootExports(object):
         ]
         columns, aliases = zip(*fields)
         query = QueryProcessor(tables=['events'], columns=columns, aliases=aliases,
-                               clauses=['id = %(id)s'], values={'id': id})
+                               clauses=['id = %(id)s'], values={'id': event_id})
         return query.executeOne(strict=strict)
 
     def getLastEvent(self, before=None):

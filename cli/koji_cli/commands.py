@@ -7323,15 +7323,15 @@ def anon_handle_wait_repo(options, session, args):
             warn("This tag is not configured for automatic regeneration")
 
     for nvr in builds:
-        data = session.getLatestBuilds(tag_id, package=nvr["name"])
+        data = session.getLatestBuilds(tag['id'], package=nvr["name"])
         if len(data) == 0:
-            warn("No %s builds in tag %s" % (nvr["name"], tag))
+            warn("No %s builds in tag %s" % (nvr["name"], tag['name']))
         else:
             present_nvr = [x["nvr"] for x in data][0]
             expected_nvr = '%(name)s-%(version)s-%(release)s' % nvr
             if present_nvr != expected_nvr:
                 warn("nvr %s is not current in tag %s\n  latest build in %s is %s" %
-                     (expected_nvr, tag, tag, present_nvr))
+                     (expected_nvr, tag['name'], tag, present_nvr))
 
     # set up logger for RepoWatcher
     logger = logging.getLogger("waitrepo")  # not under koji.*

@@ -399,7 +399,7 @@ def do_auto_requests():
             if value:
                 auto_tags.append(row['tag_id'])
         elif row['key'] == 'repo.lag':
-            if not isinstance(value, integer):
+            if not isinstance(value, int):
                 # just ignore
                 continue
             lags[row['tag_id']] = value
@@ -408,8 +408,8 @@ def do_auto_requests():
 
     reqs = {}
     dups = {}
-    default_lag = config.opts['RepoAutoLag']
-    window = config.opts['RepoLagWindow']
+    default_lag = context.opts['RepoAutoLag']
+    window = context.opts['RepoLagWindow']
     for tag_id in auto_tags:
         # choose min_event similar to default_min_event, but different lag
         # TODO unify code?
@@ -604,12 +604,12 @@ def default_min_event(taginfo):
     last = kojihub.tag_last_change_event(taginfo['id'])
     # last event cannot be None for a valid tag
     lag = taginfo['extra'].get('repo.lag')
-    if not isinstance(lag, integer):
+    if not isinstance(lag, int):
         logger.warning('Invalid repo.lag setting for tag %s: %r', taginfo['name'], lag)
         lag = None
     if lag is None:
-        lag = config.opts['RepoLag']
-    window = config.opts['RepoLagWindow']
+        lag = context.opts['RepoLag']
+    window = context.opts['RepoLagWindow']
     base_ts = time.time() - lag
     # We round base_ts to nearest window so that duplicate requests will get same event if they
     # are close in time.
