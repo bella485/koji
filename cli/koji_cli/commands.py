@@ -7266,11 +7266,6 @@ def anon_handle_wait_repo(options, session, args):
                            "(may be used multiple times)")
     parser.add_option("--target", action="store_true",
                       help="Interpret the argument as a build target name")
-    parser.add_option("--event", type='int', metavar="EVENT#", help="repo at event or later")
-    parser.add_option("--ts", type='int', metavar="TIMESTAMP",
-                      help="repo at event or later, from timestamp")
-    parser.add_option("--current", action="store_true", help="Use current event")
-    parser.add_option("--new", action="store_true", help="Create a new event")
     parser.add_option("--request", action="store_true",
                       help="Create a repo request (requires auth)")
     parser.add_option("--timeout", type="int", default=120,
@@ -7281,8 +7276,6 @@ def anon_handle_wait_repo(options, session, args):
                       help="Suppress output, success or failure will be indicated by the return "
                            "value only")
     (suboptions, args) = parser.parse_args(args)
-
-    # TODO support opts
 
     builds = [koji.parse_NVR(build) for build in suboptions.builds]
     if len(args) < 1:
@@ -7299,7 +7292,8 @@ def anon_handle_wait_repo(options, session, args):
         activate_session(session, options)
         anon = False
     else:
-        warn('Use --request to request a repo and get faster results')
+        warn('The --request option is recommended for faster results')
+
     ensure_connection(session, options)
     if suboptions.target:
         target_info = session.getBuildTarget(tag)
@@ -7334,23 +7328,7 @@ def anon_handle_wait_repo(options, session, args):
                 warn("nvr %s is not current in tag %s\n  latest build in %s is %s" %
                      (expected_nvr, tag, tag, present_nvr))
 
-    min_event = None
-    if suboptions.current:
-        if suboptions.event or suboptions.ts:
-            parser.error('--current conflicts with --event and --ts')
-        min_event = "last"
-    elif suboptions.new:
-        # TODO reconcile with other event args
-        min_event = "new"
-    else:
-        event = koji.util.eventFromOpts(session, suboptions)
-        if event:
-            event['timestr'] = time.asctime(time.localtime(event['ts']))
-            if not options.quiet:
-                print("Using event %(id)i (%(timestr)s)" % event)
-            min_event = event['id']
-
-    # set up our own logger to get a simpler format
+    # set up logger for RepoWatcher
     logger = logging.getLogger("waitrepo")  # not under koji.*
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(message)s'))
@@ -7364,10 +7342,12 @@ def anon_handle_wait_repo(options, session, args):
         logger.setLevel(logging.INFO)
     else:
         logger.setLevel(logging.WARNING)
-    watcher = koji.util.RepoWatcher(session, tag_id, nvrs=suboptions.builds, min_event=min_event,
+
+    watcher = koji.util.RepoWatcher(session, tag_id, nvrs=suboptions.builds, min_event=None,
                                     logger=logger)
     watcher.PAUSE = options.poll_interval
     watcher.TIMEOUT = suboptions.timeout
+
     try:
         repoinfo = watcher.waitrepo(anon=anon)
     except koji.GenericError as err:
