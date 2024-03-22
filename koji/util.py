@@ -132,7 +132,8 @@ def checkForBuilds(session, tag, builds, event, latest=False):
 
 class RepoWatcher(object):
 
-    PAUSE = 6  # XXX
+    # timing defaults
+    PAUSE = 6
     TIMEOUT = 120
 
     def __init__(self, session, tag, nvrs=None, min_event=None, at_event=None, opts=None,
