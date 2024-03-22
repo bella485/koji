@@ -7319,7 +7319,7 @@ def anon_handle_wait_repo(options, session, args):
 
     if not suboptions.request:
         # do we expect automatic regen?
-        if not tag['extra'].get('kojira.auto'):
+        if not tag['extra'].get('repo.auto'):
             warn("This tag is not configured for automatic regeneration")
 
     for nvr in builds:

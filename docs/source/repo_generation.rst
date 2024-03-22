@@ -59,7 +59,7 @@ current repo.
 Automatic generation
 --------------------
 
-Automatic generation can be configured setting ``kojira.auto=True`` for a given tag.
+Automatic generation can be configured setting ``repo.auto=True`` for a given tag.
 This requires administrative access.
 The system regularly requests repos for such tags.
 
