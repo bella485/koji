@@ -294,7 +294,8 @@ def repo_queue_task(req):
 
     args = koji.encode_args(req['tag_id'], **opts)
     kwargs = {'priority': 15, 'channel': 'createrepo'}
-    user_id = kojihub.get_id('users', 'kojira', strict=False)  # XXX config
+    user_id = kojihub.get_id('users', context.opts['RepoQueueUser'], strict=False)
+    # TODO should we error if user doesn't exist
     if user_id:
         kwargs['owner'] = user_id
     task_id = kojihub.make_task('newRepo', args, **kwargs)
@@ -373,13 +374,17 @@ def set_external_repo_data(erepo, data):
 
 def do_auto_requests():
     """Request repos for tag configured to auto-regen"""
+
+    # query the extra configs we need
     query = QueryProcessor(
         tables=['tag_extra'],
-        columns=['tag_id', 'value'],
-        clauses=['key = %(key)s', 'active IS TRUE'],
-        values={'key': 'kojira.auto'})
+        columns=['tag_id', 'key', 'value'],
+        clauses=['key IN %(keys)s', 'active IS TRUE'],
+        values={'keys': ['repo.auto', 'repo.lag']})
 
+    # figure out which tags to handle and if they have lag settings
     auto_tags = []
+    lags = {}
     for row in query.execute():
         if row is None:
             # blocked entry, ignore
@@ -388,29 +393,35 @@ def do_auto_requests():
         try:
             value = json.loads(row['value'])
         except Exception:
-            logger.error('Invalid tag_extra value: %r', row)
-            # XXX this will be too noisy if it actually happens
+            # logging will be too noisy if it actually happens
             continue
-        if value:
-            auto_tags.append(row['tag_id'])
+        if row['key'] == 'repo.auto':
+            if value:
+                auto_tags.append(row['tag_id'])
+        elif row['key'] == 'repo.lag':
+            if not isinstance(value, integer):
+                # just ignore
+                continue
+            lags[row['tag_id']] = value
 
     logger.debug('Found %i tags for automatic repos', len(auto_tags))
 
     reqs = {}
     dups = {}
+    default_lag = config.opts['RepoAutoLag']
+    window = config.opts['RepoLagWindow']
     for tag_id in auto_tags:
         # choose min_event similar to default_min_event, but different lag
-        # TODO unify code
+        # TODO unify code?
         last = kojihub.tag_last_change_event(tag_id)
         if last is None:
             # shouldn't happen
             # last event cannot be None for a valid tag, but we only queried tag_extra
             logger.error('No last event for tag %i', tag_id)
             continue
-        base_ts = time.time() - 7200
-        base_ts = (base_ts // 600) * 600
-        # TODO config
-        # TODO allow tag.extra setting for lag
+        lag = lags.get(tag_id, default_lag)
+        base_ts = time.time() - lag
+        base_ts = (base_ts // window) * window
         base = context.handlers.get('getLastEvent')(before=base_ts)['id']
         check = request_repo(tag_id, min_event=min(base, last))
         # TODO create a way to deprioritize these
@@ -590,11 +601,15 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
 
 def default_min_event(taginfo):
     """Get the default min_event for repo requests"""
-    # TODO factor in tag config
     last = kojihub.tag_last_change_event(taginfo['id'])
     # last event cannot be None for a valid tag
-    lag = 3600    # TODO config
-    window = 600  # TODO config
+    lag = taginfo['extra'].get('repo.lag')
+    if not isinstance(lag, integer):
+        logger.warning('Invalid repo.lag setting for tag %s: %r', taginfo['name'], lag)
+        lag = None
+    if lag is None:
+        lag = config.opts['RepoLag']
+    window = config.opts['RepoLagWindow']
     base_ts = time.time() - lag
     # We round base_ts to nearest window so that duplicate requests will get same event if they
     # are close in time.

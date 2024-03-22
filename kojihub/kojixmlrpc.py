@@ -524,6 +524,10 @@ def load_config(environ):
         ['MaxRepoTasks', 'integer', 10],
         ['MaxRepoTasksMaven', 'integer', 2],
         ['AllowNewRepo', 'bool', True],
+        ['RepoLag', 'int', 3600],
+        ['RepoAutoLag', 'int', 7200],
+        ['RepoLagWindow', 'int', 600],
+        ['RepoQueueUser', 'str', 'kojira'],
     ]
     opts = {}
     for name, dtype, default in cfgmap:
