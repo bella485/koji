@@ -246,12 +246,10 @@ def symlink_if_latest(repo):
     Returns True if the latest symlink was updated, False otherwise
     """
 
-    if not repo['dist']:
+    if not repo['dist'] and not repo['opts'].get('custom'):
         # only symlink if we have the default opts
-        default = default_repo_opts(repo['tag_id'])
-        if repo['opts'] != default:
-            logger.debug('Skipping latest symlink. Not default opts.')
-            return False
+        logger.debug('Skipping latest symlink. Not default opts.')
+        return False
 
     # only symlink if we are actually latest
     clauses = [
@@ -262,9 +260,9 @@ def symlink_if_latest(repo):
         clauses.append(['dist', 'IS', True])
     else:
         clauses.append(['opts', '=', json.dumps(repo['opts'])])
+        # TODO: just query the custom field?
     query = RepoQuery(clauses)
     newer = query.execute()
-    # TODO: we could make this simpler if we record whether options are default
     if newer:
         logger.debug('Skipping latest symlink, %i newer repos found', len(newer))
         return False
@@ -486,7 +484,7 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
     tag_id = kojihub.get_tag_id(tag, strict=True)
     min_event = kojihub.convert_value(min_event, int, none_allowed=True)
     at_event = kojihub.convert_value(at_event, int, none_allowed=True)
-    opts = default_repo_opts(tag, override=opts)  # event?
+    opts = kojihub.convert_value(opts, dict, none_allowed=True)
 
     fields = '**'
     clauses = [
@@ -505,15 +503,47 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
     return RepoQuery(clauses, fields, qopts).executeOne()
 
 
-def default_repo_opts(tag, override=None):
-    # TODO actually factor in the tag, maybe more args
+def get_repo_opts(tag, override=None):
+    # base options
     opts = {
         'src': False,
         'debuginfo': False,
         'separate_src': False,
     }
+
+    # emulate original kojira config
+    debuginfo_pat = context.opts['DebuginfoTags'].split()
+    src_path = context.opts['SourceTags'].split()
+    separate_src_pat = context.opts['SeparateSourceTags'].split()
+    if debuginfo_pat:
+        if koji.util.multi_fnmatch(tag['name'], debuginfo_pat):
+            opts['debuginfo'] = True
+    if src_pat:
+        if koji.util.multi_fnmatch(tag['name'], src_pat):
+            opts['src'] = True
+    if separate_src_pat:
+        if koji.util.multi_fnmatch(tag['name'], separate_src_pat):
+            opts['separate_src'] = True
+
+    # also consider tag config
+    tag_opts = tag['extra'].get('repo.opts', {})
+    if 'with_debuginfo' in tag['extra']:
+        # for compat with old newRepo
+        if 'debuginfo' in tag_opts:
+            logger.warning('Ignoring legacy with_debuginfo config, overridden by repo.opts')
+        else:
+            tag_opts['debuginfo'] = bool(tag['extra']['with_debuginfo'])
+    # TODO validate tag_opts
+    opts.update(tag_opts)
+
+    # apply overrides
+    opts['custom'] = False
+    default = opts.copy()
     if override:
         opts.update(override)
+        if opts != default:
+            opts['custom'] = True
+
     return opts
 
 
@@ -532,7 +562,7 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
 
     context.session.assertLogin()
     taginfo = kojihub.get_tag(tag, strict=True)
-    opts = default_repo_opts(tag, override=opts)  # event?
+    opts = get_repo_opts(tag, override=opts)
     if at_event is not None:
         if min_event is not None:
             raise koji.ParameterError('The min_event and at_event options conflict')

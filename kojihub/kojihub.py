@@ -2680,22 +2680,32 @@ def maven_tag_archives(tag_id, event_id=None, inherit=True):
     return _iter_archives()
 
 
-def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=None,
-              with_separate_src=False):
+def repo_init(tag, task_id=None, event=None, opts=None):
     """Create a new repo entry in the INIT state, return full repo data
+
+    :param int|None task_id: (optional) the task that is creating the repo
+    :param int|None event: (optional) specify the event to create the repo from
+    :param dict|None opts: (optional) repo options (None for default settings)
 
     Returns a dictionary containing
         repo_id, event_id
     """
     task_id = convert_value(task_id, cast=int, none_allowed=True)
+    event = convert_value(event, cast=int, none_allowed=True)
+    opts = convert_value(opts, cast=dict, none_allowed=True)
     state = koji.REPO_INIT
     tinfo = get_tag(tag, strict=True, event=event)
-    koji.plugin.run_callbacks('preRepoInit', tag=tinfo, with_src=with_src,
-                              with_debuginfo=with_debuginfo, event=event, repo_id=None,
-                              with_separate_src=with_separate_src, task_id=task_id)
+
+    # TODO: do we need to provide old callback opt params for compatibility?
+    koji.plugin.run_callbacks('preRepoInit', tag=tinfo, event=event, repo_id=None, task_id=task_id,
+                              opts=opts)
+
+    # get our opts:
+    opts = repos.default_repo_opts(tinfo, override=opts)
+
     tag_id = tinfo['id']
     repo_arches = {}
-    if with_separate_src:
+    if opts['separate_src']:
         repo_arches['src'] = 1
     if tinfo['arches']:
         for arch in tinfo['arches'].split():
@@ -2714,7 +2724,6 @@ def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=Non
         event_id = event
 
     # do the insert
-    repo_opts = {'src': with_src, 'debuginfo': with_debuginfo, 'separate_src': with_separate_src}
     data = {
         'id': repo_id,
         'create_event': event_id,
@@ -2723,7 +2732,7 @@ def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=Non
         'tag_id': tag_id,
         'state': state,
         'task_id': task_id,
-        'opts': json.dumps(repo_opts),
+        'opts': json.dumps(opts),
     }
     insert = InsertProcessor('repo', data=data)
     insert.execute()
@@ -2756,9 +2765,11 @@ def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=Non
         'tag_id': tinfo['id'],
         'task_id': task_id,
         'event_id': event_id,
-        'with_src': bool(with_src),
-        'with_separate_src': bool(with_separate_src),
-        'with_debuginfo': bool(with_debuginfo),
+        'opts': opts,
+        # also include these for compat:
+        'with_src': opts['src'],
+        'with_separate_src': opts['separate_src'],
+        'with_debuginfo': opts['debuginfo']),
     }
     with open('%s/repo.json' % repodir, 'wt', encoding='utf-8') as fp:
         json.dump(repo_info, fp, indent=2)
@@ -2783,19 +2794,19 @@ def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=Non
         rpmlist[repoarch] = open(joinpath(archdir, 'rpmlist.jsonl'), 'wt', encoding='utf-8')
     # NOTE - rpms is a generator
     for rpminfo in rpms:
-        if not with_debuginfo and koji.is_debuginfo(rpminfo['name']):
+        if not opts['debuginfo'] and koji.is_debuginfo(rpminfo['name']):
             continue
         relpath = "%s/%s\n" % (builddirs[rpminfo['build_id']], relpathinfo.rpm(rpminfo))
         rpm_json = json.dumps(rpminfo, indent=None)
         # must be one line for nl-delimited json
         arch = rpminfo['arch']
         if arch == 'src':
-            if with_src:
+            if opts['src']:
                 for repoarch in repo_arches:
                     pkglist[repoarch].write(relpath)
                     rpmlist[repoarch].write(rpm_json)
                     rpmlist[repoarch].write('\n')
-            if with_separate_src:
+            if opts['separate_src']:
                 pkglist[arch].write(relpath)
                 rpmlist[arch].write(rpm_json)
                 rpmlist[arch].write('\n')
@@ -2859,9 +2870,9 @@ def repo_init(tag, task_id=None, with_src=False, with_debuginfo=False, event=Non
         for artifact_dir, artifacts in artifact_dirs.items():
             _write_maven_repo_metadata(artifact_dir, artifacts)
 
-    koji.plugin.run_callbacks('postRepoInit', tag=tinfo, with_src=with_src,
-                              with_debuginfo=with_debuginfo, event=event, repo_id=repo_id,
-                              with_separate_src=with_separate_src, task_id=task_id)
+    koji.plugin.run_callbacks('postRepoInit', tag=tinfo, event=event, repo_id=repo_id,
+                              task_id=task_id, opts=opts)
+
     return [repo_id, event_id]
 
 
@@ -15896,13 +15907,11 @@ class HostExports(object):
 
         return br.updateArchiveList(archives, project)
 
-    def repoInit(self, tag, task_id=None, with_src=False, with_debuginfo=False, event=None,
-                 with_separate_src=False):
+    def repoInit(self, tag, task_id=None, event=None, opts=None):
         """Initialize a new repo for tag"""
         host = Host()
         host.verify()
-        return repo_init(tag, task_id=task_id, with_src=with_src, with_debuginfo=with_debuginfo,
-                         event=event, with_separate_src=with_separate_src)
+        return repo_init(tag, task_id=task_id, event=event, opts=opts)
 
     def repoDone(self, repo_id, data, expire=False, repo_json_updates=None):
         """Finalize a repo

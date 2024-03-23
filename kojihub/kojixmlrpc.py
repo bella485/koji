@@ -528,6 +528,9 @@ def load_config(environ):
         ['RepoAutoLag', 'int', 7200],
         ['RepoLagWindow', 'int', 600],
         ['RepoQueueUser', 'str', 'kojira'],
+        ['DebuginfoTags', 'str', ''],
+        ['SourceTags', 'str', ''],
+        ['SeparateSourceTags', 'str', ''],
     ]
     opts = {}
     for name, dtype, default in cfgmap:
