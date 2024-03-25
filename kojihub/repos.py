@@ -484,7 +484,7 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
     tag_id = kojihub.get_tag_id(tag, strict=True)
     min_event = kojihub.convert_value(min_event, int, none_allowed=True)
     at_event = kojihub.convert_value(at_event, int, none_allowed=True)
-    opts = kojihub.convert_value(opts, dict, none_allowed=True)
+    opts = convert_repo_opts(opts)
 
     fields = '**'
     clauses = [
@@ -504,6 +504,13 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
 
 
 def get_repo_opts(tag, override=None):
+    # first check the override value
+    override, full = convert_repo_opts(override)
+    if full:
+        # no need to check tag if override sets everything
+        override['override'] = override
+        return override
+
     # base options
     opts = {
         'src': False,
@@ -533,7 +540,7 @@ def get_repo_opts(tag, override=None):
             logger.warning('Ignoring legacy with_debuginfo config, overridden by repo.opts')
         else:
             tag_opts['debuginfo'] = bool(tag['extra']['with_debuginfo'])
-    # TODO validate tag_opts
+    tag_opts, _ = convert_repo_opts(tag_opts, strict=False)
     opts.update(tag_opts)
 
     # apply overrides
@@ -544,7 +551,51 @@ def get_repo_opts(tag, override=None):
         if opts != default:
             opts['custom'] = True
 
+    override['override'] = override
     return opts
+
+
+def convert_repo_opts(opts, strict=False):
+    """Ensure repo_opts has correct form
+
+    :param dict|None opts: repo options
+    :param bool strict: error if opts are invalid
+    :returns: (opts, full)
+
+    Returns a pair (opts, full), where opts is the (updated) opts dictionary
+    and full is a boolean indicating whether all known opts are specified.
+    """
+
+    if opts is None:
+        return opts, False
+
+    if not isinstance(opts, dict):
+        if strict:
+            raise koji.ParameterError('Repo opts must be a dictionary')
+        else:
+            # XXX is it really ever sane to ignore this?
+            logger.error('Ignoring invalid repo opts: %r', opts)
+            return {}, False
+
+    all_opts = {'src', 'debuginfo', 'separate_src'}
+    new_opts = {}
+    for key in opts:
+        if key not in all_opts:
+            # TODO: do we need to handle "custom"?
+            if strict:
+                raise koji.ParameterError(f'Invalid repo option: {key}')
+            else:
+                continue
+        # at the moment, all know opts are boolean, so this is fairly easy
+        value = opts[key]
+        if value is None:
+            # treat as unspecified
+            logger.info('Recieved None value in repo opts: %r', opts)
+            continue
+        new_opts[key] = convert_value(value, bool)
+
+    full = (set(new_opts) == all_opts)
+    return new_opts, full
 
 
 def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
@@ -553,11 +604,15 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
     :param int|str taginfo: tag id or name
     :param int|str min_event: minimum event for the repo (optional)
     :param int at_event: specific event for the repo (optional)
-    :param dict opts: repo options
+    :param dict opts: custom repo options (optional)
     :param bool force: force request creation, even if a matching repo exists
 
     The special value min_event="last" uses the most recent event for the tag
     Otherwise min_event should be an integer
+
+    use opts=None (the default) to get default options for the tag.
+    If opts is given, it should be a dictionary of repo options. These will override
+    the defaults.
     """
 
     context.session.assertLogin()

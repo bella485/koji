@@ -2692,16 +2692,16 @@ def repo_init(tag, task_id=None, event=None, opts=None):
     """
     task_id = convert_value(task_id, cast=int, none_allowed=True)
     event = convert_value(event, cast=int, none_allowed=True)
-    opts = convert_value(opts, cast=dict, none_allowed=True)
+    opts, full = repos.convert_repo_opts(opts, strict=True)
+    if not full:
+        # at this point we expect full opts
+        raise koji.ParameterError(f'Incomplete repo opts: {opts}')
     state = koji.REPO_INIT
     tinfo = get_tag(tag, strict=True, event=event)
 
     # TODO: do we need to provide old callback opt params for compatibility?
     koji.plugin.run_callbacks('preRepoInit', tag=tinfo, event=event, repo_id=None, task_id=task_id,
                               opts=opts)
-
-    # get our opts:
-    opts = repos.default_repo_opts(tinfo, override=opts)
 
     tag_id = tinfo['id']
     repo_arches = {}
