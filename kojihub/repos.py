@@ -8,7 +8,6 @@ import koji
 import kojihub
 
 from koji.context import context
-from koji.util import dslice
 from kojihub.db import (QueryView, UpdateProcessor, BulkUpdateProcessor, InsertProcessor, nextval,
                         Savepoint, QueryProcessor, db_lock)
 
@@ -41,10 +40,12 @@ class RepoQuery(QueryView):
         'state': ['repo.state', None],
         'dist': ['repo.dist', None],
         'opts': ['repo.opts', None],
+        'custom_opts': ['repo.custom_opts', None],
         'task_id': ['repo.task_id', None],
         'tag_name': ['tag.name', 'tag'],
     }
-    default_fields = ('id', 'tag_id', 'create_event', 'state', 'dist', 'task_id', 'opts')
+    default_fields = ('id', 'tag_id', 'create_event', 'state', 'dist', 'task_id', 'opts',
+                      'custom_opts')
     # Note that we avoid joins by default
 
 
@@ -186,9 +187,20 @@ def valid_repo(req, repo):
         logger.error('Request %i got repo %i before min_event: %s < %s',
                      req['id'], repo['id'], repo['create_event'], req['min_event'])
         return False
-    if repo['opts'] != req['opts']:
-        logger.error('Requested repo has wrong opts: %r %r', req, repo)
-        return False
+    if req['opts'] is None:
+        if repo['custom_opts']:
+            logger.error('Requested repo has unexpected custom opts: %r %r', req, repo)
+    else:
+        # all request options should have applied
+        for key in req['opts']:
+            if req['opts'][key] != repo.get('opts', {})[key]:
+                logger.error('Requested repo has wrong opts: %r %r', req, repo)
+                return False
+        # any custom options should come from request
+        for key in repo.get('custom_opts', {}):
+            if repo['custom_opts'][key] != req['opts'][key]:
+                logger.error('Requested repo has wrong opts: %r %r', req, repo)
+                return False
 
     return True
 
@@ -205,8 +217,10 @@ def repo_done_hook(repo_id):
         if repo['dist']:
             return
         opts = repo['opts']
-        if opts is None:
-            logger.warning('Repo with no opts: %r', repo)
+        custom = repo['custom_opts']
+        if opts is None or custom is None:
+            # XXX should not happen
+            logger.error('Repo with invalid opts values: %r', repo)
             return
 
         # query for matching requests
@@ -215,7 +229,9 @@ def repo_done_hook(repo_id):
         base_clauses = [
             ['tag_id', '=', repo['tag_id']],
             ['repo_id', 'IS', None],
-            ['opts', '=', json.dumps(opts)],
+            ['opts', '<@', json.dumps(opts)],
+            ['opts', '@>', json.dumps(custom)],
+            # i.e. repo matches all opts in request and request matches all custom opts in repo
         ]
         # TODO adjust this once QueryView supports OR
         clauses = base_clauses + [['min_event', '<=', repo['create_event']]]
@@ -225,12 +241,13 @@ def repo_done_hook(repo_id):
         reqs = reqs1 + reqs2
 
         # and update!
-        update = UpdateProcessor('repo_queue',
-                                 clauses=['id IN %(ids)s'],
-                                 values={'ids': [r['id'] for r in reqs]},
-                                 data={'repo_id': repo['id']})
-        # TODO should we also update task_id?
-        update.execute()
+        if reqs:
+            update = UpdateProcessor('repo_queue',
+                                     clauses=['id IN %(ids)s'],
+                                     values={'ids': [r['id'] for r in reqs]},
+                                     data={'repo_id': repo['id']})
+            # TODO should we also update task_id?
+            update.execute()
     except Exception:
         # We're being very careful since we're a callback
         savepoint.rollback()
@@ -285,18 +302,20 @@ def symlink_if_latest(repo):
 
 def repo_queue_task(req):
     opts = req['opts'] or {}
-    opts = dslice(opts, ('src', 'debuginfo', 'separate_src'), strict=False)
+    # should already be valid, but just in case
+    opts = convert_repo_opts(opts, strict=True)
+    kwargs = {'opts': opts}
     if req['at_event'] is not None:
-        opts['event'] = req['at_event']
+        kwargs['event'] = req['at_event']
     # otherwise any new repo will satisfy any valid min_event
 
-    args = koji.encode_args(req['tag_id'], **opts)
-    kwargs = {'priority': 15, 'channel': 'createrepo'}
+    args = koji.encode_args(req['tag_id'], **kwargs)
+    taskopts = {'priority': 15, 'channel': 'createrepo'}
     user_id = kojihub.get_id('users', context.opts['RepoQueueUser'], strict=False)
     # TODO should we error if user doesn't exist
     if user_id:
-        kwargs['owner'] = user_id
-    task_id = kojihub.make_task('newRepo', args, **kwargs)
+        taskopts['owner'] = user_id
+    task_id = kojihub.make_task('newRepo', args, **taskopts)
     return task_id
     # caller should update request entry if needed
 
@@ -484,14 +503,15 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
     tag_id = kojihub.get_tag_id(tag, strict=True)
     min_event = kojihub.convert_value(min_event, int, none_allowed=True)
     at_event = kojihub.convert_value(at_event, int, none_allowed=True)
-    opts = convert_repo_opts(opts)
+    opts = convert_repo_opts(opts, strict=True)
 
     fields = '**'
     clauses = [
         ['tag_id', '=', tag_id],
         ['dist', 'IS', False],
         ['state', '=', koji.REPO_READY],
-        ['opts', '=', json.dumps(opts)],
+        ['opts', '@>', json.dumps(opts)],
+        ['custom_opts', '<@', json.dumps(opts)],
     ]
     # TODO: should we expand usage to include dist?
     if at_event is not None:
@@ -504,12 +524,16 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
 
 
 def get_repo_opts(tag, override=None):
-    # first check the override value
-    override, full = convert_repo_opts(override)
-    if full:
-        # no need to check tag if override sets everything
-        override['override'] = override
-        return override
+    """Determine repo options from taginfo and apply given overrides
+
+    :param dict tag: taginfo (via get_tag)
+    :param dict|None override: repo options to override. optional.
+    :returns: opts, custom
+
+    Returns a pair of option dictionaries: opts, custom
+    - opts gives the repo options with overrides applied
+    - custom gives effective overrides (those that differed from tag default)
+    """
 
     # base options
     opts = {
@@ -520,7 +544,7 @@ def get_repo_opts(tag, override=None):
 
     # emulate original kojira config
     debuginfo_pat = context.opts['DebuginfoTags'].split()
-    src_path = context.opts['SourceTags'].split()
+    src_pat = context.opts['SourceTags'].split()
     separate_src_pat = context.opts['SeparateSourceTags'].split()
     if debuginfo_pat:
         if koji.util.multi_fnmatch(tag['name'], debuginfo_pat):
@@ -540,19 +564,17 @@ def get_repo_opts(tag, override=None):
             logger.warning('Ignoring legacy with_debuginfo config, overridden by repo.opts')
         else:
             tag_opts['debuginfo'] = bool(tag['extra']['with_debuginfo'])
-    tag_opts, _ = convert_repo_opts(tag_opts, strict=False)
+    tag_opts = convert_repo_opts(tag_opts, strict=False)
     opts.update(tag_opts)
 
     # apply overrides
-    opts['custom'] = False
-    default = opts.copy()
-    if override:
-        opts.update(override)
-        if opts != default:
-            opts['custom'] = True
+    custom = {}
+    if override is not None:
+        override = convert_repo_opts(override)
+        custom = {k: override[k] for k in override if override[k] != opts[k]}
+        opts.update(custom)
 
-    override['override'] = override
-    return opts
+    return opts, custom
 
 
 def convert_repo_opts(opts, strict=False):
@@ -562,20 +584,19 @@ def convert_repo_opts(opts, strict=False):
     :param bool strict: error if opts are invalid
     :returns: (opts, full)
 
-    Returns a pair (opts, full), where opts is the (updated) opts dictionary
-    and full is a boolean indicating whether all known opts are specified.
+    Returns updated opts dictionary.
+    If strict is true, will error on invalid opt values, otherwise they are ignored
     """
 
     if opts is None:
-        return opts, False
+        return {}
 
     if not isinstance(opts, dict):
         if strict:
             raise koji.ParameterError('Repo opts must be a dictionary')
         else:
-            # XXX is it really ever sane to ignore this?
-            logger.error('Ignoring invalid repo opts: %r', opts)
-            return {}, False
+            logger.warning('Ignoring invalid repo opts: %r', opts)
+            return {}
 
     all_opts = {'src', 'debuginfo', 'separate_src'}
     new_opts = {}
@@ -585,17 +606,17 @@ def convert_repo_opts(opts, strict=False):
             if strict:
                 raise koji.ParameterError(f'Invalid repo option: {key}')
             else:
+                logger.warning('Ignoring invalid repo opt: %s', key)
                 continue
-        # at the moment, all know opts are boolean, so this is fairly easy
+        # at the moment, all known opts are boolean, so this is fairly easy
         value = opts[key]
         if value is None:
             # treat as unspecified
-            logger.info('Recieved None value in repo opts: %r', opts)
+            logger.info('Received None value in repo opts: %r', opts)
             continue
-        new_opts[key] = convert_value(value, bool)
+        new_opts[key] = kojihub.convert_value(value, bool)
 
-    full = (set(new_opts) == all_opts)
-    return new_opts, full
+    return new_opts
 
 
 def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
@@ -617,7 +638,7 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
 
     context.session.assertLogin()
     taginfo = kojihub.get_tag(tag, strict=True)
-    opts = get_repo_opts(tag, override=opts)
+    opts = convert_repo_opts(opts, strict=True)
     if at_event is not None:
         if min_event is not None:
             raise koji.ParameterError('The min_event and at_event options conflict')
@@ -689,7 +710,7 @@ def default_min_event(taginfo):
     last = kojihub.tag_last_change_event(taginfo['id'])
     # last event cannot be None for a valid tag
     lag = taginfo['extra'].get('repo.lag')
-    if not isinstance(lag, int):
+    if lag is not None and not isinstance(lag, int):
         logger.warning('Invalid repo.lag setting for tag %s: %r', taginfo['name'], lag)
         lag = None
     if lag is None:

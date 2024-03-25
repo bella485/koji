@@ -5834,7 +5834,7 @@ class NewRepoTask(BaseTaskHandler):
         kwargs = {'opts': opts, 'task_id': self.id}
         if event is not None:
             kwargs['event'] = event
-        repo_id, event_id = self.session.host.repoInit(tinfo['id'], task_id=self.id, **kwargs)
+        repo_id, event_id = self.session.host.repoInit(tinfo['id'], **kwargs)
 
         path = koji.pathinfo.repo(repo_id, tinfo['name'])
         if not os.path.isdir(path):

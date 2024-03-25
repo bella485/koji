@@ -482,6 +482,7 @@ CREATE TABLE repo (
         state INTEGER,
         dist BOOLEAN DEFAULT 'false',
         opts JSONB,
+        custom_opts JSONB,
         task_id INTEGER REFERENCES task(id)
 ) WITHOUT OIDS;
 

@@ -7611,6 +7611,7 @@ def _request_repo(goptions, session, parser, options, args):
         if req.get('task_id'):
             print('Got task: %(task_id)s' % req)
             print('Task info: %s/taskinfo?taskID=%s' % (goptions.weburl, req['task_id']))
+        return
     else:
         try:
             repo = watcher.wait_request(req)

@@ -218,6 +218,8 @@ LEGACY_SIGNATURES = {
     'newRepo': [
         [['tag', 'event', 'src', 'debuginfo', 'separate_src'],
          None, None, (None, False, False, False)],
+        [['tag', 'event', 'src', 'debuginfo', 'separate_src', 'opts'],
+         None, None, (None, None, None, None, None)],
     ],
     'createImage': [
         [['name', 'version', 'release', 'arch', 'target_info', 'build_tag', 'repo_info',

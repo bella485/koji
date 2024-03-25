@@ -2692,12 +2692,9 @@ def repo_init(tag, task_id=None, event=None, opts=None):
     """
     task_id = convert_value(task_id, cast=int, none_allowed=True)
     event = convert_value(event, cast=int, none_allowed=True)
-    opts, full = repos.convert_repo_opts(opts, strict=True)
-    if not full:
-        # at this point we expect full opts
-        raise koji.ParameterError(f'Incomplete repo opts: {opts}')
     state = koji.REPO_INIT
     tinfo = get_tag(tag, strict=True, event=event)
+    opts, custom = repos.get_repo_opts(tinfo, override=opts)
 
     # TODO: do we need to provide old callback opt params for compatibility?
     koji.plugin.run_callbacks('preRepoInit', tag=tinfo, event=event, repo_id=None, task_id=task_id,
@@ -2733,6 +2730,7 @@ def repo_init(tag, task_id=None, event=None, opts=None):
         'state': state,
         'task_id': task_id,
         'opts': json.dumps(opts),
+        'custom_opts': json.dumps(custom),
     }
     insert = InsertProcessor('repo', data=data)
     insert.execute()
@@ -2769,7 +2767,7 @@ def repo_init(tag, task_id=None, event=None, opts=None):
         # also include these for compat:
         'with_src': opts['src'],
         'with_separate_src': opts['separate_src'],
-        'with_debuginfo': opts['debuginfo']),
+        'with_debuginfo': opts['debuginfo'],
     }
     with open('%s/repo.json' % repodir, 'wt', encoding='utf-8') as fp:
         json.dump(repo_info, fp, indent=2)
