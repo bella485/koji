@@ -9,6 +9,7 @@ class TestGetTagExternalRepos(DBQueryTestCase):
     def setUp(self):
         super(TestGetTagExternalRepos, self).setUp()
         self.maxDiff = None
+        self.get_tag_id = mock.patch('kojihub.kojihub.get_tag_id').start()
         self.get_tag = mock.patch('kojihub.kojihub.get_tag').start()
         self.get_external_repo = mock.patch('kojihub.kojihub.get_external_repo').start()
         self.exports = kojihub.RootExports()
@@ -20,6 +21,7 @@ class TestGetTagExternalRepos(DBQueryTestCase):
         self.repo_info = {'id': 123, 'name': self.repo}
 
     def test_valid(self):
+        self.get_tag_id.return_value = self.build_tag_info['id']
         self.get_tag.return_value = self.build_tag_info
         self.get_external_repo.return_value = self.repo_info
         kojihub.get_tag_external_repos(tag_info=self.build_tag, repo_info=self.repo)

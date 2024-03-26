@@ -7268,6 +7268,8 @@ def anon_handle_wait_repo(options, session, args):
                       help="Interpret the argument as a build target name")
     parser.add_option("--request", action="store_true",
                       help="Create a repo request (requires auth)")
+    parser.add_option("--no-request", action="store_false", dest="request",
+                      help="Do not create a repo request (the default)")
     parser.add_option("--timeout", type="int", default=120,
                       help="Amount of time to wait (in minutes) before giving up "
                            "(default: 120)")
@@ -7291,7 +7293,7 @@ def anon_handle_wait_repo(options, session, args):
         options.noauth = False
         activate_session(session, options)
         anon = False
-    else:
+    elif suboptions.request is None:
         warn('The --request option is recommended for faster results')
 
     ensure_connection(session, options)
@@ -7330,8 +7332,8 @@ def anon_handle_wait_repo(options, session, args):
             present_nvr = [x["nvr"] for x in data][0]
             expected_nvr = '%(name)s-%(version)s-%(release)s' % nvr
             if present_nvr != expected_nvr:
-                warn("nvr %s is not current in tag %s\n  latest build in %s is %s" %
-                     (expected_nvr, tag['name'], tag, present_nvr))
+                warn("nvr %s is not current in tag %s\n  latest build is %s" %
+                     (expected_nvr, tag['name'], present_nvr))
 
     # set up logger for RepoWatcher
     logger = logging.getLogger("waitrepo")  # not under koji.*
@@ -7424,7 +7426,7 @@ def handle_wait_repo_request(goptions, session, args):
 
 
 def handle_regen_repo(goptions, session, args):
-    "[admin] Regenerate a current repo if there is not one"
+    "[admin] Generate a current repo if there is not one"
     usage = "usage: %prog regen-repo [options] <tag>"
     parser = OptionParser(usage=get_usage_str(usage))
     parser.add_option("--target", action="store_true",

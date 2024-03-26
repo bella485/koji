@@ -22,7 +22,10 @@ class TestTagChangeEvent(unittest.TestCase):
         self.queries = []
         self.singleValue = mock.MagicMock()
         self.get_tag_id = mock.patch('kojihub.kojihub.get_tag_id').start()
+        self.get_tag = mock.patch('kojihub.kojihub.get_tag').start()
         self.readFullInheritance = mock.patch('kojihub.kojihub.readFullInheritance').start()
+        self.get_tag_external_repos = mock.patch('kojihub.kojihub.get_tag_external_repos').start()
+        self.get_tag_external_repos.return_value = []
 
     def tearDown(self):
         mock.patch.stopall()
@@ -36,7 +39,7 @@ class TestTagChangeEvent(unittest.TestCase):
 
     def test_tag_last_change_simple(self):
         tags = [5, 6, 7, 8, 17, 23, 42]
-        self.get_tag_id.return_value = tags[0]
+        self.get_tag.return_value = {'id': tags[0], 'revoke_event': None}
         self.readFullInheritance.return_value = [{'parent_id':n} for n in tags[1:]]
         events = [8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]  # len=19
         self.singleValue.side_effect = events
@@ -54,7 +57,7 @@ class TestTagChangeEvent(unittest.TestCase):
 
     def test_tag_last_change_noinherit(self):
         tags = [5, 6, 7, 8, 17, 23, 42]
-        self.get_tag_id.return_value = tags[0]
+        self.get_tag.return_value = {'id': tags[0], 'revoke_event': None}
         self.readFullInheritance.return_value = [{'parent_id':n} for n in tags[1:]]
         events = [8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]  # len=19
         self.singleValue.side_effect = events
@@ -74,7 +77,7 @@ class TestTagChangeEvent(unittest.TestCase):
     def test_tag_last_change_before(self):
         tags = [5, 6, 7, 8, 17, 23, 42]
         before = 123
-        self.get_tag_id.return_value = tags[0]
+        self.get_tag.return_value = {'id': tags[0], 'revoke_event': None}
         self.readFullInheritance.return_value = [{'parent_id':n} for n in tags[1:]]
         events = [8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]  # len=19
         self.singleValue.side_effect = events
@@ -95,36 +98,43 @@ class TestTagChangeEvent(unittest.TestCase):
         tags = [5, 6, 7, 8, 17, 23, 42]
         self.get_tag_id.return_value = tags[0]
         self.readFullInheritance.return_value = [{'parent_id':n} for n in tags[1:]]
-        events = [8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]  # len=19
+        events = [8, 8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]
+        self.assertEqual(len(events), 20)
         self.singleValue.side_effect = events
+        # called once for tag_config, once for tag_updates, and twice for versioned tag tables
+        # 2 + 2*9 = 20
 
         event = kojihub.tag_first_change_event('TAG')
 
         self.assertEqual(event, 8)  # min(events)
-        self.assertEqual(len(self.queries), 19)
+        self.assertEqual(len(self.queries), 20)
         self.readFullInheritance.assert_called_once_with(tags[0], event=None)
-        for query in self.queries:
+        # first query is for tag_config
+        query = self.queries[0]
+        self.assertEqual(query.tables, ['tag_config'])
+        self.assertEqual(query.values['tag_id'], tags[0])
+        self.assertEqual(len(query.clauses), 1)
+        for query in self.queries[1:]:
             self.assertEqual(query.clauses[0], 'tag_id IN %(tags)s')
             self.assertEqual(query.values['tags'], tags)
             # we didn't pass an event, so there should be no second clause
             self.assertEqual(len(query.clauses), 1)
 
     def test_tag_first_change_noinherit(self):
-        tags = [5, 6, 7, 8, 17, 23, 42]
-        self.get_tag_id.return_value = tags[0]
-        self.readFullInheritance.return_value = [{'parent_id':n} for n in tags[1:]]
-        events = [8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]  # len=19
+        self.get_tag_id.return_value = 99
+        events = [8, 8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]
+        self.assertEqual(len(events), 20)
         self.singleValue.side_effect = events
 
         event = kojihub.tag_first_change_event('TAG', inherit=False)
 
         self.assertEqual(event, 8)  # min(events)
-        self.assertEqual(len(self.queries), 19)
+        self.assertEqual(len(self.queries), 20)
         self.readFullInheritance.assert_not_called()
-        for query in self.queries:
+        for query in self.queries[1:]:
             self.assertEqual(query.clauses[0], 'tag_id IN %(tags)s')
             # only the tag itself should be in the query condition
-            self.assertEqual(query.values['tags'], [tags[0]])
+            self.assertEqual(query.values['tags'], [99])
             # we didn't pass an event, so there should be no second clause
             self.assertEqual(len(query.clauses), 1)
 
@@ -133,15 +143,16 @@ class TestTagChangeEvent(unittest.TestCase):
         after = 5
         self.get_tag_id.return_value = tags[0]
         self.readFullInheritance.return_value = [{'parent_id':n} for n in tags[1:]]
-        events = [8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]  # len=19
+        events = [8, 8, 8, 8, 8, 8, 8, None, 8, 8, 42, 23, 23, 23, 23, 23, None, 23, 23, 23]
+        self.assertEqual(len(events), 20)
         self.singleValue.side_effect = events
 
         event = kojihub.tag_first_change_event('TAG', after=after)
 
         self.assertEqual(event, 8)  # min(events)
-        self.assertEqual(len(self.queries), 19)
+        self.assertEqual(len(self.queries), 20)
         self.readFullInheritance.assert_called_once_with(tags[0], event=after)
-        for query in self.queries:
+        for query in self.queries[1:]:
             self.assertEqual(query.values['tags'], tags)
             self.assertEqual(query.values['after'], after)
             # QP sorts the clauses, so they are not in the order the code adds them

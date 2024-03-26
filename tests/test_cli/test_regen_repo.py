@@ -104,7 +104,7 @@ class TestRegenRepo(utils.CliTestCase):
         self.session.getTag.return_value = copy.copy(self.TAG)
         self.session.getBuildTargets.return_value = []
         expected_warn = "%s is not a build tag" % self.tag_name + "\n"
-        self.__run_test_handle_regen_repo([self.tag_name], return_value=True,
+        self.__run_test_handle_regen_repo([self.tag_name, '--make-task'], return_value=True,
                                           expected_warn=expected_warn)
 
         self.resetMocks()
@@ -113,12 +113,12 @@ class TestRegenRepo(utils.CliTestCase):
         noarch_tag.update({'arches': ''})
         self.session.getTag.return_value = noarch_tag
         expected_warn += "Tag %s has an empty arch list" % noarch_tag['name'] + "\n"
-        self.__run_test_handle_regen_repo([self.tag_name], return_value=True,
+        self.__run_test_handle_regen_repo([self.tag_name, '--make-task'], return_value=True,
                                           expected_warn=expected_warn)
 
     def test_handle_regen_repo_with_target_opt(self):
         """Test handle_regen_repo function with --target option"""
-        arguments = [self.tag_name, '--target']
+        arguments = [self.tag_name, '--target', '--make-task']
 
         # show error if target is not matched
         self.session.getBuildTarget.return_value = {}
@@ -138,11 +138,11 @@ class TestRegenRepo(utils.CliTestCase):
     def test_handle_regen_repo_with_other_opts(self):
         """Test handle_regen_repo function with options"""
         # --nowait
-        self.__run_test_handle_regen_repo([self.tag_name, '--nowait'], return_value=None)
+        self.__run_test_handle_regen_repo([self.tag_name, '--nowait', '--make-task'], return_value=None)
         self.resetMocks()
 
         # --source && --debuginfo
-        self.__run_test_handle_regen_repo([self.tag_name, '--source', '--debuginfo'],
+        self.__run_test_handle_regen_repo([self.tag_name, '--source', '--debuginfo', '--make-task'],
                                           return_value=True)
         self.session.newRepo.assert_called_with(self.tag_name, **{'debuginfo': True, 'src': True})
 
@@ -150,10 +150,10 @@ class TestRegenRepo(utils.CliTestCase):
         """Test handle_regen_repo function errors and exceptions"""
         tests = [
             # [ arguments, error_string ]
-            [[], self.format_error_message("A tag name must be specified")],
-            [['tag1', 'tag2'],
+            [['--make-task'], self.format_error_message("A tag name must be specified")],
+            [['tag1', 'tag2', '--make-task'],
              self.format_error_message("Only a single tag name may be specified")],
-            [['tag1', 'tag2', '--target'],
+            [['tag1', 'tag2', '--target', '--make-task'],
              self.format_error_message("Only a single target may be specified")],
         ]
 
@@ -180,10 +180,14 @@ Options:
   --wait                Wait on for regen to finish, even if running in the
                         background
   --nowait              Don't wait on for regen to finish
+  --make-task           Directly create a newRepo task
   --debuginfo           Include debuginfo rpms in repo
   --source, --src       Include source rpms in each of repos
   --separate-source, --separate-src
                         Include source rpms in separate src repo
+  --timeout=TIMEOUT     Wait timeout (default: 120)
+  -v, --verbose         More verbose output
+  --quiet               Reduced output
 """ % self.progname)
 
 
