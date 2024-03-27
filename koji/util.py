@@ -179,13 +179,15 @@ class RepoWatcher(object):
             # there is no point in requesting a repo if the builds aren't even tagged
             if not koji.util.checkForBuilds(self.session, self.taginfo['id'], self.builds,
                                             event=None):
+                self.logger.debug('Builds %s not present in tag %s', self.nvrs,
+                                  self.taginfo['name'])
                 return None
 
         check = self.request()
         repoinfo = check.get('repo')
         if repoinfo:
             # "he says they've already got one"
-            self.logger.debug('Request yielded repo: %r', check)
+            self.logger.info('Request yielded repo: %r', check)
             if self.check_repo(repoinfo):
                 return repoinfo
 
@@ -244,7 +246,9 @@ class RepoWatcher(object):
                 repoinfo = check.get('repo')
                 if repoinfo:
                     self.logger.debug('Request yielded repo: %r', check)
-                    break
+                    if self.check_repo(repoinfo):
+                        break
+                    # otherwise we'll loop and try again
                 else:
                     req = check.get('request')
                     self.logger.debug('Got request: %r', req)
@@ -293,6 +297,7 @@ class RepoWatcher(object):
 
     def wait_builds(self, builds):
         self.get_start()
+        self.logger.info('Waiting for nvrs %s in tag %s', self.nvrs, self.taginfo['name'])
         while True:
             if koji.util.checkForBuilds(self.session, self.taginfo['id'], builds, event=None):
                 self.logger.debug('Successfully waited for nvrs %s in tag %s', self.nvrs,
@@ -318,7 +323,7 @@ class RepoWatcher(object):
 
         # Matching event?
         if self.at_event is not None:
-            if repoinfo['create_event'] != self.min_event:
+            if repoinfo['create_event'] != self.at_event:
                 self.logger.info('Got repo with wrong event. %s != %s',
                                  repoinfo['create_event'], self.at_event)
                 return False
@@ -346,6 +351,7 @@ class RepoWatcher(object):
         return True
 
     def check_tag(self):
+        # XXX not used
         check = self.session.getTag(self.taginfo, strict=False, event="auto")
         err = None
         if check is None:
