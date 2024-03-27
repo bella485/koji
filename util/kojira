@@ -148,6 +148,7 @@ class ManagedRepo(object):
             self.logger.info("Expiring repo %(id)s for tag %(tag_name)s", self.data)
         self.session.repoExpire(self.repo_id)
         self.state = koji.REPO_EXPIRED
+        self.data['state'] = koji.REPO_EXPIRED
 
     def mark_problem(self):
         """Flag a problem repo"""
@@ -157,6 +158,7 @@ class ManagedRepo(object):
         self.logger.error("Problem repo %s.." % self.repo_id)
         self.session.repoProblem(self.repo_id)
         self.state = koji.REPO_PROBLEM
+        self.data['state'] = koji.REPO_PROBLEM
 
     def stale_check(self):
         """Clean up stale repos"""
@@ -238,6 +240,7 @@ class ManagedRepo(object):
             return False
         logger.info("Deleted repo %s" % self.repo_id)
         self.state = koji.REPO_DELETED
+        self.data['state'] = koji.REPO_DELETED
         if os.path.islink(path):
             # expected for repos on other volumes
             info = self.get_info()
@@ -325,7 +328,7 @@ class RepoManager(object):
                 self.logger.error("Failed rmtree job for %s: %s", path, e)
                 continue
             self.logger.info("Completed rmtree job for %s", path)
-        while self.delete_queue and len(self.delete_pids) <= self.options.max_delete_processes:
+        while self.delete_queue and len(self.delete_pids) < self.options.max_delete_processes:
             path, _ = self.delete_queue.popitem(last=False)
             pid, check_func = rmtree(path, background=True)  # koji.util.rmtree
             self.logger.info("Started rmtree (pid %i) for %s", pid, path)
@@ -369,6 +372,7 @@ class RepoManager(object):
             repo = self.repos.get(repo_id)
             if repo:
                 # we're already tracking it
+                repo.data = data
                 if repo.state != data['state']:
                     self.logger.info(
                         'State changed for repo %s: %s -> %s',
