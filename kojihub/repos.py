@@ -9,7 +9,7 @@ import kojihub
 
 from koji.context import context
 from kojihub.db import (QueryView, UpdateProcessor, BulkUpdateProcessor, InsertProcessor, nextval,
-                        Savepoint, QueryProcessor, db_lock)
+                        Savepoint, QueryProcessor, db_lock, DeleteProcessor)
 
 
 logger = logging.getLogger('koji.repo')
@@ -114,8 +114,9 @@ def check_repo_queue():
             else:
                 if valid_repo(req, repo):
                     logger.info('Got valid repo for request: %r', req)
-                    # record repo_id
+                    # record repo_id and mark inactive
                     updates['repo_id'] = repo['id']
+                    updates['active'] = False
                 else:
                     # (valid_repo already logged an error)
                     retry = True
@@ -172,13 +173,34 @@ def check_repo_queue():
 
     # third pass -- apply updates
     # TODO bulk update?
+    made_updates = False
     for req in waiting:
         updates = q_updates.get(req['id'])
         if not updates:
             continue
+        made_updates = True
         upd = UpdateProcessor('repo_queue', data=updates, clauses=['id = %(id)s'], values=req)
         upd.rawset(update_time='NOW()')
         upd.execute()
+
+    # clean up
+    if made_updates:
+        # TODO we don't really need to trigger this so often
+        clean_repo_queue()
+
+
+def clean_repo_queue():
+    """Delete old inactive entries from the repo queue"""
+    # these entries need to persist for at least a little while after fulfillment so that
+    # clients can find the results of their requests
+    delete = DeleteProcessor(
+        'repo_queue',
+        clauses=['active IS FALSE', 'update_time < NOW() - %(age)s::interval'],
+        values={'age': '%s minutes' % context.opts['RequestCleanTime']},
+    )
+    n = delete.execute()
+    if n:
+        logger.info('Cleaned %s repo queue entries', n)
 
 
 def valid_repo(req, repo):

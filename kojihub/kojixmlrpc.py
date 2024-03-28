@@ -524,6 +524,7 @@ def load_config(environ):
         ['MaxRepoTasks', 'integer', 10],
         ['MaxRepoTasksMaven', 'integer', 2],
         ['RepoRetries', 'integer', 3],
+        ['RequestCleanTime', 'integer', 60 * 24],  # in minutes
         ['AllowNewRepo', 'bool', True],
         ['RepoLag', 'int', 3600],
         ['RepoAutoLag', 'int', 7200],
