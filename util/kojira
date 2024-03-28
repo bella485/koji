@@ -405,14 +405,15 @@ class RepoManager(object):
 
         # get previously recorded timestamp, if any
         data = self.session.repo.getExternalRepoData(repodata['id']) or {}
-        orig = max_ts = data.get('max_ts', 0)
+        orig = data.get('max_ts', 0)
 
         # find latest timestamp across expanded urls
+        new_ts = 0
         for arch_url in expanded_urls:
             arch_url = os.path.join(arch_url, 'repodata/repomd.xml')
             if arch_url in ts_cache:
                 # just use the cache
-                max_ts = max(max_ts, ts_cache[arch_url])
+                new_ts = max(new_ts, ts_cache[arch_url])
                 continue
             self.logger.debug('Checking external url: %s' % arch_url)
             try:
@@ -422,10 +423,12 @@ class RepoManager(object):
                 ts_elements = root.iter('{http://linux.duke.edu/metadata/repo}timestamp')
                 arch_ts = max([round(float(child.text)) for child in ts_elements])
                 ts_cache[arch_url] = arch_ts
-                max_ts = max(max_ts, arch_ts)
+                new_ts = max(new_ts, arch_ts)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
-                    self.logger.warning("External repo url not found: %s", arch_url)
+                    # we check all hub arches, so this can happen pretty easily
+                    # we'll warn below if _no_ arches give us a timestamp
+                    self.logger.debug("External repo url not found: %s", arch_url)
                 else:
                     self.logger.warning("Error reading external repo url %s: %s", arch_url, e)
                 ts_cache[arch_url] = 0
@@ -435,9 +438,11 @@ class RepoManager(object):
                 self.logger.warning('Unable to read timestamp for external repo: %s', arch_url)
                 ts_cache[arch_url] = 0
 
-        if max_ts > orig:
-            self.logger.info('Updating timestamp for external repo %s: %s', repodata['id'], max_ts)
-            self.session.repo.setExternalRepoData(repodata['id'], {'max_ts': max_ts})
+        if new_ts == 0:
+            self.logger.warning('Unable to determine timestamp for external repo: %s', url)
+        elif new_ts > orig:
+            self.logger.info('Updating timestamp for external repo %s: %s', repodata['id'], new_ts)
+            self.session.repo.setExternalRepoData(repodata['id'], {'max_ts': new_ts})
 
     def checkExternalRepos(self):
         """Determine which external repos changed"""
