@@ -276,8 +276,7 @@ def symlink_if_latest(repo):
     if repo['dist']:
         clauses.append(['dist', 'IS', True])
     else:
-        clauses.append(['opts', '=', json.dumps(repo['opts'])])
-        # TODO: just query the custom field?
+        clauses.append(['custom_opts', '=', '{}'])
     query = RepoQuery(clauses)
     newer = query.execute()
     if newer:
@@ -602,7 +601,6 @@ def convert_repo_opts(opts, strict=False):
     new_opts = {}
     for key in opts:
         if key not in all_opts:
-            # TODO: do we need to handle "custom"?
             if strict:
                 raise koji.ParameterError(f'Invalid repo option: {key}')
             else:
@@ -743,7 +741,6 @@ def check_repo_request(req_id):
     ret = {'repo': None, 'request': req}
 
     # do we have a repo yet?
-    # TODO detect if another new repo satisfies
     if req['repo_id']:
         ret['repo'] = kojihub.repo_info(req['repo_id'])
 
