@@ -284,7 +284,6 @@ class RepoManager(object):
         self._local = threading.local()
         self._local.session = session
         self.repos = {}
-        self.external_repo_ts = {}
         self.tasks = {}
         self.other_tasks = {}
         self.tag_use_stats = {}
@@ -392,7 +391,7 @@ class RepoManager(object):
                     self.logger.info('Dropping entry for inactive repo: %s', repo_id)
                     del self.repos[repo_id]
 
-    def checkExternalRepo(self, repodata, arches):
+    def checkExternalRepo(self, repodata, arches, ts_cache):
         """Update tracking data for external repo"""
         url = repodata['url']
 
@@ -411,9 +410,9 @@ class RepoManager(object):
         # find latest timestamp across expanded urls
         for arch_url in expanded_urls:
             arch_url = os.path.join(arch_url, 'repodata/repomd.xml')
-            if arch_url in self.external_repo_ts:
+            if arch_url in ts_cache:
                 # just use the cache
-                max_ts = max(max_ts, self.external_repo_ts[arch_url])
+                max_ts = max(max_ts, ts_cache[arch_url])
                 continue
             self.logger.debug('Checking external url: %s' % arch_url)
             try:
@@ -422,19 +421,19 @@ class RepoManager(object):
                 root = ElementTree.fromstring(r.text)  # nosec
                 ts_elements = root.iter('{http://linux.duke.edu/metadata/repo}timestamp')
                 arch_ts = max([round(float(child.text)) for child in ts_elements])
-                self.external_repo_ts[arch_url] = arch_ts
+                ts_cache[arch_url] = arch_ts
                 max_ts = max(max_ts, arch_ts)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
                     self.logger.warning("External repo url not found: %s", arch_url)
                 else:
                     self.logger.warning("Error reading external repo url %s: %s", arch_url, e)
-                self.external_repo_ts[arch_url] = 0
+                ts_cache[arch_url] = 0
             except Exception:
                 # inaccessible or without timestamps
                 # treat repo as unchanged (ts = 0)
                 self.logger.warning('Unable to read timestamp for external repo: %s', arch_url)
-                self.external_repo_ts[arch_url] = 0
+                ts_cache[arch_url] = 0
 
         if max_ts > orig:
             self.logger.info('Updating timestamp for external repo %s: %s', repodata['id'], max_ts)
@@ -442,9 +441,6 @@ class RepoManager(object):
 
     def checkExternalRepos(self):
         """Determine which external repos changed"""
-        # clean external repo cache
-        self.external_repo_ts = {}
-
         # get active external repos
         # we only bother checking those that are actually used in some tag
         used = self.session.getTagExternalRepos()
@@ -464,10 +460,11 @@ class RepoManager(object):
         if not arches:
             self.logger.warning('No arches reported. Unable to check external repos with $arch')
 
+        ts_cache = {}
         for erepo_id in sorted(external_repos):
             data = external_repos[erepo_id]
             data['id'] = erepo_id
-            self.checkExternalRepo(data, arches)
+            self.checkExternalRepo(data, arches, ts_cache)
 
     def currencyChecker(self, session):
         """Continually checks repos for currency. Runs as a separate thread"""

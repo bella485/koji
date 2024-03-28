@@ -240,5 +240,9 @@ class RepoManagerTest(unittest.TestCase):
         get.return_value.text = repomd
 
         self.mgr.checkExternalRepos()
+        self.session.repo.setExternalRepoData.assert_has_calls([
+            mock.call(1, {'max_ts': 1711390493}),
+            mock.call(2, {'max_ts': 1711390493}),
+        ])
 
 # the end
