@@ -523,6 +523,7 @@ def load_config(environ):
         # repo options
         ['MaxRepoTasks', 'integer', 10],
         ['MaxRepoTasksMaven', 'integer', 2],
+        ['RepoRetries', 'integer', 3],
         ['AllowNewRepo', 'bool', True],
         ['RepoLag', 'int', 3600],
         ['RepoAutoLag', 'int', 7200],

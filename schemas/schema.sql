@@ -490,15 +490,19 @@ CREATE TABLE repo (
 -- repo requests
 CREATE TABLE repo_queue (
         id SERIAL NOT NULL PRIMARY KEY,
+        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         tag_id INTEGER NOT NULL REFERENCES tag(id),
         at_event INTEGER REFERENCES events(id),
         min_event INTEGER REFERENCES events(id),
+        opts JSONB NOT NULL,
         CONSTRAINT only_one_event CHECK (at_event IS NULL OR min_event IS NULL),
+        -- the above should be constant for the life the entry
+        update_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        active BOOLEAN NOT NULL DEFAULT TRUE,
         task_id INTEGER REFERENCES task(id),
+        tries INTEGER NOT NULL DEFAULT 0,
         repo_id INTEGER REFERENCES repo(id),
-        score INTEGER,
-        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        opts JSONB NOT NULL
+        score INTEGER
 ) WITHOUT OIDS;
 
 

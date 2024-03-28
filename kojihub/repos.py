@@ -58,20 +58,24 @@ class RepoQueueQuery(QueryView):
     }
     fieldmap = {
         'id': ['repo_queue.id', None],
-        'tag_id': ['repo_queue.tag_id', None],
-        'at_event': ['repo_queue.at_event', None],
-        'min_event': ['repo_queue.min_event', None],
-        'task_id': ['repo_queue.task_id', None],
-        'repo_id': ['repo_queue.repo_id', None],
-        'task_state': ['task.state', 'task'],
-        'score': ['repo_queue.score', None],
         'create_time': ['repo_queue.create_time', None],
         'create_ts': ["date_part('epoch', repo_queue.create_time)", None],
-        'opts': ['repo_queue.opts', None],
+        'tag_id': ['repo_queue.tag_id', None],
         'tag_name': ['tag.name', 'tag'],
+        'at_event': ['repo_queue.at_event', None],
+        'min_event': ['repo_queue.min_event', None],
+        'opts': ['repo_queue.opts', None],
+        'update_time': ['repo_queue.update_time', None],
+        'update_ts': ["date_part('epoch', repo_queue.update_time)", None],
+        'active': ['repo_queue.active', None],
+        'task_id': ['repo_queue.task_id', None],
+        'task_state': ['task.state', 'task'],
+        'tries': ['repo_queue.tries', None],
+        'repo_id': ['repo_queue.repo_id', None],
+        'score': ['repo_queue.score', None],
     }
     default_fields = ('id', 'tag_id', 'at_event', 'min_event', 'score', 'create_ts',
-                      'task_id', 'repo_id', 'opts')
+                      'task_id', 'tries', 'repo_id', 'opts', 'active', 'update_ts')
 
 
 def check_repo_queue():
@@ -79,7 +83,7 @@ def check_repo_queue():
     if not db_lock('repo-queue', wait=False):
         return
 
-    clauses = [['repo_id', 'IS', None]]
+    clauses = [['repo_id', 'IS', None], ['active', 'IS', True]]
     fields = ('*', 'task_state')
     waiting = RepoQueueQuery(clauses, fields=fields, opts={'order': 'id'}).execute()
     logger.debug('Got %i waiting repo requests', len(waiting))
@@ -100,14 +104,13 @@ def check_repo_queue():
             continue
 
         logger.debug('Req with task: %r', req)
+        retry = False
         if req['task_state'] == koji.TASK_STATES['CLOSED']:
             # finished, did we get a repo?
             repo = RepoQuery([['task_id', '=', req['task_id']]]).executeOne()
             if not repo:
                 logger.error('Repo task did not produce repo: %i', req['task_state'])
-                # forget task id so it can be rescheduled
-                updates['task_id'] = None
-                req['task_id'] = None
+                retry = True
             else:
                 if valid_repo(req, repo):
                     logger.info('Got valid repo for request: %r', req)
@@ -115,19 +118,25 @@ def check_repo_queue():
                     updates['repo_id'] = repo['id']
                 else:
                     # (valid_repo already logged an error)
-                    # forget task id so it can be rescheduled
-                    # TODO avoid infinite failure loops
-                    updates['task_id'] = None
-                    req['task_id'] = None
+                    retry = True
         elif req['task_state'] in (koji.TASK_STATES['CANCELED'], koji.TASK_STATES['FAILED']):
-            # forget task id so it can be rescheduled
-            logger.info('Repo request task did not complete: %r', req)
-            updates['task_id'] = None
-            req['task_id'] = None
+            logger.warning('Repo request task did not complete: %r', req)
+            retry = True
         else:
             # task still active
             n_tasks += 1
             tag_tasks.setdefault(req['tag_id'], []).append([req['task_id'], req])
+
+        if retry:
+            # something went wrong with the task. retry if we can
+            if req['tries'] > context.opts['RepoRetries']:
+                logger.error('Retries exhausted for repo request: %r', req)
+                updates['active'] = False
+            else:
+                # forget task id so it can be rescheduled
+                updates['task_id'] = None
+                req['task_id'] = None
+                # tries is incremented later when we make the task
 
     logger.debug('Found %i active repo request tasks', n_tasks)
 
@@ -156,7 +165,9 @@ def check_repo_queue():
             continue
         tag_tasks.setdefault(req['tag_id'], []).append([task_id, req])
 
+        tries = req['tries'] or 0
         updates['task_id'] = task_id
+        updates['tries'] = tries + 1
         logger.info('Created task %i for repo request %r', task_id, req)
 
     # third pass -- apply updates
@@ -166,6 +177,7 @@ def check_repo_queue():
         if not updates:
             continue
         upd = UpdateProcessor('repo_queue', data=updates, clauses=['id = %(id)s'], values=req)
+        upd.rawset(update_time='NOW()')
         upd.execute()
 
 
