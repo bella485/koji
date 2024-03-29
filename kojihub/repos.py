@@ -793,6 +793,10 @@ class RepoExports:
 
     getExternalRepoData = staticmethod(get_external_repo_data)
 
+    def query(self, clauses, fields=None, opts=None):
+        query = RepoQuery(clauses, fields, opts)
+        return query.iterate()
+
     def setExternalRepoData(self, external_repo_id, data):
         """Update tracking data for an external repo"""
         context.session.assertPerm('repo')
