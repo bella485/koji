@@ -25,6 +25,7 @@ build/
 dist/
 #
 # misc
+*~
 *.swp
 .idea
 .vscode

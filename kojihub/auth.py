@@ -765,20 +765,30 @@ class Session(object):
                 "Kerberos principal's realm: %s is not allowed" % realm)
 
 
+def iter_user_groups(user_id):
+    t_group = koji.USERTYPES['GROUP']
+    query = QueryProcessor(tables=['user_groups'],
+                           columns=['group_id', 'name'],
+                           clauses=['active IS TRUE',
+                                    'user_id=%(user_id)i',
+                                    'users.usertype=%(t_group)i'],
+                           joins=['users ON group_id = users.id'],
+                           values={'t_group': t_group,
+                                   'user_id': user_id})
+
+    return query.iterate()
+
+
 def get_user_groups(user_id):
     """Get user groups
 
     returns a dictionary where the keys are the group ids and the values
     are the group names"""
-    t_group = koji.USERTYPES['GROUP']
-    query = QueryProcessor(tables=['user_groups'], columns=['group_id', 'name'],
-                           clauses=['active IS TRUE', 'users.usertype=%(t_group)i',
-                                    'user_id=%(user_id)i'],
-                           joins=['users ON group_id = users.id'],
-                           values={'t_group': t_group, 'user_id': user_id})
+
     groups = {}
-    for gdata in query.execute():
+    for gdata in iter_user_groups(user_id):
         groups[gdata['group_id']] = gdata['name']
+
     return groups
 
 

@@ -42,6 +42,8 @@ class TestGrouplist(unittest.TestCase):
 
         self.QueryProcessor = mock.patch('kojihub.kojihub.QueryProcessor',
                                          side_effect=self.getQuery).start()
+        self.AuthQueryProcessor = mock.patch('kojihub.auth.QueryProcessor',
+                                             side_effect=self.getQuery).start()
         self.queries = []
         self.InsertProcessor = mock.patch('kojihub.kojihub.InsertProcessor',
                                           side_effect=self.getInsert).start()
@@ -49,6 +51,8 @@ class TestGrouplist(unittest.TestCase):
         self.UpdateProcessor = mock.patch('kojihub.kojihub.UpdateProcessor',
                                           side_effect=self.getUpdate).start()
         self.updates = []
+
+        self.exports = kojihub.RootExports()
 
     def tearDown(self):
         mock.patch.stopall()
@@ -262,16 +266,7 @@ class TestGrouplist(unittest.TestCase):
     def test_get_group_members(self):
         group, gid = 'test_group', 1
 
-        # no permission
-        self.context.session.assertPerm.side_effect = koji.ActionNotAllowed
-        with self.assertRaises(koji.ActionNotAllowed):
-            kojihub.get_group_members(group)
-        self.context.session.assertPerm.assert_called_with('admin')
-        self.assertEqual(len(self.inserts), 0)
-        self.assertEqual(len(self.updates), 0)
-
         # non-existent group
-        self.context.session.assertPerm.side_effect = None
         self.get_user.return_value = None
         with self.assertRaises(koji.GenericError):
             kojihub.get_group_members(group)
@@ -282,7 +277,6 @@ class TestGrouplist(unittest.TestCase):
         def get_user1(username, strict=True):
             if username == group:
                 return {'id': gid, 'name': group, 'usertype': koji.USERTYPES['NORMAL']}
-        self.context.session.assertPerm.side_effect = None
         self.get_user.side_effect = get_user1
         with self.assertRaises(koji.GenericError):
             kojihub.get_group_members(group)
@@ -293,9 +287,38 @@ class TestGrouplist(unittest.TestCase):
         def get_user2(username, strict=True):
             if username == group:
                 return {'id': gid, 'name': group, 'usertype': koji.USERTYPES['GROUP']}
-        self.context.session.assertPerm.side_effect = None
         self.get_user.side_effect = get_user2
         kojihub.get_group_members(group)
+        self.assertEqual(len(self.queries), 1)
+        self.assertEqual(len(self.inserts), 0)
+        self.assertEqual(len(self.updates), 0)
+
+    def test_get_user_groups(self):
+        user, uid = 'test_user', 1
+
+        # non-existent user
+        self.get_user.return_value = None
+        with self.assertRaises(koji.GenericError):
+            self.exports.getUserGroups(user)
+        self.assertEqual(len(self.inserts), 0)
+        self.assertEqual(len(self.updates), 0)
+
+        # user is not a user
+        def get_user1(username, strict=True):
+            if username == user:
+                return {'id': uid, 'name': user, 'usertype': koji.USERTYPES['GROUP']}
+        self.get_user.side_effect = get_user1
+        with self.assertRaises(koji.GenericError):
+            self.exports.getUserGroups(user)
+        self.assertEqual(len(self.inserts), 0)
+        self.assertEqual(len(self.updates), 0)
+
+        # valid query
+        def get_user2(username, strict=True):
+            if username == user:
+                return {'id': uid, 'name': user, 'usertype': koji.USERTYPES['NORMAL']}
+        self.get_user.side_effect = get_user2
+        self.exports.getUserGroups(user)
         self.assertEqual(len(self.queries), 1)
         self.assertEqual(len(self.inserts), 0)
         self.assertEqual(len(self.updates), 0)

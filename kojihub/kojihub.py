@@ -76,7 +76,7 @@ from koji.util import (
     safer_move,
 )
 from . import scheduler
-from .auth import get_user_perms, get_user_groups
+from .auth import get_user_perms, get_user_groups, iter_user_groups
 from .db import (  # noqa: F401
     BulkInsertProcessor,
     DeleteProcessor,
@@ -9271,7 +9271,7 @@ def drop_group_member(group, user):
 
 def get_group_members(group):
     """Get the members of a group"""
-    context.session.assertPerm('admin')
+
     ginfo = get_user(group)
     if not ginfo or ginfo['usertype'] != koji.USERTYPES['GROUP']:
         raise koji.GenericError("No such group: %s" % group)
@@ -13116,6 +13116,12 @@ class RootExports(object):
     addGroupMember = staticmethod(add_group_member)
     dropGroupMember = staticmethod(drop_group_member)
     getGroupMembers = staticmethod(get_group_members)
+
+    def getUserGroups(self, user):
+        uinfo = get_user(user)
+        if not uinfo or uinfo['usertype'] != koji.USERTYPES['NORMAL']:
+            raise koji.GenericError("No such user: %s" % user)
+        return iter_user_groups(uinfo['id'])
 
     def listUsers(self, userType=koji.USERTYPES['NORMAL'], prefix=None, queryOpts=None, perm=None,
                   inherited_perm=False):
