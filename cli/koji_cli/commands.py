@@ -7335,25 +7335,7 @@ def anon_handle_wait_repo(options, session, args):
                 warn("nvr %s is not current in tag %s\n  latest build is %s" %
                      (expected_nvr, tag['name'], present_nvr))
 
-    # set up logger for RepoWatcher
-    logger = logging.getLogger("waitrepo")  # not under koji.*
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(message)s'))
-    handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    if options.debug:
-        logger.setLevel(logging.DEBUG)
-    elif suboptions.quiet:
-        logger.setLevel(logging.ERROR)
-    elif suboptions.verbose:
-        logger.setLevel(logging.INFO)
-    else:
-        logger.setLevel(logging.WARNING)
-
-    watcher = koji.util.RepoWatcher(session, tag['id'], nvrs=suboptions.builds, min_event=None,
-                                    logger=logger)
-    watcher.PAUSE = options.poll_interval
-    watcher.TIMEOUT = suboptions.timeout
+    watcher = _get_watcher(options, suboptions, session, tag['id'], nvrs=suboptions.builds, min_event=None)
 
     try:
         repoinfo = watcher.waitrepo(anon=anon)
@@ -7399,30 +7381,46 @@ def handle_wait_repo_request(goptions, session, args):
     req = check['request']
     tag_id = req['tag_id']
 
-    # set up a logger for RepoWatcher
-    logger = logging.getLogger("waitrepo")  # not under koji.*
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(message)s'))
-    handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    if goptions.debug:
-        logger.setLevel(logging.DEBUG)
-    elif options.quiet:
-        logger.setLevel(logging.ERROR)
-    elif options.verbose:
-        logger.setLevel(logging.INFO)
-    else:
-        logger.setLevel(logging.WARNING)
-
-    watcher = koji.util.RepoWatcher(session, tag_id, logger=logger)
-    watcher.PAUSE = goptions.poll_interval
-    watcher.TIMEOUT = options.timeout
+    watcher = _get_watcher(goptions, options, session, tag_id)
 
     try:
         repo = watcher.wait_request(req)
     except koji.GenericError as err:
         msg = 'Failed to get repo -- %s' % err
         error('' if options.quiet else msg)
+
+
+def _get_watcher(goptions, options, *a, **kw):
+    """Get RepoWatcher instance"""
+
+    def check_opt(key):
+        for opts in options, goptions:
+            val = getattr(opts, key, None)
+            if val is not None:
+                return val
+        return None
+
+    logger = logging.getLogger("waitrepo")  # not under koji.*
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    if check_opt('debug'):
+        logger.setLevel(logging.DEBUG)
+    elif check_opt('quiet'):
+        logger.setLevel(logging.ERROR)
+    elif check_opt('verbose'):
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARNING)
+
+    watcher = koji.util.RepoWatcher(*a, logger=logger, **kw)
+    watcher.PAUSE = goptions.poll_interval
+    timeout = check_opt('timeout')
+    if timeout is not None:
+        watcher.TIMEOUT = timeout
+
+    return watcher
 
 
 def handle_regen_repo(goptions, session, args):
@@ -7578,24 +7576,7 @@ def _request_repo(goptions, session, parser, options, args):
     if not tag['arches']:
         warn("Tag %s has an empty arch list" % tag['name'])
 
-    # set up a logger for RepoWatcher
-    logger = logging.getLogger("waitrepo")  # not under koji.*
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(message)s'))
-    handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    if goptions.debug:
-        logger.setLevel(logging.DEBUG)
-    elif options.quiet:
-        logger.setLevel(logging.ERROR)
-    elif options.verbose:
-        logger.setLevel(logging.INFO)
-    else:
-        logger.setLevel(logging.WARNING)
-
-    watcher = koji.util.RepoWatcher(session, tag['id'], logger=logger, **params)
-    watcher.PAUSE = goptions.poll_interval
-    watcher.TIMEOUT = options.timeout
+    watcher = _get_watcher(goptions, options, session, tag['id'], **params)
 
     # first make the request
     check = watcher.request()
