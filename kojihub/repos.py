@@ -703,6 +703,7 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
     # do we have a matching request already?
     clauses = [
         ['tag_id', '=', taginfo['id']],
+        ['active', 'IS', True],
         ['opts', '=', json.dumps(opts)],
     ]
     if at_event is not None:
@@ -713,6 +714,12 @@ def request_repo(tag, min_event=None, at_event=None, opts=None, force=False):
     for req in check:
         # if there is more than one, the oldest is most likely to be satisfied first
         # TODO update score/data/stats??
+        repo_id = req['repo_id']
+        if repo_id:
+            # make sure repo is still valid before we reuse
+            repo = RepoQuery([['id', '=', repo_id]]).executeOne()
+            if not valid_repo(req, repo):
+                continue
         ret['request'] = req
         ret['duplicate'] = True
         return ret
