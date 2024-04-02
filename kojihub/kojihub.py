@@ -2964,8 +2964,19 @@ def dist_repo_init(tag, keys, task_opts):
 
 
 def repo_set_state(repo_id, state, check=True):
-    """Set repo state"""
+    """Set repo state
+
+    :param int repo_id: repo id to change
+    :param int state: the repo state to change to (from koji.REPO_STATES)
+    :param bool check: deprecated
+    """
     repo_id = convert_value(repo_id, cast=int)
+    try:
+        name = koji.REPO_STATES[state]
+    except IndexError:
+        raise koji.ParameterError(f'Unknown repo state: {state}')
+
+    # we are always called with check=True
     if check:
         # sanity check the state transition
         query = QueryProcessor(
@@ -2973,7 +2984,6 @@ def repo_set_state(repo_id, state, check=True):
             values={'repo_id': repo_id}, opts={'rowlock': True})
         oldstate = query.singleValue()
         oldname = koji.REPO_STATES[oldstate]
-        name = koji.REPO_STATES[state]
         # for the most part states should progress upward
         if oldstate > state and state != koji.REPO_DELETED:
             raise koji.GenericError(f'Invalid repo state transition for repo {repo_id}: '
@@ -2985,11 +2995,13 @@ def repo_set_state(repo_id, state, check=True):
         elif oldstate == koji.REPO_DELETED:
             # DELETED is a terminal state
             raise koji.GenericError(f'Repo {repo_id} is deleted')
+
     update = UpdateProcessor('repo', clauses=['id=%(repo_id)s'],
                              values={'repo_id': repo_id},
                              data={'state': state},
                              rawdata={'state_time': 'NOW()'})
     update.execute()
+
     if state == koji.REPO_READY:
         repos.repo_done_hook(repo_id)
 
@@ -3043,6 +3055,8 @@ def repo_expire_older(tag_id, event_id, dist=None):
 
     If dist is not None, then only expire repos with the given dist value
     """
+    # this function is no longer used
+    logger.warning("repo_expire_older is deprecated")
     st_ready = koji.REPO_READY
     clauses = ['tag_id = %(tag_id)s',
                'create_event < %(event_id)s',
@@ -3060,6 +3074,7 @@ def repo_references(repo_id):
     fields = [
         ('buildroot_id', 'id'),
         ('host_id', 'host_id'),
+        ('task_id', 'task_id'),
         ('create_event', 'create_event'),
         ('state', 'state'),
     ]

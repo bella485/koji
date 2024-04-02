@@ -802,6 +802,13 @@ class RepoExports:
 
     getExternalRepoData = staticmethod(get_external_repo_data)
 
+    references = staticmethod(kojihub.repo_references)
+
+    def setState(repo_id, state):
+        """Set repo state"""
+        context.session.assertPerm('repo')
+        kojihub.repo_set_state(repo_id, state)
+
     def query(self, clauses, fields=None, opts=None):
         query = RepoQuery(clauses, fields, opts)
         return query.iterate()

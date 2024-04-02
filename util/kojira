@@ -41,32 +41,6 @@ import requests
 import koji
 from koji.util import deprecated, parseStatus, rmtree, to_list, dslice
 
-tag_cache = {}
-
-
-def prefillTagCache(session):
-    tags = session.listTags()
-    now = time.time()
-    for tag in tags:
-        tag_cache[(tag['id'], None)] = (now, tag)
-        tag_cache[(tag['name'], None)] = (now, tag)
-
-
-def getTag(session, tag, event=None):
-    """A caching version of the hub call"""
-    cache = tag_cache
-    now = time.time()
-    if (tag, event) in cache:
-        ts, info = cache[(tag, event)]
-        if now - ts < 600:
-            # use the cache
-            return info
-    info = session.getTag(tag, event=event)
-    if info:
-        cache[(info['id'], event)] = (now, info)
-        cache[(info['name'], event)] = (now, info)
-    return info
-
 
 class ManagedRepo(object):
 
@@ -74,20 +48,10 @@ class ManagedRepo(object):
         self.manager = manager
         self.options = manager.options
         self.logger = logging.getLogger("koji.repo")
-        self.current = True
         self.data = data
         self.id = self.repo_id = data['id']
-        self.event_id = data['create_event']
-        self.event_ts = data['create_ts']
         self.tag_id = data['tag_id']
-        self.state = data['state']
-        if 'dist' in data:
-            self._dist = data['dist']
-        self.tag_name = data['tag_name']
-        if koji.REPO_STATES[self.state] in ['EXPIRED', 'DELETED', 'PROBLEM']:
-            self.current = False
-            # TODO use hub data to find the actual expiration time
-        self.first_seen = time.time()
+        self.dist = data['dist']
 
     @property
     def session(self):
@@ -95,13 +59,12 @@ class ManagedRepo(object):
         return self.manager.session
 
     @property
-    def dist(self):
-        # TODO: remove this indirection once we can rely on the hub to return
-        # dist field in getActiveRepos
-        if hasattr(self, '_dist'):
-            return self._dist
-        rinfo = self.session.repoInfo(self.repo_id)
-        self._dist = rinfo['dist']
+    def state(self):
+        return self.data['state']
+
+    @state.setter
+    def state(self, value):
+        self.data['state'] = value
 
     def get_info(self):
         "Fetch data from repo.json"
@@ -117,14 +80,7 @@ class ManagedRepo(object):
 
     def get_path(self, volume=None):
         """Return the path to the repo directory"""
-        tag_info = getTag(self.session, self.tag_id)
-        if not tag_info:
-            tag_info = getTag(self.session, self.tag_id, self.event_id)
-        if not tag_info:
-            self.logger.warning('Could not get info for tag %i, referenced by repo %i' %
-                                (self.tag_id, self.repo_id))
-            return None
-        tag_name = tag_info['name']
+        tag_name = self.data['tag_name']
         if self.dist:
             path = pathinfo.distrepo(self.repo_id, tag_name, volume=volume)
         else:
@@ -148,20 +104,18 @@ class ManagedRepo(object):
             self.logger.info("Expiring repo %(id)s for tag %(tag_name)s", self.data)
         self.session.repoExpire(self.repo_id)
         self.state = koji.REPO_EXPIRED
-        self.data['state'] = koji.REPO_EXPIRED
 
     def mark_problem(self):
         """Flag a problem repo"""
         if self.state == koji.REPO_DELETED:
-            # XXX is this right?
+            # should not happen
             raise koji.GenericError("Repo is deleted")
         self.logger.error("Problem repo %s.." % self.repo_id)
         self.session.repoProblem(self.repo_id)
         self.state = koji.REPO_PROBLEM
-        self.data['state'] = koji.REPO_PROBLEM
 
-    def stale_check(self):
-        """Clean up stale repos"""
+    def check_init(self):
+        """Check on repos in init state"""
         if self.state != koji.REPO_INIT:
             return
 
@@ -170,6 +124,10 @@ class ManagedRepo(object):
         if age > self.options.init_timeout:
             self.logger.warning("Stale repo: %r", self.data)
             self.mark_problem()
+        elif self.data['task_state'] in [koji.TASK_STATES[n] for n in ('CANCELED', 'FAILED')]:
+            self.logger.warning("Repo task failed: %(task_id)s", self.data)
+            self.mark_problem()
+
 
     def dist_expire_check(self):
         """Check to see if a dist repo should be expired"""
@@ -225,7 +183,7 @@ class ManagedRepo(object):
                     logger.error("Can't stat repo directory: %s, %s" % (path, e.strerror))
                     return False
             else:
-                times = [self.event_ts, mtime]
+                times = [self.data['event_ts'], self.data['state_ts'], mtime]
                 times = [ts for ts in times if ts is not None]
                 age = time.time() - max(times)
                 logger.debug("Repo %s (%s) age: %i sec", self.repo_id, path, age)
@@ -240,7 +198,6 @@ class ManagedRepo(object):
             return False
         logger.info("Deleted repo %s" % self.repo_id)
         self.state = koji.REPO_DELETED
-        self.data['state'] = koji.REPO_DELETED
         if os.path.islink(path):
             # expected for repos on other volumes
             info = self.get_info()
@@ -284,13 +241,9 @@ class RepoManager(object):
         self._local = threading.local()
         self._local.session = session
         self.repos = {}
-        self.tasks = {}
-        self.other_tasks = {}
-        self.tag_use_stats = {}
         self.delete_pids = {}
         self.delete_queue = OrderedDict()
         self.logger = logging.getLogger("koji.repo.manager")
-        prefillTagCache(session)
 
     @property
     def session(self):
@@ -304,8 +257,6 @@ class RepoManager(object):
     def printState(self):
         self.logger.debug('Tracking %i repos, %i child processes',
                           len(self.repos), len(self.delete_pids))
-        for tag_id, task_id in self.tasks.items():
-            self.logger.debug("Tracking task %s for tag %s", task_id, tag_id)
         for pid in self.delete_pids:
             path = self.delete_pids[pid][0]
             self.logger.debug("Delete job %s: %r", pid, path)
@@ -362,21 +313,22 @@ class RepoManager(object):
 
     def readCurrentRepos(self):
         self.logger.debug("Reading current repo data")
-        repodata = self.session.getActiveRepos()
+        clauses = [['state', '!=', koji.REPO_DELETED]]
+        fields = ('id', 'tag_id', 'create_event', 'state', 'dist', 'task_id', 'tag_name',
+              'creation_ts', 'state_ts', 'end_event', 'opts', 'task_state')
+        repodata = self.session.repo.query(clauses, fields)
         self.logger.debug("Repo data: %r" % repodata)
-        self.logger.debug("Preloaded %d tags" % len(tag_cache.keys()))
 
         for data in repodata:
             repo_id = data['id']
             repo = self.repos.get(repo_id)
             if repo:
                 # we're already tracking it
-                repo.data = data
                 if repo.state != data['state']:
                     self.logger.info(
                         'State changed for repo %s: %s -> %s',
                         repo_id, koji.REPO_STATES[repo.state], koji.REPO_STATES[data['state']])
-                    repo.state = data['state']
+                repo.data = data
             else:
                 self.logger.info('Found repo %s, state=%s'
                                  % (repo_id, koji.REPO_STATES[data['state']]))
@@ -665,9 +617,11 @@ class RepoManager(object):
         self.readCurrentRepos()
 
         ready = {}
+        tag_names= {}
         for repo in to_list(self.repos.values()):
+            tag_names.setdefault(repo.tag_id, repo.data['tag_name'])
             if repo.state == koji.REPO_INIT:
-                repo.stale_check()
+                repo.check_init()
             elif repo.state == koji.REPO_READY:
                 if repo.dist:
                     repo.dist_expire_check()
@@ -683,15 +637,8 @@ class RepoManager(object):
         for tag_id in ready:
             repos = ready[tag_id]
 
-            # just expire if the tag is gone
-            taginfo = getTag(self.session, tag_id)
-            if not taginfo:
-                self.logger.info('Tag %d disappeared, expiring %i repos', tag_id, len(repos))
-                for repo in repos:
-                    repo.expire()
-                continue
-
-            self.logger.debug('Got %i ready repos for tag %s', len(repos), taginfo['name'])
+            tag_name = tag_names[tag_id]
+            self.logger.debug('Got %i ready repos for tag %s', len(repos), tag_name)
 
             # index by options
             by_opts = {}

@@ -29,8 +29,6 @@ class RepoManagerTest(unittest.TestCase):
         self.fork = mock.patch('os.fork').start()
         self.unlink = mock.patch('os.unlink').start()
         self.waitpid = mock.patch('os.waitpid', new=self.my_waitpid).start()
-        # use patch.object for getTag because of our strange import
-        self.getTag = mock.patch.object(kojira, 'getTag').start()
 
     def tearDown(self):
         mock.patch.stopall()
@@ -156,7 +154,7 @@ class RepoManagerTest(unittest.TestCase):
         repos = [dict(id=n, **data) for n in repo_ids]
 
         # pass 1
-        self.session.getActiveRepos.return_value = repos
+        self.session.repo.query.return_value = repos
         self.mgr.readCurrentRepos()
 
         self.assertEqual(set(self.mgr.repos), set([r['id'] for r in repos]))
@@ -202,7 +200,7 @@ class RepoManagerTest(unittest.TestCase):
         repos[2]['state'] = koji.REPO_EXPIRED
 
         # do the run
-        self.session.getActiveRepos.return_value = repos
+        self.session.repo.query.return_value = repos
         with mock.patch('time.time') as _time:
             _time.return_value = base_ts + 100  # shorter than all timeouts
             self.mgr.updateRepos()
