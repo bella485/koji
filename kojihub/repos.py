@@ -23,14 +23,15 @@ class RepoQuery(QueryView):
         'create_ev': 'events AS create_ev ON repo.create_event = create_ev.id',
         'begin_ev': 'LEFT JOIN events AS begin_ev ON repo.begin_event = begin_ev.id',
         'end_ev': 'LEFT JOIN events AS end_ev ON repo.end_event = end_ev.id',
+        'task': 'LEFT JOIN task ON repo.task_id = task.id',
     }
     fieldmap = {
         'id': ['repo.id', None],
         'tag_id': ['repo.tag_id', None],
         'creation_time': ['repo.creation_time', None],
         'creation_ts': ["date_part('epoch', repo.creation_time)", None],
-        'state_time': ['repo.creation_time', None],
-        'state_ts': ["date_part('epoch', repo.creation_time)", None],
+        'state_time': ['repo.state_time', None],
+        'state_ts': ["date_part('epoch', repo.state_time)", None],
         'create_event': ['repo.create_event', None],
         'create_ts': ["date_part('epoch', create_ev.time)", 'create_ev'],
         'begin_event': ['repo.begin_event', None],
@@ -42,6 +43,7 @@ class RepoQuery(QueryView):
         'opts': ['repo.opts', None],
         'custom_opts': ['repo.custom_opts', None],
         'task_id': ['repo.task_id', None],
+        'task_state': ['task.state', 'task'],
         'tag_name': ['tag.name', 'tag'],
     }
     default_fields = ('id', 'tag_id', 'create_event', 'state', 'dist', 'task_id', 'opts',
