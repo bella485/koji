@@ -794,6 +794,8 @@ def check_repo_request(req_id):
     return ret
 
 
+
+
 class RepoExports:
 
     request = staticmethod(request_repo)
@@ -802,7 +804,9 @@ class RepoExports:
 
     getExternalRepoData = staticmethod(get_external_repo_data)
 
-    references = staticmethod(kojihub.repo_references)
+    def references(repo_id):
+        """Return a list of buildroots that reference the repo"""
+        return kojihub.repo_references(repo_id)
 
     def setState(repo_id, state):
         """Set repo state"""
