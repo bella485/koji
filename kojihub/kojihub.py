@@ -2967,14 +2967,24 @@ def repo_set_state(repo_id, state, check=True):
     """Set repo state"""
     repo_id = convert_value(repo_id, cast=int)
     if check:
-        # The repo states are sequential, going backwards makes no sense
+        # sanity check the state transition
         query = QueryProcessor(
             tables=['repo'], columns=['state'], clauses=['id = %(repo_id)i'],
             values={'repo_id': repo_id}, opts={'rowlock': True})
         oldstate = query.singleValue()
-        if oldstate > state:
-            raise koji.GenericError("Invalid repo state transition %s->%s"
-                                    % (oldstate, state))
+        oldname = koji.REPO_STATES[oldstate]
+        name = koji.REPO_STATES[state]
+        # for the most part states should progress upward
+        if oldstate > state and state != koji.REPO_DELETED:
+            raise koji.GenericError(f'Invalid repo state transition for repo {repo_id}: '
+                                    f'{oldname} -> {name}')
+        elif oldstate == state:
+            # historically we have allowed this no-op
+            logger.warning(f'Repo {repo_id} is already in state {name}')
+            return
+        elif oldstate == koji.REPO_DELETED:
+            # DELETED is a terminal state
+            raise koji.GenericError(f'Repo {repo_id} is deleted')
     update = UpdateProcessor('repo', clauses=['id=%(repo_id)s'],
                              values={'repo_id': repo_id},
                              data={'state': state},
