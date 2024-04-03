@@ -169,14 +169,18 @@ class ManagedRepo(object):
         self.delete()
 
     def delete(self):
-        """Mark repo deleted and queue rmtree jow"""
+        """Mark repo deleted and initiate file removal
+
+        * remove volume symlinks immediately
+        * queue rmtree job for rest of files
+        """
 
         if self.state not in (koji.REPO_EXPIRED, koji.REPO_PROBLEM):
             # should not happen
             raise koji.GenericError("Repo cannot be deleted, state=%s", self.state)
 
         # mark deleted in the db
-        self.session.repo.setState(koji.REPO_DELETED)
+        self.session.repo.setState(self.repo_id, koji.REPO_DELETED)
         logger.info("Set repo %s state to deleted" % self.repo_id)
         self.state = koji.REPO_DELETED
 

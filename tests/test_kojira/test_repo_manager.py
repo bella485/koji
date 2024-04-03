@@ -177,8 +177,9 @@ class RepoManagerTest(unittest.TestCase):
         self.mgr.readCurrentRepos()
         self.assertEqual(set(self.mgr.repos), set([r['id'] for r in repos]))
 
-    @mock.patch.object(kojira.ManagedRepo, 'tryDelete')
-    def test_update_repos(self, tryDelete):
+    # using autospec so we can grab self from mock_calls
+    @mock.patch.object(kojira.ManagedRepo, 'delete_check', autospec=True)
+    def test_update_repos(self, delete_check):
         self.options.init_timeout = 3600
         self.options.repo_lifetime = 3600 * 24
         self.options.dist_repo_lifetime = 3600 * 24
@@ -217,8 +218,11 @@ class RepoManagerTest(unittest.TestCase):
         self.assertEqual(self.mgr.repos[repo_id].state, koji.REPO_PROBLEM)
         self.assertEqual(self.mgr.repos[repo_id].data['state'], koji.REPO_PROBLEM)
 
-        # we should have called tryDelete for the expired one
-        tryDelete.assert_called_once()
+        # only repo 2 should have been checked for deletiong
+        repo_id = repos[2]['id']
+        delete_check.assert_called_once()
+        mrepo = delete_check.mock_calls[0][1][0]  # self arg
+        self.assertEqual(mrepo.repo_id, repo_id)
 
     @mock.patch('requests.get')
     def test_check_external(self, get):
