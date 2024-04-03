@@ -142,7 +142,7 @@ class ManagedRepo(object):
         # correct state?
         if self.state != koji.REPO_EXPIRED:
             # shouldn't happen
-            logger.error('Repo %(id)s is not expired', self.data)
+            self.logger.error('Repo %(id)s is not expired', self.data)
             return
 
         # old enough?
@@ -160,7 +160,7 @@ class ManagedRepo(object):
             # this shouldn't happen normally, may indicate a stale build task
             self.logger.warning('Repo %s still has %i references' % (self.repo_id, len(refs)))
             if self.logger.isEnabledFor(logging.DEBUG):
-                for row in refs:
+                for ref in refs:
                     self.logger.debug('Ref: %r', ref)
             self.reference_ts = time.time()
             return
@@ -181,7 +181,7 @@ class ManagedRepo(object):
 
         # mark deleted in the db
         self.session.repo.setState(self.repo_id, koji.REPO_DELETED)
-        logger.info("Set repo %s state to deleted" % self.repo_id)
+        self.logger.info("Set repo %s state to deleted" % self.repo_id)
         self.state = koji.REPO_DELETED
 
         # deal with volume symlinks
@@ -190,27 +190,27 @@ class ManagedRepo(object):
             # expected for repos on other volumes
             info = self.get_info()
             if not os.path.exists(path):
-                logger.error('Repo volume link broken: %s', path)
+                self.logger.error('Repo volume link broken: %s', path)
                 return False
             if not info or 'volume' not in info:
-                logger.error('Missing or invalid repo.json in %s', path)
+                self.logger.error('Missing or invalid repo.json in %s', path)
                 return False
             realpath = self.get_path(volume=info['volume'])
             if not os.path.exists(realpath):
-                logger.error('Repo real path missing: %s', realpath)
+                self.logger.error('Repo real path missing: %s', realpath)
                 return False
             if self.options.ignore_other_volumes:
                 # don't delete from other volumes
-                logger.error('Repo on non-default volume %s', realpath)
+                self.logger.error('Repo on non-default volume %s', realpath)
                 return False
             if not os.path.samefile(path, realpath):
-                logger.error('Incorrect volume link: %s', path)
+                self.logger.error('Incorrect volume link: %s', path)
                 return False
             # ok, try to remove the symlink
             try:
                 os.unlink(path)
             except OSError:
-                logger.error('Unable to remove volume link: %s', path)
+                self.logger.error('Unable to remove volume link: %s', path)
         else:
             realpath = path
 

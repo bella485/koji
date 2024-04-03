@@ -29,6 +29,8 @@ class ManagedRepoTest(unittest.TestCase):
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
         self.mgr = mock.MagicMock()
+        self.mgr.options = self.options
+        self.mgr.session = self.session
         self.unlink = mock.patch('os.unlink').start()
         self.data = {
             'create_event': 497359,
@@ -70,3 +72,58 @@ class ManagedRepoTest(unittest.TestCase):
         repodir = self.kojidir + ('/repos/%(tag_name)s/%(id)s' % self.repo.data)
         self.assertEqual(path, repodir)
 
+    def test_delete_check(self):
+        self.options.expired_repo_lifetime = 3600 * 24
+        self.options.reference_recheck_period = 3600
+        base_ts = 444888888
+        now = base_ts + 100
+
+        self.repo.data['state'] = koji.REPO_EXPIRED
+        self.repo.data['state_ts'] = base_ts
+
+        with mock.patch('time.time') as _time:
+            _time.return_value = now
+            self.repo.delete_check()
+
+        # we should have stopped at the age check
+        self.session.repo.references.assert_not_called()
+        self.mgr.rmtree.assert_not_called()
+        path = self.repo.get_path()
+        if not os.path.exists(path):
+            raise Exception('Missing directory: %s' % path)
+
+        # try again with later time but also references
+        now += self.options.expired_repo_lifetime
+        self.session.repo.references.return_value = ['REF1', 'REF2']
+        with mock.patch('time.time') as _time:
+            _time.return_value = now
+            self.repo.delete_check()
+
+        self.mgr.rmtree.assert_not_called()
+        path = self.repo.get_path()
+        if not os.path.exists(path):
+            raise Exception('Missing directory: %s' % path)
+
+        self.session.reset_mock()
+
+        # no refs, but same time as last check
+        # (now unchanged)
+        self.session.repo.references.return_value = []
+        with mock.patch('time.time') as _time:
+            _time.return_value = now
+            self.repo.delete_check()
+
+        # we should have stopped at the recheck_period check
+        self.session.repo.references.assert_not_called()
+        self.mgr.rmtree.assert_not_called()
+
+        # finally, let's check again with no refs
+        now += self.options.reference_recheck_period
+        with mock.patch('time.time') as _time:
+            _time.return_value = now
+            self.repo.delete_check()
+
+        self.session.repo.setState.assert_called_once_with(self.repo.id, koji.REPO_DELETED)
+        self.mgr.rmtree.assert_called_once_with(path)
+
+# the end
