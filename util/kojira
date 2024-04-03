@@ -69,9 +69,6 @@ class ManagedRepo(object):
     def get_info(self):
         "Fetch data from repo.json"
         path = self.get_path()
-        if not path:
-            # can this be an error yet?
-            return None
         fn = '%s/repo.json' % path
         if not os.path.exists(fn):
             self.logger.warning('Repo info file missing: %s', fn)
@@ -141,63 +138,50 @@ class ManagedRepo(object):
 
     def delete_check(self):
         """Delete the repo if appropriate"""
+
+        # correct state?
         if self.state != koji.REPO_EXPIRED:
+            # shouldn't happen
+            logger.error('Repo %(id)s is not expired', self.data)
             return
-        self.tryDelete(self.logger)
-        # TODO refactor tryDelete
 
-    def handle_problem(self):
-        pass
-        # TODO
+        # old enough?
+        age = time.time() - self.data['state_ts']
+        if age < self.options.expired_repo_lifetime:
+            return
 
-    def tryDelete(self, logger):
-        """Remove the repo from disk, if possible"""
+        # reference check
+        last_check = getattr(self, 'reference_ts', None)
+        if last_check and time.time() - last_check < self.options.reference_recheck_period:
+            # we don't need to recheck every cycle
+            return
+        refs = self.session.repo.references(self.repo_id)
+        if refs:
+            # this shouldn't happen normally, may indicate a stale build task
+            self.logger.warning('Repo %s still has %i references' % (self.repo_id, len(refs)))
+            if self.logger.isEnabledFor(logging.DEBUG):
+                for row in refs:
+                    self.logger.debug('Ref: %r', ref)
+            self.reference_ts = time.time()
+            return
+
+        # ok, safe to delete
+        self.delete()
+
+    def delete(self):
+        """Mark repo deleted and queue rmtree jow"""
+
         if self.state not in (koji.REPO_EXPIRED, koji.REPO_PROBLEM):
             # should not happen
             raise koji.GenericError("Repo cannot be deleted, state=%s", self.state)
-        path = self.get_path()
-        if not path:
-            # get_path already warned
-            return False
 
-        # age check
-        if 'state_ts' in self.data:
-            lifetime = self.options.expired_repo_lifetime
-            age = time.time() - self.data['state_ts']
-            if age < lifetime:
-                return False
-        else:
-            # TODO drop this fallback once we can rely on new data
-            lifetime = self.options.repo_lifetime + self.options.expired_repo_lifetime
-            # without state_ts we're forced to check different age, so lifetime is different too
-            try:
-                # check dir age
-                mtime = os.stat(path).st_mtime
-            except OSError as e:
-                if e.errno == 2:
-                    # No such file or directory, so the repo either never existed,
-                    # or has already been deleted, so allow it to be marked deleted.
-                    logger.info("Repo directory does not exist: %s" % path)
-                    pass
-                else:
-                    logger.error("Can't stat repo directory: %s, %s" % (path, e.strerror))
-                    return False
-            else:
-                times = [self.data['event_ts'], self.data['state_ts'], mtime]
-                times = [ts for ts in times if ts is not None]
-                age = time.time() - max(times)
-                logger.debug("Repo %s (%s) age: %i sec", self.repo_id, path, age)
-                if age < lifetime:
-                    return False
-
-        # proceed to deletion
-        logger.debug("Attempting to delete repo %s.." % self.repo_id)
-        if self.session.repoDelete(self.repo_id) > 0:
-            # cannot delete, we are referenced by a buildroot
-            logger.debug("Cannot delete repo %s, still referenced" % self.repo_id)
-            return False
-        logger.info("Deleted repo %s" % self.repo_id)
+        # mark deleted in the db
+        self.session.repo.setState(koji.REPO_DELETED)
+        logger.info("Set repo %s state to deleted" % self.repo_id)
         self.state = koji.REPO_DELETED
+
+        # deal with volume symlinks
+        path = self.get_path()
         if os.path.islink(path):
             # expected for repos on other volumes
             info = self.get_info()
@@ -205,7 +189,7 @@ class ManagedRepo(object):
                 logger.error('Repo volume link broken: %s', path)
                 return False
             if not info or 'volume' not in info:
-                logger.error('Missing repo.json in %s', path)
+                logger.error('Missing or invalid repo.json in %s', path)
                 return False
             realpath = self.get_path(volume=info['volume'])
             if not os.path.exists(realpath):
@@ -226,9 +210,12 @@ class ManagedRepo(object):
         else:
             realpath = path
 
+        # queue the rmtree job
         self.manager.rmtree(realpath)
 
-        return True
+    def handle_problem(self):
+        pass
+        # TODO
 
     def is_expired(self):
         return self.state == koji.REPO_EXPIRED
