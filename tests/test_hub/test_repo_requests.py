@@ -135,6 +135,9 @@ class BaseTest(unittest.TestCase):
 
         self.assertEqual(result['repo'], 'MY-REPO')
         get_repo.assert_called_with(100, min_event=101010, at_event=None, opts={})
+        self.RepoQueueQuery.assert_not_called()
+        self.nextval.assert_not_called()
+        self.assertEqual(self.inserts, [])
 
     @mock.patch('kojihub.repos.get_repo')
     def test_request_existing_req(self, get_repo):
@@ -155,6 +158,35 @@ class BaseTest(unittest.TestCase):
                   ['min_event', '>=', 101010]]
         clauses = self.RepoQueueQuery.mock_calls[0][1][0]
         self.assertEqual(clauses, expect)
+        self.nextval.assert_not_called()
+        self.assertEqual(self.inserts, [])
+
+    @mock.patch('kojihub.repos.get_repo')
+    def test_request_new_req(self, get_repo):
+        # if a matching request exists, we should return it
+        self.get_tag.return_value = {'id': 100, 'name': 'TAG', 'extra': {}}
+        get_repo.return_value = None
+        self.RepoQueueQuery.return_value.execute.return_value = []
+        self.RepoQueueQuery.return_value.executeOne.return_value = 'NEW-REQ'
+        self.nextval.return_value = 'NEW-ID'
+
+        result = repos.request_repo('TAG', min_event=101010)
+
+        get_repo.assert_called_with(100, min_event=101010, at_event=None, opts={})
+        self.assertEqual(len(self.inserts), 1)
+        expect = {
+            'id': 'NEW-ID',
+            'tag_id': 100,
+            'at_event': None,
+            'min_event': 101010,
+            'opts': '{}',
+        }
+        self.assertEqual(self.inserts[0].data, expect)
+        self.assertEqual(self.RepoQueueQuery.call_count, 2)
+        # clauses for final query
+        clauses = self.RepoQueueQuery.call_args[1]['clauses']
+        self.assertEqual(clauses, [['id', '=', 'NEW-ID']])
+        self.assertEqual(result['request'], 'NEW-REQ')
 
     def test_check_req(self):
         repos.check_repo_request(99)
