@@ -68,6 +68,7 @@ class BaseTest(unittest.TestCase):
         self.query_executeOne = mock.MagicMock()
 
         self.RepoQueueQuery = mock.patch('kojihub.repos.RepoQueueQuery').start()
+        self.RepoQuery = mock.patch('kojihub.repos.RepoQuery').start()
         self.nextval = mock.patch('kojihub.repos.nextval').start()
 
     def tearDown(self):
@@ -182,6 +183,51 @@ class BaseTest(unittest.TestCase):
             'opts': '{}',
         }
         self.assertEqual(self.inserts[0].data, expect)
+        self.assertEqual(self.RepoQueueQuery.call_count, 2)
+        # clauses for final query
+        clauses = self.RepoQueueQuery.call_args[1]['clauses']
+        self.assertEqual(clauses, [['id', '=', 'NEW-ID']])
+        self.assertEqual(result['request'], 'NEW-REQ')
+
+    @mock.patch('kojihub.repos.valid_repo')
+    @mock.patch('kojihub.repos.get_repo')
+    def test_request_existing_req_invalid(self, get_repo, valid_repo):
+        # a matching request exists, but has an invalid repo
+        self.get_tag.return_value = {'id': 100, 'name': 'TAG', 'extra': {}}
+        get_repo.return_value = None
+        req = {'repo_id': 'BAD-REPO-ID', 'sentinel': 'hello'}
+        self.RepoQueueQuery.return_value.execute.return_value = [req]
+        self.RepoQueueQuery.return_value.executeOne.return_value = 'NEW-REQ'
+        self.RepoQuery.return_value.executeOne.return_value = 'BAD-REPO'
+        valid_repo.return_value = False
+        self.nextval.return_value = 'NEW-ID'
+
+        result = repos.request_repo('TAG', min_event=101010)
+
+        # we should have checked for existing repo
+        get_repo.assert_called_with(100, min_event=101010, at_event=None, opts={})
+        # we should have checked for matching request
+        self.assertEqual(self.RepoQueueQuery.call_count, 2)
+        expect = [['tag_id', '=', 100],
+                  ['active', 'IS', True],
+                  ['opts', '=', '{}'],
+                  ['min_event', '>=', 101010]]
+        clauses = self.RepoQueueQuery.mock_calls[0][1][0]
+        self.assertEqual(clauses, expect)
+        # we should have checked the validity of the repo from the matching request
+        valid_repo.assert_called_once_with(req, 'BAD-REPO')
+        # we should have continued on to make a new request
+        self.nextval.assert_called_once()
+        self.assertEqual(len(self.inserts), 1)
+        expect = {
+            'id': 'NEW-ID',
+            'tag_id': 100,
+            'at_event': None,
+            'min_event': 101010,
+            'opts': '{}',
+        }
+        self.assertEqual(self.inserts[0].data, expect)
+        # checking the final query that is used to report the repo info
         self.assertEqual(self.RepoQueueQuery.call_count, 2)
         # clauses for final query
         clauses = self.RepoQueueQuery.call_args[1]['clauses']
