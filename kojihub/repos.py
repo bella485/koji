@@ -545,8 +545,11 @@ def get_repo(tag, min_event=None, at_event=None, opts=None):
         ['tag_id', '=', tag_id],
         ['dist', 'IS', False],
         ['state', '=', koji.REPO_READY],
+        # note the slightly esoteric containment operator for the opts conditions
         ['opts', '@>', json.dumps(opts)],
         ['custom_opts', '<@', json.dumps(opts)],
+        # I.e. you'll get all the options you asked for, but you won't get any
+        # custom options you didn't ask for
     ]
     # TODO: should we expand usage to include dist?
     if at_event is not None:

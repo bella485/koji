@@ -24,7 +24,11 @@ class BaseTest(unittest.TestCase):
         self.context = mock.MagicMock()
         self.context.session.assertLogin = mock.MagicMock()
         self.getLastEvent = mock.MagicMock()
-        self.context.handlers = {'getLastEvent': self.getLastEvent}
+        self.getEvent = mock.MagicMock()
+        self.context.handlers = {
+            'getLastEvent': self.getLastEvent,
+            'getEvent': self.getEvent,
+        }
         mock.patch('kojihub.repos.context', new=self.context).start()
         mock.patch('kojihub.db.context', new=self.context).start()
         mock.patch('kojihub.kojihub.context', new=self.context).start()
@@ -120,6 +124,17 @@ class BaseTest(unittest.TestCase):
         self.getLastEvent.return_value = {'id': 101010}
         self.tag_last_change_event.return_value = 100000
         repos.request_repo('TAGID')
+
+    @mock.patch('kojihub.repos.get_repo')
+    def test_request_existing_repo(self, get_repo):
+        # if a matching repo exists, we should return it
+        get_repo.return_value = 'MY-REPO'
+        self.get_tag.return_value = {'id': 100, 'name': 'TAG', 'extra': {}}
+
+        result = repos.request_repo('TAGID', min_event=101010)
+
+        self.assertEqual(result['repo'], 'MY-REPO')
+        get_repo.assert_called_with(100, min_event=101010, at_event=None, opts={})
 
     def test_check_req(self):
         repos.check_repo_request(99)
