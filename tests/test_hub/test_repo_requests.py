@@ -136,5 +136,25 @@ class BaseTest(unittest.TestCase):
         self.assertEqual(result['repo'], 'MY-REPO')
         get_repo.assert_called_with(100, min_event=101010, at_event=None, opts={})
 
+    @mock.patch('kojihub.repos.get_repo')
+    def test_request_existing_req(self, get_repo):
+        # if a matching request exists, we should return it
+        self.get_tag.return_value = {'id': 100, 'name': 'TAG', 'extra': {}}
+        get_repo.return_value = None
+        req = {'repo_id': None, 'sentinel': 'hello'}
+        self.RepoQueueQuery.return_value.execute.return_value = [req]
+
+        result = repos.request_repo('TAG', min_event=101010)
+
+        self.assertEqual(result['request'], req)
+        get_repo.assert_called_with(100, min_event=101010, at_event=None, opts={})
+        self.RepoQueueQuery.assert_called_once()
+        expect = [['tag_id', '=', 100],
+                  ['active', 'IS', True],
+                  ['opts', '=', '{}'],
+                  ['min_event', '>=', 101010]]
+        clauses = self.RepoQueueQuery.mock_calls[0][1][0]
+        self.assertEqual(clauses, expect)
+
     def test_check_req(self):
         repos.check_repo_request(99)
