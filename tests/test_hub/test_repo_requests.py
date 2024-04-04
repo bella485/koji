@@ -22,6 +22,9 @@ class BaseTest(unittest.TestCase):
 
     def setUp(self):
         self.context = mock.MagicMock()
+        self.context.session.assertLogin = mock.MagicMock()
+        self.getLastEvent = mock.MagicMock()
+        self.context.handlers = {'getLastEvent': self.getLastEvent}
         mock.patch('kojihub.repos.context', new=self.context).start()
         mock.patch('kojihub.db.context', new=self.context).start()
         mock.patch('kojihub.kojihub.context', new=self.context).start()
@@ -57,9 +60,11 @@ class BaseTest(unittest.TestCase):
         self.get_tag = mock.patch('kojihub.kojihub.get_tag').start()
         self.get_id = mock.patch('kojihub.kojihub.get_id').start()
         self.make_task = mock.patch('kojihub.kojihub.make_task').start()
+        self.tag_last_change_event = mock.patch('kojihub.kojihub.tag_last_change_event').start()
         self.query_executeOne = mock.MagicMock()
 
         self.RepoQueueQuery = mock.patch('kojihub.repos.RepoQueueQuery').start()
+        self.nextval = mock.patch('kojihub.repos.nextval').start()
 
     def tearDown(self):
         mock.patch.stopall()
@@ -100,3 +105,21 @@ class BaseTest(unittest.TestCase):
         req = {'id': 100, 'tag_id': 42, 'min_event': None, 'at_event': None, 'opts': None}
         req['opts'] = {}
         repos.repo_queue_task(req)
+
+    def test_hook(self):
+        repos.repo_done_hook(100)
+
+    def test_auto_req(self):
+        repos.do_auto_requests()
+
+    def test_get_repo(self):
+        repos.get_repo('TAGID')
+
+    def test_request(self):
+        self.get_tag.return_value = {'id': 100, 'name': 'TAG', 'extra': {}}
+        self.getLastEvent.return_value = {'id': 101010}
+        self.tag_last_change_event.return_value = 100000
+        repos.request_repo('TAGID')
+
+    def test_check_req(self):
+        repos.check_repo_request(99)
