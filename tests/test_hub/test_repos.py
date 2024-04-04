@@ -18,10 +18,10 @@ RQ = kojihub.repos.RepoQuery
 class TestRepoFunctions(unittest.TestCase):
 
     def setUp(self):
-        self.RepoQuery = mock.patch('kojihub.kojihub.repos.RepoQuery',
+        self.RepoQuery = mock.patch('kojihub.repos.RepoQuery',
                                     side_effect=self.getQuery).start()
         self.queries = []
-        self.InsertProcessor = mock.patch('kojihub.kojihub.InsertProcessor',
+        self.InsertProcessor = mock.patch('kojihub.InsertProcessor',
                                           side_effect=self.getInsert).start()
         self.inserts = []
         self.UpdateProcessor = mock.patch('kojihub.kojihub.UpdateProcessor',
@@ -29,8 +29,8 @@ class TestRepoFunctions(unittest.TestCase):
         self.updates = []
         self._dml = mock.patch('kojihub.kojihub._dml').start()
         self.exports = kojihub.RootExports()
-        self.get_tag = mock.patch('kojihub.get_tag').start()
-        self.get_tag_id = mock.patch('kojihub.get_tag_id').start()
+        self.get_tag = mock.patch('kojihub.kojihub.get_tag').start()
+        self.get_tag_id = mock.patch('kojihub.kojihub.get_tag_id').start()
         self.query_executeOne = mock.MagicMock()
         self.context = mock.patch('kojihub.db.context').start()
 

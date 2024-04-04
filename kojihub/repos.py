@@ -5,7 +5,7 @@ import os.path
 import time
 
 import koji
-import kojihub
+from . import kojihub
 
 from koji.context import context
 from kojihub.db import (QueryView, UpdateProcessor, BulkUpdateProcessor, InsertProcessor, nextval,
