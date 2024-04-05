@@ -206,14 +206,19 @@ def clean_repo_queue():
 
 
 def valid_repo(req, repo):
+    # right tag
     if repo['tag_id'] != req['tag_id']:
         logger.error('Request %i got repo %i with wrong tag: got %s, expected %s',
                      req['id'], repo['id'], repo['tag_id'], req['tag_id'])
         return False
+
+    # right state
     if repo['state'] != koji.REPO_STATES['READY']:
         logger.error('Request %i got repo %i with wrong state: got %s',
                      req['id'], repo['id'], repo['state'])
         return False
+
+    # matching event
     if req['at_event'] is not None:
         if repo['create_event'] != req['at_event']:
             logger.error('Request %i got repo %i at wrong event: %s != %s',
@@ -223,20 +228,26 @@ def valid_repo(req, repo):
         logger.error('Request %i got repo %i before min_event: %s < %s',
                      req['id'], repo['id'], repo['create_event'], req['min_event'])
         return False
-    if req['opts'] is None:
-        if repo['custom_opts']:
-            logger.error('Requested repo has unexpected custom opts: %r %r', req, repo)
-    else:
+
+    # matching opts
+    if not repo['opts']:
+        # should not happen
+        logger.error('Requested repo has no opts: %r %r', req, repo)
+        return False
+    for key in req['opts']:
         # all request options should have applied
-        for key in req['opts']:
-            if req['opts'][key] != repo.get('opts', {})[key]:
-                logger.error('Requested repo has wrong opts: %r %r', req, repo)
-                return False
+        if key not in repo['opts']:
+            # should not happen
+            logger.error('Requested repo has missing opts: %r %r', req, repo)
+            return False
+        if req['opts'][key] != repo['opts'][key]:
+            logger.error('Requested repo has wrong opts: %r %r', req, repo)
+            return False
+    for key in repo.get('custom_opts', {}):
         # any custom options should come from request
-        for key in repo.get('custom_opts', {}):
-            if key not in req['opts'] or repo['custom_opts'][key] != req['opts'][key]:
-                logger.error('Requested repo has wrong opts: %r %r', req, repo)
-                return False
+        if key not in req['opts'] or repo['custom_opts'][key] != req['opts'][key]:
+            logger.error('Requested repo has wrong opts: %r %r', req, repo)
+            return False
 
     return True
 
