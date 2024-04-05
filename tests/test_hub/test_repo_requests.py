@@ -102,9 +102,65 @@ class BaseTest(unittest.TestCase):
         repos.clean_repo_queue()
 
     def test_valid_repo(self):
-        req = mock.MagicMock()
-        repo = mock.MagicMock()
-        repos.valid_repo(req, repo)
+        # match
+        req = {'id': 101,
+               'at_event': None,
+               'min_event': 101010,
+               'opts': {},
+               'tag_id': 42,
+               'tag_name': 'TAG'}
+        repo = {'id': 999,
+                'tag_id': 42,
+                'begin_event': 497440,
+                'create_event': 101020,
+                'custom_opts': {},
+                'dist': False,
+                'opts': {'debuginfo': False, 'separate_src': False, 'src': False},
+                'state': 1}
+        check = repos.valid_repo(req, repo)
+        self.assertTrue(check)
+
+        # wrong tag
+        bad = repo.copy()
+        bad['tag_id'] = 99
+        check = repos.valid_repo(req, bad)
+        self.assertFalse(check)
+
+        # wrong state
+        bad = repo.copy()
+        bad['state'] = 2
+        check = repos.valid_repo(req, bad)
+        self.assertFalse(check)
+
+        # wrong event
+        bad = repo.copy()
+        bad['create_event'] = 101000
+        check = repos.valid_repo(req, bad)
+        self.assertFalse(check)
+
+        # wrong at_event
+        req2 = req.copy()
+        req2.update(min_event=None, at_event=10000)
+        bad = repo.copy()
+        bad['create_event'] = 101000
+        check = repos.valid_repo(req2, bad)
+        self.assertFalse(check)
+
+        # wrong opts
+        bad = repo.copy()
+        bad['opts'] = {'debuginfo': True, 'separate_src': False, 'src': False}
+        bad['custom_opts'] = {'debuginfo': True}
+        check = repos.valid_repo(req, bad)
+        self.assertFalse(check)
+
+        # wrong custom opts
+        req2 = req.copy()
+        req2.update(opts={'src':True})
+        bad = repo.copy()
+        bad['opts'] = {'debuginfo': True, 'separate_src': False, 'src': False}
+        bad['custom_opts'] = {'debuginfo': True}
+        check = repos.valid_repo(req2, bad)
+        self.assertFalse(check)
 
     def test_queue_task(self):
         req = {'id': 100, 'tag_id': 42, 'min_event': None, 'at_event': None, 'opts': None}

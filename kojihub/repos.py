@@ -234,7 +234,7 @@ def valid_repo(req, repo):
                 return False
         # any custom options should come from request
         for key in repo.get('custom_opts', {}):
-            if repo['custom_opts'][key] != req['opts'][key]:
+            if key not in req['opts'] or repo['custom_opts'][key] != req['opts'][key]:
                 logger.error('Requested repo has wrong opts: %r %r', req, repo)
                 return False
 
