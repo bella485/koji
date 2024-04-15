@@ -20,6 +20,9 @@ class TestGetTagExternalRepos(DBQueryTestCase):
         self.build_tag_info = {'id': 111, 'name': self.build_tag}
         self.repo_info = {'id': 123, 'name': self.repo}
 
+    def tearDown(self):
+        mock.patch.stopall()
+
     def test_valid(self):
         self.get_tag_id.return_value = self.build_tag_info['id']
         self.get_tag.return_value = self.build_tag_info
