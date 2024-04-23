@@ -68,7 +68,7 @@ def tasksRepoNotifications(task_id, data):
     if context.opts.get('DisableNotifications'):
         return
     email_domain = context.opts['EmailDomain']
-    email = f'{data['owner']}@{email_domain}'
+    email = f"{data['owner']}@{email_domain}"
 
     data['task_id'] = task_id
     kojihub.make_task('tasksRepoNotifications', [email, data])

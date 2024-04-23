@@ -33,7 +33,7 @@ def read_config():
 
     # expire repos in days
     if cp.has_option('taskrepos', 'expire_repos'):
-        config['repo_lifetime'] = cp.get('taskrepos', 'expire_repos')
+        config['repo_lifetime'] = cp.getint('taskrepos', 'expire_repos')
 
     if cp.has_option('taskrepos', 'ticketlink'):
         config['ticketlink'] = cp.get('taskrepos', 'ticketlink')
@@ -68,35 +68,18 @@ class TaskReposTask(koji.tasks.BaseTaskHandler):
             self.logger.debug(proc.stderr.decode())
         proc.check_returncode()
 
-    def check_mergerepo_c(self):
-        cmd = ['/usr/bin/mergerepo_c', '--version']
-        try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-            out, _ = proc.communicate()
-            status = proc.wait()
-            if status != 0:
-                self.logger.warning("Unable to detect mergerepo_c version")
-                return False
-        except Exception:
-            self.logger.warning("Unable to detect mergerepo_c version")
-            return False
-        return True
-
     def merge_arch_repo(self, arch, repodir, srcdir):
         archdir = joinpath(repodir, arch)
         self.logger.debug('Creating %s repo under %s' % (arch, archdir))
         koji.ensuredir(archdir)
-        if self.check_mergerepo_c:
-            cmd = [
-                '/usr/bin/mergerepo_c',
-                '--koji',
-                '--database',
-                '--outputdir=%s' % archdir,
-                '--archlist=%s,noarch,src' % arch,
-                '--compress-type=gz',
-            ]
-        else:
-            raise koji.GenericError("mergerepo_c is not installed")
+        cmd = [
+            '/usr/bin/mergerepo_c',
+            '--koji',
+            '--database',
+            '--outputdir=%s' % archdir,
+            '--archlist=%s,noarch,src' % arch,
+            '--compress-type=gz',
+        ]
         for srcrepo in os.listdir(srcdir):
             cmd.append('--repo=%s' % srcrepo)
         self.logger.debug('Running: %s' " ".join(cmd))
