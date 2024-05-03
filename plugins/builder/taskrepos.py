@@ -6,6 +6,7 @@ import os
 import six
 import smtplib
 import subprocess
+import time
 
 import koji
 import koji.tasks
@@ -50,15 +51,16 @@ class TaskReposTask(koji.tasks.BaseTaskHandler):
     Methods = ['taskrepos']
     _taskWeight = 2.0
 
-    def gen_repodata(self, rpmdir, baseurl):
+    def gen_repodata(self, rpmdir):
         koji.ensuredir(rpmdir)
         cmd = [
             '/usr/bin/createrepo_c',
             '--database',
-            '--baseurl=%s' % baseurl,
+            '--outputdir=%s' % rpmdir,
             '--checksum=sha256',
             '--general-compress-type=gz',
-            rpmdir,
+            '--pkglist=pkglist',
+            self.options.topdir,
         ]
         self.logger.debug('Running: %s' % " ".join(cmd))
 
@@ -99,6 +101,43 @@ class TaskReposTask(koji.tasks.BaseTaskHandler):
             arches.add(rpm['arch'])
         return arches
 
+    def create_pkg_list(self, rpms, repodir, build=None):
+        remote_pi = koji.PathInfo(topdir=self.options.topdir)
+        dest_dirs = []
+        pkglist = []
+        for rpm in rpms:
+            if build:
+                # rpm is a dict of rpminfo
+                url = remote_pi.build(build) + '/' + remote_pi.rpm(rpm)
+                dest = joinpath(repodir, rpm['arch'])
+            else:
+                # rpm is a relative path under the work/ directory
+                taskdir, rpmname = rpm.split('/')[-2:]
+                url = joinpath(remote_pi.work(), rpm).replace(self.options.topdir, '', 1)
+                rpminfo = self.session.getRPM(rpmname)
+                count = 0
+                while rpminfo is None and count != 20:
+                    time.sleep(2)
+                    rpminfo = self.session.getRPM(rpmname)
+                    count += 1
+                if rpminfo['arch'] != 'src':
+                    dest = joinpath(repodir, rpminfo['arch'])
+                else:
+                    continue
+            if dest not in dest_dirs:
+                dest_dirs.append(dest)
+            pkglist.append(url)
+        for dest_dir in dest_dirs:
+            os.makedirs(dest_dir, exist_ok=True)
+            os.symlink(koji.pathinfo.topdir, joinpath(dest_dir, 'toplink'))
+            with open(joinpath(dest_dir, 'pkglist'), 'w') as dd:
+                for pkg in pkglist:
+                    dd.write(pkg)
+            with open(joinpath(dest_dir, 'pkglist'), 'r') as dd:
+                for line in dd:
+                    self.logger.info('PkgLINE %s' % line)
+        return dest_dirs
+
     def create_repos(self, taskinfo):
         builds = self.session.listBuilds(taskID=taskinfo['id'])
         build = None
@@ -124,13 +163,9 @@ class TaskReposTask(koji.tasks.BaseTaskHandler):
 
         koji.ensuredir(repodir)
 
-        pi = koji.PathInfo(self.options.topurl)
+        self.create_pkg_list(rpms, repodir, build=build)
         for arch in self.build_arches(rpms):
-            if build:
-                baseurl = pi.build(build) + '/' + arch
-            else:
-                baseurl = pi.task(int(taskinfo['id']))
-            self.gen_repodata(joinpath(repodir, arch), baseurl)
+            self.gen_repodata(joinpath(repodir, arch))
         for arch in self.build_arches(rpms):
             self.merge_arch_repo(arch, repodir, repodir)
         return repodir, repodir_nvr, nvr, repotype
