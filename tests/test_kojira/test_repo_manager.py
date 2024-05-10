@@ -22,8 +22,9 @@ class RepoManagerTest(unittest.TestCase):
         self.session = mock.MagicMock()
         self.options = mock.MagicMock()
         self.mgr = kojira.RepoManager(self.options, self.session)
-        self._rmtree = mock.MagicMock()
-        self.mgr._rmtree = self._rmtree
+        self.rmtree = mock.patch('koji.util.rmtree').start()
+        # also mock in kojira namespace
+        mock.patch.object(kojira, 'rmtree', new=self.rmtree).start()
         self.workdir = tempfile.mkdtemp()
         self.kill = mock.patch('os.kill').start()
         self.fork = mock.patch('os.fork').start()
@@ -116,7 +117,9 @@ class RepoManagerTest(unittest.TestCase):
         dirs = [self.workdir + '/dir_%02i' % n for n in nums]
         for d in dirs:
             self.mgr.rmtree(d)
-        self._rmtree.side_effect = nums  # fake pids match dir number
+        check = mock.MagicMock()
+        self.rmtree.side_effect = [(n, check) for n in nums]
+        # fake pids match dir number
         self.assertEqual(list(self.mgr.delete_queue), dirs)
 
         # first pass
